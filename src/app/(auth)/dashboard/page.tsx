@@ -23,7 +23,7 @@ import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { accessToken } = useAuth();
-  const { structure } = useDrive(accessToken);
+  const { structure, isLoading: isDriveLoading } = useDrive(accessToken);
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAdd, setShowAdd] = useState(false);
 
@@ -49,7 +49,7 @@ export default function DashboardPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isDriveLoading || isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         {/* Summary Cards */}

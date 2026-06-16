@@ -20,7 +20,7 @@ import { Category } from "@/types";
 
 export default function TransactionsPage() {
   const { accessToken } = useAuth();
-  const { structure } = useDrive(accessToken);
+  const { structure, isLoading: isDriveLoading } = useDrive(accessToken);
   const [month, setMonth] = useState(getCurrentMonth());
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
@@ -43,7 +43,7 @@ export default function TransactionsPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isDriveLoading || isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
         {/* Filters */}

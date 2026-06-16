@@ -12,7 +12,7 @@ export function useTransactions(
   structure: DriveStructure | null
 ) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!accessToken);
   const [error, setError] = useState<string | null>(null);
 
   const loadTransactions = useCallback(async () => {

@@ -3,7 +3,7 @@ import { DriveStructure, ensureDriveStructure } from "@/lib/google/folders";
 
 export function useDrive(accessToken: string | undefined) {
   const [structure, setStructure] = useState<DriveStructure | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!accessToken);
   const [error, setError] = useState<string | null>(null);
 
   const initialize = useCallback(async () => {
