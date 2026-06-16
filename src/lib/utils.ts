@@ -15,19 +15,39 @@ export function formatDate(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function getMonthKey(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+export function getMonthKey(date: Date | string, paydayOfMonth = 1): string {
+  const d = typeof date === "string" ? new Date(date + "T00:00:00") : date;
+  if (paydayOfMonth <= 1) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+  if (d.getDate() >= paydayOfMonth) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function getMonthLabel(monthKey: string): string {
-  const [year, month] = monthKey.split("-");
-  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-  return date.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+export function getPeriodBounds(monthKey: string, paydayOfMonth = 1): { start: Date; end: Date } {
+  const [year, month] = monthKey.split("-").map(Number);
+  const start = new Date(year, month - 1, paydayOfMonth);
+  const end = new Date(year, month, paydayOfMonth);
+  end.setMilliseconds(-1);
+  return { start, end };
 }
 
-export function getCurrentMonth(): string {
-  return getMonthKey(new Date());
+export function getMonthLabel(monthKey: string, paydayOfMonth = 1): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  if (paydayOfMonth <= 1) {
+    return new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+  const start = new Date(year, month - 1, paydayOfMonth);
+  const end = new Date(year, month, paydayOfMonth - 1);
+  const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+export function getCurrentMonth(paydayOfMonth = 1): string {
+  return getMonthKey(new Date(), paydayOfMonth);
 }
 
 export function generateId(str: string): string {

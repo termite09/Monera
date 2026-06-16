@@ -19,12 +19,13 @@ export default function SettingsPage() {
   const { structure } = useDrive(accessToken);
   const [month, setMonth] = useState(getCurrentMonth());
   const { transactions } = useTransactions(accessToken, structure);
-  const { settings, budgetRule, updateSettings } = useBudget(accessToken, structure, transactions, month);
+  const { settings, paydayOfMonth, budgetRule, updateSettings } = useBudget(accessToken, structure, transactions, month);
 
   const [income, setIncome] = useState("");
   const [needs, setNeeds] = useState("");
   const [wants, setWants] = useState("");
   const [saving, setSaving] = useState("");
+  const [payday, setPayday] = useState("1");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -34,12 +35,15 @@ export default function SettingsPage() {
     setNeeds(String(budgetRule.needs));
     setWants(String(budgetRule.wants));
     setSaving(String(budgetRule.savings));
+    setPayday(String(settings.paydayOfMonth ?? 1));
   }, [settings, month, budgetRule]);
 
   const handleSave = async () => {
     setIsSaving(true);
+    const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
     const updated = {
       ...settings,
+      paydayOfMonth: paydayNum,
       monthlyBudgets: {
         ...settings.monthlyBudgets,
         [month]: {
@@ -60,16 +64,42 @@ export default function SettingsPage() {
   };
 
   const total = (parseFloat(needs) || 0) + (parseFloat(wants) || 0) + (parseFloat(saving) || 0);
+  const paydayNum = parseInt(payday) || 1;
+  const ordinal = paydayNum === 1 ? "st" : paydayNum === 2 ? "nd" : paydayNum === 3 ? "rd" : "th";
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Budget Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Configure your monthly budget for {month}</p>
+          <p className="text-sm text-muted-foreground mt-1">Configure your monthly budget</p>
         </div>
+
+        <Card className="shadow-none border-border">
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Pay Cycle
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
+            <Label htmlFor="payday">Payday (day of month)</Label>
+            <Input
+              id="payday"
+              type="number"
+              min={1}
+              max={28}
+              value={payday}
+              onChange={(e) => setPayday(e.target.value)}
+              placeholder="e.g. 24"
+              className="h-11"
+            />
+            <p className="text-xs text-muted-foreground">
+              Budget period starts on the {paydayNum}{ordinal} of each month. Capped at 28 to handle shorter months.
+            </p>
+          </CardContent>
+        </Card>
 
         <Card className="shadow-none border-border">
           <CardHeader className="pb-3 pt-4 px-4">

@@ -24,6 +24,7 @@ export const SOURCE_COLORS = {
 
 export const DEFAULT_SETTINGS = {
   currency: "€",
+  paydayOfMonth: 1,
   defaultBudgetRule: { needs: 30, wants: 60, savings: 10 },
   monthlyBudgets: {},
 };

@@ -2,16 +2,17 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MONTH_NAMES } from "@/config/constants";
+import { getMonthLabel } from "@/lib/utils";
 
 interface HeaderProps {
   month: string;
   onMonthChange: (month: string) => void;
+  paydayOfMonth?: number;
 }
 
-export function Header({ month, onMonthChange }: HeaderProps) {
+export function Header({ month, onMonthChange, paydayOfMonth = 1 }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
-  const monthLabel = `${MONTH_NAMES[monthNum - 1]} ${year}`;
+  const monthLabel = getMonthLabel(month, paydayOfMonth);
 
   const prevMonth = () => {
     const d = new Date(year, monthNum - 2, 1);
@@ -33,7 +34,7 @@ export function Header({ month, onMonthChange }: HeaderProps) {
         <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground">
           <ChevronLeft size={16} />
         </Button>
-        <span className="text-sm font-medium text-foreground min-w-[130px] text-center tabular-nums">
+        <span className="text-sm font-medium text-foreground min-w-[140px] text-center">
           {monthLabel}
         </span>
         <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground">

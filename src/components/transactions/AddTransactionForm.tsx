@@ -17,9 +17,10 @@ import { getMonthKey } from "@/lib/utils";
 interface AddTransactionFormProps {
   onSubmit: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
   onCancel: () => void;
+  paydayOfMonth?: number;
 }
 
-export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormProps) {
+export function AddTransactionForm({ onSubmit, onCancel, paydayOfMonth = 1 }: AddTransactionFormProps) {
   const today = new Date().toISOString().split("T")[0];
   const [date, setDate] = useState(today);
   const [description, setDescription] = useState("");
@@ -41,7 +42,7 @@ export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormPro
         currency: "EUR",
         category,
         notes: notes || undefined,
-        month: getMonthKey(date),
+        month: getMonthKey(date, paydayOfMonth),
       });
     } finally {
       setLoading(false);

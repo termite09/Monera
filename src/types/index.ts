@@ -29,6 +29,7 @@ export interface MonthlyBudget {
 
 export interface Settings {
   currency: string;
+  paydayOfMonth: number;
   defaultBudgetRule: { needs: number; wants: number; savings: number };
   monthlyBudgets: Record<string, MonthlyBudget>;
 }

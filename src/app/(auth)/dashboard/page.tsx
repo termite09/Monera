@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDrive } from "@/hooks/useDrive";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useBudget } from "@/hooks/useBudget";
-import { getCurrentMonth } from "@/lib/utils";
+import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { accessToken } = useAuth();
@@ -28,9 +28,17 @@ export default function DashboardPage() {
   const [showAdd, setShowAdd] = useState(false);
 
   const { transactions, isLoading, addManualTransaction } = useTransactions(accessToken, structure);
-  const { summary, budgetAllocations } = useBudget(accessToken, structure, transactions, month);
+  const { summary, budgetAllocations, paydayOfMonth } = useBudget(accessToken, structure, transactions, month);
 
-  const monthTxs = transactions.filter((t) => t.month === month);
+  useEffect(() => {
+    setMonth(getCurrentMonth(paydayOfMonth));
+  }, [paydayOfMonth]);
+
+  const { start, end } = getPeriodBounds(month, paydayOfMonth);
+  const monthTxs = transactions.filter((t) => {
+    const d = new Date(t.date + "T00:00:00");
+    return d >= start && d <= end;
+  });
 
   const summaryCards = [
     { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400" },
@@ -41,7 +49,7 @@ export default function DashboardPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         {/* Summary Cards */}
@@ -111,6 +119,7 @@ export default function DashboardPage() {
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
+          paydayOfMonth={paydayOfMonth}
           onSubmit={async (tx) => {
             await addManualTransaction(tx);
             setShowAdd(false);

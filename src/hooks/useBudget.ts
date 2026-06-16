@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Settings, MonthSummary, Transaction } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { DEFAULT_SETTINGS } from "@/config/constants";
+import { getPeriodBounds } from "@/lib/utils";
 
 export function useBudget(
   accessToken: string | undefined,
@@ -30,8 +31,14 @@ export function useBudget(
     load();
   }, [accessToken, structure]);
 
-  const monthTxs = transactions.filter((tx) => tx.month === month && tx.type === "expense");
-  const monthIncomeTxs = transactions.filter((tx) => tx.month === month && tx.type === "income");
+  const paydayOfMonth = settings.paydayOfMonth ?? 1;
+  const { start, end } = getPeriodBounds(month, paydayOfMonth);
+  const inPeriod = (tx: Transaction) => {
+    const d = new Date(tx.date + "T00:00:00");
+    return d >= start && d <= end;
+  };
+  const monthTxs = transactions.filter((tx) => inPeriod(tx) && tx.type === "expense");
+  const monthIncomeTxs = transactions.filter((tx) => inPeriod(tx) && tx.type === "income");
 
   const monthBudget = settings.monthlyBudgets[month];
   const budgetRule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
@@ -64,6 +71,7 @@ export function useBudget(
 
   return {
     settings,
+    paydayOfMonth,
     summary,
     budgetAllocations,
     budgetRule,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Search } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -14,7 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useDrive } from "@/hooks/useDrive";
 import { useTransactions } from "@/hooks/useTransactions";
-import { getCurrentMonth } from "@/lib/utils";
+import { useBudget } from "@/hooks/useBudget";
+import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
 import { Category } from "@/types";
 
 export default function TransactionsPage() {
@@ -26,17 +27,23 @@ export default function TransactionsPage() {
   const [showAdd, setShowAdd] = useState(false);
 
   const { transactions, isLoading, addManualTransaction, updateCategory } = useTransactions(accessToken, structure);
+  const { paydayOfMonth } = useBudget(accessToken, structure, transactions, month);
+
+  useEffect(() => {
+    setMonth(getCurrentMonth(paydayOfMonth));
+  }, [paydayOfMonth]);
 
   const filtered = useMemo(() => {
+    const { start, end } = getPeriodBounds(month, paydayOfMonth);
     return transactions
-      .filter((t) => t.month === month)
+      .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
       .filter((t) => filterCat === "All" || t.category === filterCat)
       .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()));
-  }, [transactions, month, filterCat, search]);
+  }, [transactions, month, filterCat, search, paydayOfMonth]);
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
         {/* Filters */}
@@ -104,6 +111,7 @@ export default function TransactionsPage() {
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
+          paydayOfMonth={paydayOfMonth}
           onSubmit={async (tx) => {
             await addManualTransaction(tx);
             setShowAdd(false);
