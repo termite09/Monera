@@ -1,4 +1,5 @@
 import { DriveFile } from "@/types";
+import { getCached, setCached, invalidateCache } from "@/lib/cache";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
@@ -64,12 +65,17 @@ export async function createFolder(
 }
 
 export async function readFile(accessToken: string, fileId: string): Promise<string> {
+  const cached = getCached<string>(`file:${fileId}`);
+  if (cached !== null) return cached;
+
   const res = await driveRequest(
     `${DRIVE_API}/files/${fileId}?alt=media`,
     accessToken
   );
   if (!res.ok) throw new Error(`Drive readFile failed: ${res.statusText}`);
-  return res.text();
+  const content = await res.text();
+  setCached(`file:${fileId}`, content);
+  return content;
 }
 
 export async function writeFile(
@@ -87,6 +93,7 @@ export async function writeFile(
     }
   );
   if (!res.ok) throw new Error(`Drive writeFile failed: ${res.statusText}`);
+  invalidateCache(`file:${fileId}`);
 }
 
 export async function createFile(
