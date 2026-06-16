@@ -2,47 +2,53 @@
 
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0F0F0F] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
         className="w-full max-w-sm"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#1E3A5F] dark:text-blue-400 mb-2">
+        {/* Brand */}
+        <div className="mb-12 text-center">
+          <h1 className="text-5xl text-foreground tracking-tight mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
             Monera
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            Your personal finance companion
+          <p className="text-sm text-muted-foreground tracking-wide uppercase">
+            Personal Finance
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-[#2D2D2D] p-6 space-y-4">
-          <div className="space-y-1 text-center">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-              Sign in to continue
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Your data lives in your own Google Drive
+        {/* Divider */}
+        <div className="h-px bg-border mb-8" />
+
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium text-foreground">Sign in to continue</p>
+            <p className="text-xs text-muted-foreground">
+              Your data lives in your own Google Drive — we store nothing.
             </p>
           </div>
 
-          <Button onClick={() => signIn("google")} fullWidth size="lg">
-            <svg viewBox="0 0 24 24" width="18" height="18">
-              <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-              <path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+          <Button
+            onClick={() => signIn("google")}
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            size="lg"
+          >
+            <svg viewBox="0 0 24 24" className="size-4 mr-2" aria-hidden>
+              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
             Continue with Google
           </Button>
 
-          <p className="text-xs text-center text-gray-400">
+          <p className="text-xs text-center text-muted-foreground">
             Only accesses files it creates in your Drive
           </p>
         </div>

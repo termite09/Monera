@@ -4,13 +4,13 @@ import { useState, useMemo } from "react";
 import { Plus, Search } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
 import { Modal } from "@/components/ui/Modal";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useDrive } from "@/hooks/useDrive";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -38,22 +38,22 @@ export default function TransactionsPage() {
     <PageShell>
       <Header month={month} onMonthChange={setMonth} />
 
-      <div className="p-4 max-w-2xl mx-auto space-y-4">
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
         {/* Filters */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search transactions..."
-              className="w-full h-11 pl-9 pr-3 rounded-lg border border-gray-200 dark:border-[#2D2D2D] bg-white dark:bg-[#1A1A1A] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+              className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <select
             value={filterCat}
             onChange={(e) => setFilterCat(e.target.value as Category | "All")}
-            className="h-11 px-3 rounded-lg border border-gray-200 dark:border-[#2D2D2D] bg-white dark:bg-[#1A1A1A] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="All">All</option>
             <option value="Needs">Needs</option>
@@ -64,38 +64,39 @@ export default function TransactionsPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">{filtered.length} transactions</p>
-          {/* Desktop add button — FAB handles mobile */}
+          <p className="text-sm text-muted-foreground">{filtered.length} transactions</p>
           <Button onClick={() => setShowAdd(true)} size="sm" className="hidden md:inline-flex">
-            <Plus size={14} />
+            <Plus size={14} className="mr-1" />
             Add
           </Button>
         </div>
 
         {/* Transaction list */}
-        <Card padding="sm">
-          {isLoading ? (
-            <div className="space-y-3 p-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-gray-400 text-sm">No transactions found</p>
-              <p className="text-gray-300 dark:text-gray-600 text-xs mt-1">Try adjusting your filters</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {filtered.map((tx) => (
-                <TransactionRow
-                  key={tx.id}
-                  transaction={tx}
-                  onCategoryChange={updateCategory}
-                />
-              ))}
-            </div>
-          )}
+        <Card className="shadow-none border-border">
+          <CardContent className="p-3">
+            {isLoading ? (
+              <div className="flex flex-col gap-3 p-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground text-sm">No transactions found</p>
+                <p className="text-muted-foreground/50 text-xs mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {filtered.map((tx) => (
+                  <TransactionRow
+                    key={tx.id}
+                    transaction={tx}
+                    onCategoryChange={updateCategory}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
 
