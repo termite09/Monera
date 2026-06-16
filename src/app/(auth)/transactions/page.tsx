@@ -32,6 +32,7 @@ export default function TransactionsPage() {
   const filtered = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
     return transactions
+      .filter((t) => t.type === "expense")
       .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
       .filter((t) => filterCat === "All" || t.category === filterCat)
       .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()));
