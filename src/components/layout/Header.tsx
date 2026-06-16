@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getMonthLabel } from "@/lib/utils";
 
@@ -8,9 +9,10 @@ interface HeaderProps {
   month: string;
   onMonthChange: (month: string) => void;
   paydayOfMonth?: number;
+  isLoading?: boolean;
 }
 
-export function Header({ month, onMonthChange, paydayOfMonth = 1 }: HeaderProps) {
+export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
   const monthLabel = getMonthLabel(month, paydayOfMonth);
 
@@ -26,6 +28,20 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1 }: HeaderProps)
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border px-4 h-14 flex items-center justify-between">
+      {/* Top loading bar */}
+      <AnimatePresence>
+        {isLoading && (
+          <div className="absolute top-0 inset-x-0 h-0.5 overflow-hidden">
+            <motion.div
+              className="h-full bg-primary"
+              initial={{ x: "-100%" }}
+              animate={{ x: "100%" }}
+              transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
       <span className="text-sm font-semibold text-foreground md:hidden" style={{ fontFamily: "'DM Serif Display', serif" }}>
         Monera
       </span>

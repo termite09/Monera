@@ -49,7 +49,7 @@ export default function DashboardPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         {/* Summary Cards */}

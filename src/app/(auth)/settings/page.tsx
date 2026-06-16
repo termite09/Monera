@@ -74,7 +74,7 @@ export default function SettingsPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       {isLoading && (
         <div className="sticky top-14 z-10 w-full bg-background/95 backdrop-blur-sm px-4 py-2 border-b border-border">
