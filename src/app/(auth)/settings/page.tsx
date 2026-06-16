@@ -146,6 +146,7 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
   const [needs, setNeeds] = useState(String(settings.defaultBudgetRule.needs));
   const [wants, setWants] = useState(String(settings.defaultBudgetRule.wants));
   const [saving, setSaving] = useState(String(settings.defaultBudgetRule.savings));
+  const [salaryKeywords, setSalaryKeywords] = useState((settings.salaryKeywords ?? []).join(", "));
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -154,14 +155,17 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
     setNeeds(String(settings.defaultBudgetRule.needs));
     setWants(String(settings.defaultBudgetRule.wants));
     setSaving(String(settings.defaultBudgetRule.savings));
+    setSalaryKeywords((settings.salaryKeywords ?? []).join(", "));
   }, [settings]);
 
   const handleSave = async () => {
     setIsSaving(true);
     const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
+    const keywords = salaryKeywords.split(",").map((k) => k.trim()).filter(Boolean);
     await updateSettings({
       ...settings,
       paydayOfMonth: paydayNum,
+      salaryKeywords: keywords,
       defaultBudgetRule: {
         needs: parseFloat(needs) || 0,
         wants: parseFloat(wants) || 0,
@@ -193,6 +197,25 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
           <Input id="payday" type="number" min={1} max={28} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11" />
           <p className="text-xs text-muted-foreground">
             Period starts on the {paydayNum}{ordinal}. Capped at 28 for shorter months.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-border">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Salary Detection</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
+          <Label htmlFor="salary-keywords">Salary keywords</Label>
+          <Input
+            id="salary-keywords"
+            value={salaryKeywords}
+            onChange={(e) => setSalaryKeywords(e.target.value)}
+            placeholder="e.g. employer name, PAYROLL"
+            className="h-11"
+          />
+          <p className="text-xs text-muted-foreground">
+            Comma-separated. Income transactions whose description contains any of these words are shown as Salary on the dashboard. Everything else is shown as Transfers & other.
           </p>
         </CardContent>
       </Card>

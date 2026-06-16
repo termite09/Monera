@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
-import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
+import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { transactions, settings, isLoading, addManualTransaction } = useAppData();
@@ -36,8 +36,17 @@ export default function DashboardPage() {
     return d >= start && d <= end;
   });
 
+  const salaryKeywords = settings.salaryKeywords ?? [];
+  const monthIncomeTxs = monthTxs.filter((t) => t.type === "income");
+  const salaryTxs = monthIncomeTxs.filter((t) =>
+    salaryKeywords.length > 0 &&
+    salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
+  );
+  const otherIncomeTxs = monthIncomeTxs.filter((t) => !salaryTxs.includes(t));
+  const salaryTotal = salaryTxs.reduce((s, t) => s + t.amount, 0);
+  const otherIncomeTotal = otherIncomeTxs.reduce((s, t) => s + t.amount, 0);
+
   const summaryCards = [
-    { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400" },
     { label: "Expenses", amount: summary.totalExpenses, icon: "↓", colorClass: "text-foreground" },
     { label: "Remaining", amount: summary.remaining, icon: "=", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive" },
     { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary" },
@@ -48,9 +57,47 @@ export default function DashboardPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
-        <div className="grid grid-cols-2 gap-3">
+        {/* Income card — full width with salary/other split */}
+        {isLoading ? (
+          <div className="bg-card rounded-xl border border-border p-4">
+            <Skeleton className="h-3 w-16 mb-3" />
+            <Skeleton className="h-7 w-24 mb-2" />
+          </div>
+        ) : (
+          <Card className="shadow-none border-border col-span-2">
+            <CardContent className="p-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Income</p>
+                <p className="text-2xl font-medium tabular-nums text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "'DM Mono', monospace" }}>
+                  {formatCurrency(summary.income)}
+                </p>
+              </div>
+              {salaryKeywords.length > 0 && (
+                <div className="flex flex-col gap-1 items-end text-right mt-1">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Salary</p>
+                    <p className="text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "'DM Mono', monospace" }}>
+                      {formatCurrency(salaryTotal)}
+                    </p>
+                  </div>
+                  {otherIncomeTotal > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Transfers & other</p>
+                      <p className="text-sm font-medium tabular-nums text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                        {formatCurrency(otherIncomeTotal)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Other summary cards */}
+        <div className="grid grid-cols-3 gap-3">
           {isLoading
-            ? Array.from({ length: 4 }).map((_, i) => (
+            ? Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="bg-card rounded-xl border border-border p-4">
                   <Skeleton className="h-3 w-16 mb-3" />
                   <Skeleton className="h-7 w-24 mb-2" />

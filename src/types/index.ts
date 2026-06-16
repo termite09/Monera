@@ -32,6 +32,7 @@ export interface Settings {
   paydayOfMonth: number;
   defaultBudgetRule: { needs: number; wants: number; savings: number };
   monthlyBudgets: Record<string, MonthlyBudget>;
+  salaryKeywords: string[];
 }
 
 export interface CategoryRule {
