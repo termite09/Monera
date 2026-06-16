@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { useDrive } from "@/hooks/useDrive";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -19,7 +20,7 @@ export default function SettingsPage() {
   const { structure } = useDrive(accessToken);
   const [month, setMonth] = useState(getCurrentMonth());
   const { transactions } = useTransactions(accessToken, structure);
-  const { settings, paydayOfMonth, budgetRule, updateSettings } = useBudget(accessToken, structure, transactions, month);
+  const { settings, paydayOfMonth, budgetRule, updateSettings, isLoading } = useBudget(accessToken, structure, transactions, month);
 
   const [income, setIncome] = useState("");
   const [needs, setNeeds] = useState("");
@@ -74,6 +75,12 @@ export default function SettingsPage() {
   return (
     <PageShell>
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} />
+
+      {isLoading && (
+        <div className="sticky top-14 z-10 w-full bg-background/95 backdrop-blur-sm px-4 py-2 border-b border-border">
+          <Progress value={65} className="h-1" />
+        </div>
+      )}
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         <div>
