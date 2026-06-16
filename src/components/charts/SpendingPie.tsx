@@ -45,7 +45,7 @@ export function SpendingPie({ transactions }: SpendingPieProps) {
           ))}
         </Pie>
         <Tooltip
-          formatter={(value: number) => formatCurrency(value)}
+          formatter={(value) => formatCurrency(value as number)}
           contentStyle={{
             background: "var(--card-bg, #fff)",
             border: "1px solid #e5e7eb",

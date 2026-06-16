@@ -37,7 +37,7 @@ export function DailyTrend({ transactions, month }: DailyTrendProps) {
         <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={45} />
         <Tooltip
-          formatter={(v: number) => [formatCurrency(v), "Spent"]}
+          formatter={(v) => [formatCurrency(v as number), "Spent"]}
           contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
         />
         <Line type="monotone" dataKey="amount" stroke="#1E3A5F" strokeWidth={2} dot={false} animationDuration={600} />

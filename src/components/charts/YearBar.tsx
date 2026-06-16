@@ -29,7 +29,7 @@ export function YearBar({ transactions, year }: YearBarProps) {
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={45} />
         <Tooltip
-          formatter={(v: number) => formatCurrency(v)}
+          formatter={(v) => formatCurrency(v as number)}
           contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
         />
         <Bar dataKey="needs" stackId="a" fill="#1E3A5F" name="Needs" radius={[0, 0, 0, 0]} animationDuration={600} />

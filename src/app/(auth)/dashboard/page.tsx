@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDrive } from "@/hooks/useDrive";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useBudget } from "@/hooks/useBudget";
-import { getCurrentMonth, formatCurrency } from "@/lib/utils";
+import { getCurrentMonth } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { accessToken } = useAuth();
@@ -36,10 +36,6 @@ export default function DashboardPage() {
     { label: "Remaining", amount: summary.remaining, icon: "🏦", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600" },
     { label: "Savings", amount: summary.savings, icon: "📈", colorClass: "text-blue-600 dark:text-blue-400" },
   ];
-
-  // Suppress unused variable warning
-  void formatCurrency;
-  void updateCategory;
 
   return (
     <PageShell>
