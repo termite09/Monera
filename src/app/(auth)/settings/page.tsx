@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,46 +8,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
-import { getCurrentMonth } from "@/lib/utils";
+import { getCurrentMonth, getMonthLabel } from "@/lib/utils";
 
-export default function SettingsPage() {
-  const { transactions, settings, isLoading, updateSettings } = useAppData();
-  const [month, setMonth] = useState(getCurrentMonth());
-  const { paydayOfMonth, budgetRule } = useBudget(transactions, settings, month);
+function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
+  month: string;
+  settings: ReturnType<typeof useAppData>["settings"];
+  paydayOfMonth: number;
+  updateSettings: ReturnType<typeof useAppData>["updateSettings"];
+}) {
+  const hasCustom = !!settings.monthlyBudgets[month];
+  const monthBudget = settings.monthlyBudgets[month];
+  const rule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
 
-  const [income, setIncome] = useState("");
-  const [needs, setNeeds] = useState("");
-  const [wants, setWants] = useState("");
-  const [saving, setSaving] = useState("");
-  const [payday, setPayday] = useState("1");
+  const [income, setIncome] = useState(String(monthBudget?.income ?? ""));
+  const [needs, setNeeds] = useState(String(rule.needs));
+  const [wants, setWants] = useState(String(rule.wants));
+  const [saving, setSaving] = useState(String(rule.savings));
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const initializedMonth = useRef<string | null>(null);
 
+  // Reload form when month or settings change externally
   useEffect(() => {
-    setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
-
-  useEffect(() => {
-    if (initializedMonth.current === month) return;
-    const monthBudget = settings.monthlyBudgets[month];
-    setIncome(String(monthBudget?.income ?? ""));
-    const rule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
-    setNeeds(String(rule.needs));
-    setWants(String(rule.wants));
-    setSaving(String(rule.savings));
-    setPayday(String(settings.paydayOfMonth ?? 1));
-    initializedMonth.current = month;
+    const mb = settings.monthlyBudgets[month];
+    const r = mb?.budgetRule ?? settings.defaultBudgetRule;
+    setIncome(String(mb?.income ?? ""));
+    setNeeds(String(r.needs));
+    setWants(String(r.wants));
+    setSaving(String(r.savings));
   }, [month, settings]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
     await updateSettings({
       ...settings,
-      paydayOfMonth: paydayNum,
       monthlyBudgets: {
         ...settings.monthlyBudgets,
         [month]: {
@@ -66,72 +62,202 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleCopyDefaults = () => {
+    const r = settings.defaultBudgetRule;
+    setNeeds(String(r.needs));
+    setWants(String(r.wants));
+    setSaving(String(r.savings));
+  };
+
   const total = (parseFloat(needs) || 0) + (parseFloat(wants) || 0) + (parseFloat(saving) || 0);
+  const label = getMonthLabel(month, paydayOfMonth);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Budget Settings</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+        </div>
+        {hasCustom ? (
+          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300 dark:border-emerald-800">Custom</Badge>
+        ) : (
+          <Badge variant="outline" className="text-xs text-muted-foreground">Using defaults</Badge>
+        )}
+      </div>
+
+      <Card className="shadow-none border-border">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Income</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
+          <Label htmlFor="income">Income (€)</Label>
+          <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11" />
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-border">
+        <CardHeader className="pb-3 pt-4 px-4 flex-row items-center justify-between">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget Split (%)</CardTitle>
+          {!hasCustom && (
+            <button onClick={handleCopyDefaults} className="text-xs text-primary hover:underline">
+              Copy defaults
+            </button>
+          )}
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="needs">Needs %</Label>
+            <Input id="needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="30" className="h-11" />
+          </div>
+          <Separator />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="wants">Wants %</Label>
+            <Input id="wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="60" className="h-11" />
+          </div>
+          <Separator />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="savings-pct">Savings %</Label>
+            <Input id="savings-pct" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="10" className="h-11" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Total: <span className={total !== 100 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
+            {total !== 100 && <span className="ml-1">— should equal 100%</span>}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSave} disabled={isSaving} className="w-full bg-primary text-primary-foreground">
+        {saved ? "✓ Saved" : isSaving ? "Saving..." : `Save for ${label}`}
+      </Button>
+    </div>
+  );
+}
+
+function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
+  settings: ReturnType<typeof useAppData>["settings"];
+  paydayOfMonth: number;
+  updateSettings: ReturnType<typeof useAppData>["updateSettings"];
+}) {
+  const [payday, setPayday] = useState(String(settings.paydayOfMonth ?? 1));
+  const [needs, setNeeds] = useState(String(settings.defaultBudgetRule.needs));
+  const [wants, setWants] = useState(String(settings.defaultBudgetRule.wants));
+  const [saving, setSaving] = useState(String(settings.defaultBudgetRule.savings));
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setPayday(String(settings.paydayOfMonth ?? 1));
+    setNeeds(String(settings.defaultBudgetRule.needs));
+    setWants(String(settings.defaultBudgetRule.wants));
+    setSaving(String(settings.defaultBudgetRule.savings));
+  }, [settings]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
+    await updateSettings({
+      ...settings,
+      paydayOfMonth: paydayNum,
+      defaultBudgetRule: {
+        needs: parseFloat(needs) || 0,
+        wants: parseFloat(wants) || 0,
+        savings: parseFloat(saving) || 0,
+      },
+    });
+    setIsSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
   const paydayNum = parseInt(payday) || 1;
   const ordinal = paydayNum === 1 ? "st" : paydayNum === 2 ? "nd" : paydayNum === 3 ? "rd" : "th";
+  const total = (parseFloat(needs) || 0) + (parseFloat(wants) || 0) + (parseFloat(saving) || 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Global Defaults</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Applied to months without custom settings</p>
+      </div>
+
+      <Card className="shadow-none border-border">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pay Cycle</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
+          <Label htmlFor="payday">Payday (day of month)</Label>
+          <Input id="payday" type="number" min={1} max={28} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11" />
+          <p className="text-xs text-muted-foreground">
+            Period starts on the {paydayNum}{ordinal}. Capped at 28 for shorter months.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-border">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Default Budget Split (%)</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="d-needs">Needs %</Label>
+            <Input id="d-needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="30" className="h-11" />
+          </div>
+          <Separator />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="d-wants">Wants %</Label>
+            <Input id="d-wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="60" className="h-11" />
+          </div>
+          <Separator />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="d-savings">Savings %</Label>
+            <Input id="d-savings" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="10" className="h-11" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Total: <span className={total !== 100 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
+            {total !== 100 && <span className="ml-1">— should equal 100%</span>}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSave} disabled={isSaving} className="w-full bg-primary text-primary-foreground">
+        {saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Defaults"}
+      </Button>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const { transactions, settings, isLoading, updateSettings } = useAppData();
+  const [month, setMonth] = useState(getCurrentMonth());
+  const { paydayOfMonth } = useBudget(transactions, settings, month);
+
+  useEffect(() => {
+    setMonth(getCurrentMonth(paydayOfMonth));
+  }, [paydayOfMonth]);
 
   return (
     <PageShell>
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
-      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Budget Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Configure your monthly budget</p>
-        </div>
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5">
+        {/* Per-month settings */}
+        <MonthForm
+          key={month}
+          month={month}
+          settings={settings}
+          paydayOfMonth={paydayOfMonth}
+          updateSettings={updateSettings}
+        />
 
-        <Card className="shadow-none border-border">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pay Cycle</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-            <Label htmlFor="payday">Payday (day of month)</Label>
-            <Input id="payday" type="number" min={1} max={28} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11" />
-            <p className="text-xs text-muted-foreground">
-              Budget period starts on the {paydayNum}{ordinal} of each month. Capped at 28 to handle shorter months.
-            </p>
-          </CardContent>
-        </Card>
+        <Separator />
 
-        <Card className="shadow-none border-border">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Income</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-            <Label htmlFor="income">Income (€)</Label>
-            <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11" />
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none border-border">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget Rule (%)</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="needs">Needs %</Label>
-              <Input id="needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="30" className="h-11" />
-            </div>
-            <Separator />
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="wants">Wants %</Label>
-              <Input id="wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="60" className="h-11" />
-            </div>
-            <Separator />
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="savings-pct">Savings %</Label>
-              <Input id="savings-pct" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="10" className="h-11" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Total: <span className={total !== 100 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
-              {total !== 100 && <span className="ml-1">— should equal 100%</span>}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Button onClick={handleSave} disabled={isSaving} className="w-full bg-primary text-primary-foreground">
-          {saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Settings"}
-        </Button>
+        {/* Global defaults */}
+        <GlobalForm
+          settings={settings}
+          paydayOfMonth={paydayOfMonth}
+          updateSettings={updateSettings}
+        />
       </div>
     </PageShell>
   );
