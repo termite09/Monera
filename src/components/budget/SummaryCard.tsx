@@ -12,9 +12,10 @@ interface SummaryCardProps {
   icon: string;
   colorClass: string;
   index: number;
+  secondaryText?: string;
 }
 
-export function SummaryCard({ label, amount, colorClass, index }: SummaryCardProps) {
+export function SummaryCard({ label, amount, colorClass, index, secondaryText }: SummaryCardProps) {
   const [displayed, setDisplayed] = useState(0);
   const rafRef = useRef<number>(0);
 
@@ -45,6 +46,11 @@ export function SummaryCard({ label, amount, colorClass, index }: SummaryCardPro
           <p className={cn("text-2xl font-medium tabular-nums", colorClass)} style={{ fontFamily: "'DM Mono', monospace" }}>
             {formatCurrency(displayed)}
           </p>
+          {secondaryText && (
+            <p className="text-xs text-muted-foreground mt-1.5 tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+              {secondaryText}
+            </p>
+          )}
         </CardContent>
       </Card>
     </motion.div>

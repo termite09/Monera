@@ -20,9 +20,21 @@ export function useBudget(
   const monthBudget = settings.monthlyBudgets[month];
   const budgetRule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
   const configuredIncome = monthBudget?.income ?? 0;
+  const salaryKeywords = settings.salaryKeywords ?? [];
+
+  const csvIncome = monthIncomeTxs.reduce((s, t) => s + t.amount, 0);
+
+  // Individual transfers = CSV income excluding anything matching salary keywords
+  const individualTransfers = monthIncomeTxs
+    .filter((t) =>
+      salaryKeywords.length === 0 ||
+      !salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
+    )
+    .reduce((s, t) => s + t.amount, 0);
 
   const summary: MonthSummary = {
-    income: monthIncomeTxs.reduce((s, t) => s + t.amount, 0) || configuredIncome,
+    income: configuredIncome,
+    transfersReceived: individualTransfers,
     totalExpenses: monthTxs.reduce((s, t) => s + t.amount, 0),
     needs: monthTxs.filter((t) => t.category === "Needs").reduce((s, t) => s + t.amount, 0),
     wants: monthTxs.filter((t) => t.category === "Wants").reduce((s, t) => s + t.amount, 0),

@@ -55,6 +55,7 @@ export interface ParsedCSV {
 
 export interface MonthSummary {
   income: number;
+  transfersReceived: number;
   totalExpenses: number;
   needs: number;
   wants: number;
