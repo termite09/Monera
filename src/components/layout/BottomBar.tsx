@@ -15,7 +15,7 @@ export function BottomBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-[#1A1A1A] border-t border-gray-200 dark:border-[#2D2D2D] md:hidden safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-[#1A1A1A] border-t border-gray-200 dark:border-[#2D2D2D] md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);

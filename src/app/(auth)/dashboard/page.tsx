@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Card } from "@/components/ui/Card";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
+import { FAB } from "@/components/ui/FAB";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useDrive } from "@/hooks/useDrive";
@@ -73,14 +74,17 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick add */}
-        <div className="flex justify-end">
+        {/* Quick add — desktop only (mobile uses FAB) */}
+        <div className="hidden md:flex justify-end">
           <Button onClick={() => setShowAdd(true)} size="md">
             <Plus size={16} />
             Add Transaction
           </Button>
         </div>
       </div>
+
+      {/* FAB — mobile only */}
+      <FAB onClick={() => setShowAdd(true)} label="Add transaction" />
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm

@@ -16,17 +16,26 @@ export function TransactionRow({ transaction, onCategoryChange }: TransactionRow
   const [editing, setEditing] = useState(false);
 
   return (
-    <div className="flex items-center gap-3 py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors rounded-lg">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+    <div className="py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors rounded-lg">
+      {/* Top row: description + amount */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-gray-900 dark:text-white truncate flex-1">
           {transaction.description}
         </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {formatDate(transaction.date)}
-        </p>
+        <span className={`text-sm font-semibold tabular-nums flex-shrink-0 ${
+          transaction.type === "income"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : "text-gray-900 dark:text-white"
+        }`}>
+          {transaction.type === "income" ? "+" : "-"}
+          {formatCurrency(transaction.amount)}
+        </span>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Bottom row: date + badges */}
+      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+        <span className="text-xs text-gray-400">{formatDate(transaction.date)}</span>
+
         {editing ? (
           <select
             value={transaction.category}
@@ -43,20 +52,13 @@ export function TransactionRow({ transaction, onCategoryChange }: TransactionRow
             ))}
           </select>
         ) : (
-          <button onClick={() => setEditing(true)} className="focus:outline-none">
+          <button onClick={() => setEditing(true)} className="focus:outline-none min-h-[28px] flex items-center">
             <CategoryBadge category={transaction.category} />
           </button>
         )}
 
-        <SourceBadge source={transaction.source} />
-
-        <span className={`text-sm font-semibold tabular-nums ${
-          transaction.type === "income"
-            ? "text-emerald-600 dark:text-emerald-400"
-            : "text-gray-900 dark:text-white"
-        }`}>
-          {transaction.type === "income" ? "+" : "-"}
-          {formatCurrency(transaction.amount)}
+        <span className="hidden sm:inline-flex">
+          <SourceBadge source={transaction.source} />
         </span>
       </div>
     </div>

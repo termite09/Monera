@@ -16,9 +16,10 @@ export function PageShell({ children, className = "" }: PageShellProps) {
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={`
         min-h-screen bg-[#FAFAFA] dark:bg-[#0F0F0F]
-        pb-20 md:pb-6 md:ml-60
+        md:pb-6 md:ml-60
         ${className}
       `}
+      style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}
     >
       {children}
     </motion.main>

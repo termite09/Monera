@@ -6,6 +6,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { FAB } from "@/components/ui/FAB";
 import { Modal } from "@/components/ui/Modal";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
@@ -64,7 +65,8 @@ export default function TransactionsPage() {
 
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">{filtered.length} transactions</p>
-          <Button onClick={() => setShowAdd(true)} size="sm">
+          {/* Desktop add button — FAB handles mobile */}
+          <Button onClick={() => setShowAdd(true)} size="sm" className="hidden md:inline-flex">
             <Plus size={14} />
             Add
           </Button>
@@ -96,6 +98,8 @@ export default function TransactionsPage() {
           )}
         </Card>
       </div>
+
+      <FAB onClick={() => setShowAdd(true)} label="Add transaction" />
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
