@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,15 +28,19 @@ export default function SettingsPage() {
   const [payday, setPayday] = useState("1");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const initializedMonth = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!settings || initializedMonth.current === month) return;
     const monthBudget = settings.monthlyBudgets[month];
     setIncome(String(monthBudget?.income ?? ""));
-    setNeeds(String(budgetRule.needs));
-    setWants(String(budgetRule.wants));
-    setSaving(String(budgetRule.savings));
+    const rule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
+    setNeeds(String(rule.needs));
+    setWants(String(rule.wants));
+    setSaving(String(rule.savings));
     setPayday(String(settings.paydayOfMonth ?? 1));
-  }, [settings, month, budgetRule]);
+    initializedMonth.current = month;
+  }, [month, settings.defaultBudgetRule, settings.monthlyBudgets, settings.paydayOfMonth]);
 
   const handleSave = async () => {
     setIsSaving(true);
