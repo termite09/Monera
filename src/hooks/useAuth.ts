@@ -7,8 +7,8 @@ export function useAuth() {
     session,
     isLoading: status === "loading",
     isAuthenticated: status === "authenticated",
-    accessToken: session?.accessToken as string | undefined,
+    accessToken: session?.accessToken,
     signIn: () => signIn("google"),
-    signOut: () => signOut({ callbackUrl: "/login" }),
+    signOut: () => signOut({ redirectTo: "/login" }),
   };
 }
