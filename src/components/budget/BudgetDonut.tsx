@@ -15,7 +15,6 @@ interface BudgetDonutProps {
 export function BudgetDonut({ label, spent, allocated, color, labelClass }: BudgetDonutProps) {
   const over = spent > allocated;
   const remaining = Math.max(0, allocated - spent);
-  const pct = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0;
 
   const data = allocated > 0
     ? [{ value: Math.min(spent, allocated) }, { value: remaining }]
@@ -51,39 +50,32 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass }: Budg
           </PieChart>
         </ResponsiveContainer>
 
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
-            className="text-base font-semibold tabular-nums"
-            style={{ fontFamily: "'DM Mono', monospace", color: allocated > 0 ? spentColor : "#94a3b8" }}
+            className={cn(
+              "text-sm font-semibold tabular-nums leading-tight",
+              over ? "text-destructive" : allocated > 0 ? "text-foreground" : "text-muted-foreground"
+            )}
+            style={{ fontFamily: "'DM Mono', monospace" }}
           >
-            {allocated > 0 ? `${pct.toFixed(0)}%` : "—"}
+            {allocated > 0 ? formatCurrency(over ? spent - allocated : remaining) : "—"}
           </span>
+          {allocated > 0 && (
+            <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              {over ? "over" : "left"}
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="text-center space-y-0.5">
-        <p
-          className="text-sm font-medium tabular-nums text-foreground"
-          style={{ fontFamily: "'DM Mono', monospace" }}
-        >
-          {formatCurrency(spent)}
-        </p>
+      <div className="text-center">
         {allocated > 0 ? (
-          over ? (
-            <p
-              className="text-xs tabular-nums text-destructive"
-              style={{ fontFamily: "'DM Mono', monospace" }}
-            >
-              +{formatCurrency(spent - allocated)} over
-            </p>
-          ) : (
-            <p
-              className="text-xs tabular-nums text-muted-foreground"
-              style={{ fontFamily: "'DM Mono', monospace" }}
-            >
-              {formatCurrency(remaining)} left
-            </p>
-          )
+          <p
+            className="text-xs tabular-nums text-muted-foreground"
+            style={{ fontFamily: "'DM Mono', monospace" }}
+          >
+            {formatCurrency(spent)} / {formatCurrency(allocated)}
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">no budget set</p>
         )}
