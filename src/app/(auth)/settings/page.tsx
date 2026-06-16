@@ -88,11 +88,14 @@ function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
 
       <Card className="shadow-none border-border">
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Income</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Planned Income</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-          <Label htmlFor="income">Income (€)</Label>
+          <Label htmlFor="income">Amount (€)</Label>
           <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11" />
+          <p className="text-xs text-muted-foreground">
+            Fallback for budget calculations. If your Revolut CSV contains a salary deposit this period, that amount is used instead.
+          </p>
         </CardContent>
       </Card>
 
