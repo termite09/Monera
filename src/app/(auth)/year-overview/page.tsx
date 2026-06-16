@@ -7,15 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { YearBar } from "@/components/charts/YearBar";
-import { useAuth } from "@/hooks/useAuth";
-import { useDrive } from "@/hooks/useDrive";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useAppData } from "@/contexts/AppDataContext";
+
+
 import { formatCurrency } from "@/lib/utils";
 
 export default function YearOverviewPage() {
-  const { accessToken } = useAuth();
-  const { structure } = useDrive(accessToken);
-  const { transactions, isLoading } = useTransactions(accessToken, structure);
+  
+  
+  const { transactions, isLoading } = useAppData();
   const [year, setYear] = useState(new Date().getFullYear());
 
   const yearTxs = transactions.filter((t) => t.date.startsWith(String(year)));

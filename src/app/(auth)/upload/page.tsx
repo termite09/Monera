@@ -5,8 +5,8 @@ import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useDrive } from "@/hooks/useDrive";
 import { listFiles, uploadCSV } from "@/lib/google/drive";
 import { parseRevolutCSV } from "@/lib/parser/revolut";
 import { formatDate } from "@/lib/utils";
@@ -19,8 +19,9 @@ interface UploadedFile {
 }
 
 export default function UploadPage() {
+  
+  const { structure, refetch } = useAppData();
   const { accessToken } = useAuth();
-  const { structure } = useDrive(accessToken);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -49,6 +50,7 @@ export default function UploadPage() {
       setStatus("success");
       setMessage(`Uploaded ${file.name} — found ${transactions.length} transactions${errors.length > 0 ? `, ${errors.length} parse errors` : ""}`);
       await loadFiles();
+      refetch();
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Upload failed");
@@ -107,11 +109,11 @@ export default function UploadPage() {
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 {status === "success" ? (
-                  <CheckCircle size={18} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                 ) : status === "error" ? (
-                  <AlertCircle size={18} className="text-destructive flex-shrink-0 mt-0.5" />
+                  <AlertCircle size={18} className="text-destructive shrink-0 mt-0.5" />
                 ) : (
-                  <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin flex-shrink-0 mt-0.5" />
+                  <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0 mt-0.5" />
                 )}
                 <p className="text-sm text-foreground">{message}</p>
               </div>
@@ -138,7 +140,7 @@ export default function UploadPage() {
                 <div className="divide-y divide-border">
                   {existingFiles.map((file) => (
                     <div key={file.id} className="flex items-center gap-3 py-3 px-2">
-                      <FileText size={16} className="text-muted-foreground flex-shrink-0" />
+                      <FileText size={16} className="text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground truncate">{file.name}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(file.createdTime)}</p>

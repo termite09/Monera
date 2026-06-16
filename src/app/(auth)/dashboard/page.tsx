@@ -15,20 +15,16 @@ import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
 import { Separator } from "@/components/ui/separator";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
-import { useAuth } from "@/hooks/useAuth";
-import { useDrive } from "@/hooks/useDrive";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { accessToken } = useAuth();
-  const { structure, isLoading: isDriveLoading } = useDrive(accessToken);
+  const { transactions, settings, isLoading, addManualTransaction } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAdd, setShowAdd] = useState(false);
 
-  const { transactions, isLoading, addManualTransaction } = useTransactions(accessToken, structure);
-  const { summary, budgetAllocations, paydayOfMonth } = useBudget(accessToken, structure, transactions, month);
+  const { summary, budgetAllocations, paydayOfMonth } = useBudget(transactions, settings, month);
 
   useEffect(() => {
     setMonth(getCurrentMonth(paydayOfMonth));
@@ -49,10 +45,9 @@ export default function DashboardPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isDriveLoading || isLoading} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
-        {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-3">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
@@ -66,7 +61,6 @@ export default function DashboardPage() {
               ))}
         </div>
 
-        {/* Budget Progress */}
         <Card className="shadow-none border-border">
           <CardHeader className="pb-3 pt-4 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -82,13 +76,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Charts */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Card className="shadow-none border-border">
             <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                By Category
-              </CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">By Category</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <SpendingPie transactions={monthTxs} />
@@ -96,9 +87,7 @@ export default function DashboardPage() {
           </Card>
           <Card className="shadow-none border-border">
             <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Daily Spending
-              </CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Spending</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <DailyTrend transactions={monthTxs} month={month} />
@@ -106,7 +95,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Desktop add button */}
         <div className="hidden md:flex justify-end">
           <Button onClick={() => setShowAdd(true)}>
             <Plus size={16} className="mr-1.5" />
@@ -120,10 +108,7 @@ export default function DashboardPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
           paydayOfMonth={paydayOfMonth}
-          onSubmit={async (tx) => {
-            await addManualTransaction(tx);
-            setShowAdd(false);
-          }}
+          onSubmit={async (tx) => { await addManualTransaction(tx); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />
       </Modal>

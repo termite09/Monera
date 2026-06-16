@@ -11,23 +11,19 @@ import { Modal } from "@/components/ui/Modal";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/useAuth";
-import { useDrive } from "@/hooks/useDrive";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
 import { Category } from "@/types";
 
 export default function TransactionsPage() {
-  const { accessToken } = useAuth();
-  const { structure, isLoading: isDriveLoading } = useDrive(accessToken);
+  const { transactions, settings, isLoading, addManualTransaction, updateCategory } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
   const [showAdd, setShowAdd] = useState(false);
 
-  const { transactions, isLoading, addManualTransaction, updateCategory } = useTransactions(accessToken, structure);
-  const { paydayOfMonth } = useBudget(accessToken, structure, transactions, month);
+  const { paydayOfMonth } = useBudget(transactions, settings, month);
 
   useEffect(() => {
     setMonth(getCurrentMonth(paydayOfMonth));
@@ -43,10 +39,9 @@ export default function TransactionsPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isDriveLoading || isLoading} />
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
-        {/* Filters */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -78,7 +73,6 @@ export default function TransactionsPage() {
           </Button>
         </div>
 
-        {/* Transaction list */}
         <Card className="shadow-none border-border">
           <CardContent className="p-3">
             {isLoading ? (
@@ -95,11 +89,7 @@ export default function TransactionsPage() {
             ) : (
               <div className="divide-y divide-border">
                 {filtered.map((tx) => (
-                  <TransactionRow
-                    key={tx.id}
-                    transaction={tx}
-                    onCategoryChange={updateCategory}
-                  />
+                  <TransactionRow key={tx.id} transaction={tx} onCategoryChange={updateCategory} />
                 ))}
               </div>
             )}
@@ -112,10 +102,7 @@ export default function TransactionsPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
           paydayOfMonth={paydayOfMonth}
-          onSubmit={async (tx) => {
-            await addManualTransaction(tx);
-            setShowAdd(false);
-          }}
+          onSubmit={async (tx) => { await addManualTransaction(tx); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />
       </Modal>

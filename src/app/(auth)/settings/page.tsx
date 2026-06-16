@@ -8,19 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import { useAuth } from "@/hooks/useAuth";
-import { useDrive } from "@/hooks/useDrive";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getCurrentMonth } from "@/lib/utils";
 
 export default function SettingsPage() {
-  const { accessToken } = useAuth();
-  const { structure } = useDrive(accessToken);
+  const { transactions, settings, isLoading, updateSettings } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
-  const { transactions } = useTransactions(accessToken, structure);
-  const { settings, paydayOfMonth, budgetRule, updateSettings, isLoading } = useBudget(accessToken, structure, transactions, month);
+  const { paydayOfMonth, budgetRule } = useBudget(transactions, settings, month);
 
   const [income, setIncome] = useState("");
   const [needs, setNeeds] = useState("");
@@ -32,7 +27,11 @@ export default function SettingsPage() {
   const initializedMonth = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!settings || initializedMonth.current === month) return;
+    setMonth(getCurrentMonth(paydayOfMonth));
+  }, [paydayOfMonth]);
+
+  useEffect(() => {
+    if (initializedMonth.current === month) return;
     const monthBudget = settings.monthlyBudgets[month];
     setIncome(String(monthBudget?.income ?? ""));
     const rule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
@@ -41,12 +40,12 @@ export default function SettingsPage() {
     setSaving(String(rule.savings));
     setPayday(String(settings.paydayOfMonth ?? 1));
     initializedMonth.current = month;
-  }, [month, settings.defaultBudgetRule, settings.monthlyBudgets, settings.paydayOfMonth]);
+  }, [month, settings]);
 
   const handleSave = async () => {
     setIsSaving(true);
     const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
-    const updated = {
+    await updateSettings({
       ...settings,
       paydayOfMonth: paydayNum,
       monthlyBudgets: {
@@ -61,8 +60,7 @@ export default function SettingsPage() {
           },
         },
       },
-    };
-    await updateSettings(updated);
+    });
     setIsSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -76,12 +74,6 @@ export default function SettingsPage() {
     <PageShell>
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
-      {isLoading && (
-        <div className="sticky top-14 z-10 w-full bg-background/95 backdrop-blur-sm px-4 py-2 border-b border-border">
-          <Progress value={65} className="h-1" />
-        </div>
-      )}
-
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Budget Settings</h1>
@@ -90,22 +82,11 @@ export default function SettingsPage() {
 
         <Card className="shadow-none border-border">
           <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Pay Cycle
-            </CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pay Cycle</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
             <Label htmlFor="payday">Payday (day of month)</Label>
-            <Input
-              id="payday"
-              type="number"
-              min={1}
-              max={28}
-              value={payday}
-              onChange={(e) => setPayday(e.target.value)}
-              placeholder="e.g. 24"
-              className="h-11"
-            />
+            <Input id="payday" type="number" min={1} max={28} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11" />
             <p className="text-xs text-muted-foreground">
               Budget period starts on the {paydayNum}{ordinal} of each month. Capped at 28 to handle shorter months.
             </p>
@@ -114,9 +95,7 @@ export default function SettingsPage() {
 
         <Card className="shadow-none border-border">
           <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Monthly Income
-            </CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Income</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
             <Label htmlFor="income">Income (€)</Label>
@@ -126,9 +105,7 @@ export default function SettingsPage() {
 
         <Card className="shadow-none border-border">
           <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Budget Rule (%)
-            </CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget Rule (%)</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
