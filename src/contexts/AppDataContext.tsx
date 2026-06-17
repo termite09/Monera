@@ -8,6 +8,7 @@ import { useDrive } from "@/hooks/useDrive";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useSettings } from "@/hooks/useSettings";
 import { useRules } from "@/hooks/useRules";
+import { SetupScreen } from "@/components/layout/SetupScreen";
 
 interface AppDataContextValue {
   structure: DriveStructure | null;
@@ -27,7 +28,7 @@ const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth();
-  const { structure, isLoading: isDriveLoading } = useDrive(accessToken);
+  const { structure, isLoading: isDriveLoading, error: driveError, refetch: refetchDrive } = useDrive(accessToken);
   const { rules, updateRules } = useRules(accessToken, structure);
   const {
     transactions,
@@ -40,6 +41,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const { settings, updateSettings } = useSettings(accessToken, structure);
 
   const isLoading = isDriveLoading || isTxLoading;
+
+  // First run (or after a failed setup): the Drive folder/files don't exist yet.
+  // Block the app behind a setup screen until the structure is ready, so the
+  // user always sees progress instead of an empty/broken dashboard.
+  if (!structure) {
+    return <SetupScreen error={driveError} onRetry={refetchDrive} />;
+  }
 
   return (
     <AppDataContext.Provider

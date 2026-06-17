@@ -23,8 +23,6 @@ export function useBudget(
   const configuredIncome = monthBudget?.income ?? 0;
   const salaryKeywords = settings.salaryKeywords ?? [];
 
-  const csvIncome = monthIncomeTxs.reduce((s, t) => s + t.amount, 0);
-
   // Individual transfers = CSV income excluding anything matching salary keywords
   const individualTransfers = monthIncomeTxs
     .filter((t) =>
@@ -33,13 +31,29 @@ export function useBudget(
     )
     .reduce((s, t) => s + t.amount, 0);
 
+  const sumBy = (txs: Transaction[], cat: Transaction["category"]) =>
+    txs.filter((t) => t.category === cat).reduce((s, t) => s + t.amount, 0);
+
+  // Refunds arrive as income-typed transactions categorized to the same bucket
+  // as the original purchase (e.g. an AlphaMega refund -> Wants). Net them out
+  // so category spending reflects what you actually kept, never going negative.
+  const netSpend = (cat: Transaction["category"]) =>
+    Math.max(0, sumBy(monthTxs, cat) - sumBy(monthIncomeTxs, cat));
+
+  const needs = netSpend("Needs");
+  const wants = netSpend("Wants");
+  const savings = netSpend("Savings");
+  // Uncategorized expenses are shown as-is (salary income is Uncategorized and
+  // must not erase real uncategorized spending).
+  const uncategorizedExpense = sumBy(monthTxs, "Uncategorized");
+
   const summary: MonthSummary = {
     income: configuredIncome,
     transfersReceived: individualTransfers,
-    totalExpenses: monthTxs.reduce((s, t) => s + t.amount, 0),
-    needs: monthTxs.filter((t) => t.category === "Needs").reduce((s, t) => s + t.amount, 0),
-    wants: monthTxs.filter((t) => t.category === "Wants").reduce((s, t) => s + t.amount, 0),
-    savings: monthTxs.filter((t) => t.category === "Savings").reduce((s, t) => s + t.amount, 0),
+    totalExpenses: needs + wants + savings + uncategorizedExpense,
+    needs,
+    wants,
+    savings,
     remaining: 0,
   };
   summary.remaining = summary.income - summary.totalExpenses;

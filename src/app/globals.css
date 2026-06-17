@@ -77,6 +77,16 @@
   --ring: #4A7EC7;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
   border-color: var(--border);
@@ -87,6 +97,13 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 .font-mono, [class*="tabular"] {

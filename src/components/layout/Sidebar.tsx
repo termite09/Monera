@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, List, Upload, Settings, BarChart2, LogOut } from "lucide-react";
+import { LayoutDashboard, List, Upload, Settings, BarChart2, PieChart, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: List },
+  { href: "/reports", label: "Reports", icon: PieChart },
   { href: "/upload", label: "Upload", icon: Upload },
   { href: "/year-overview", label: "Year Overview", icon: BarChart2 },
   { href: "/settings", label: "Settings", icon: Settings },

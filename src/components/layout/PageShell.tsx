@@ -15,7 +15,7 @@ export function PageShell({ children, className = "" }: PageShellProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={`
-        min-h-screen bg-[#FAFAFA] dark:bg-[#0F0F0F]
+        min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#FAFAFA] dark:bg-[#0F0F0F]
         md:pb-6 md:ml-60
         ${className}
       `}
