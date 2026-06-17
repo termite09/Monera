@@ -43,28 +43,45 @@ export function useTransactions(
       let cache: ParseCache = {};
       try {
         cache = await readAppFile<ParseCache>(accessToken, structure.fileIds.parseCache);
-      } catch {
+      } catch (err) {
+        if (err instanceof DriveAuthError) throw err; // don't swallow auth errors
         // Cache file unreadable/corrupt — start fresh, will be rebuilt below.
       }
 
-      let cacheUpdated = false;
-      const importedTxs: Transaction[] = [];
-
+      // Split files into cache hits and misses, then fetch all misses in parallel
+      // (restores the original Promise.all parallelism while still using the cache).
+      const hits: Transaction[] = [];
+      const misses: typeof csvFiles = [];
       for (const f of csvFiles) {
-        const cacheKey = `${f.id}:${f.size ?? "0"}`;
-        if (cache[cacheKey]) {
-          importedTxs.push(...cache[cacheKey]);
+        const key = `${f.id}:${f.size ?? "0"}`;
+        if (cache[key]) {
+          hits.push(...cache[key]);
         } else {
-          const content = await readFile(accessToken, f.id);
-          const parsed = parseCSV(content).transactions;
-          importedTxs.push(...parsed);
-          cache = { ...cache, [cacheKey]: parsed };
-          cacheUpdated = true;
+          misses.push(f);
         }
       }
 
-      if (cacheUpdated) {
-        writeAppFile(accessToken, structure.fileIds.parseCache, cache).catch(() => {
+      const missResults = await Promise.all(
+        misses.map(async (f) => {
+          const content = await readFile(accessToken, f.id);
+          return { key: `${f.id}:${f.size ?? "0"}`, parsed: parseCSV(content).transactions };
+        })
+      );
+
+      const importedTxs: Transaction[] = [...hits];
+      const cacheUpdates: ParseCache = {};
+      for (const { key, parsed } of missResults) {
+        importedTxs.push(...parsed);
+        cacheUpdates[key] = parsed;
+      }
+
+      if (missResults.length > 0) {
+        // Prune dead entries (deleted/replaced CSV files) then write.
+        const liveKeys = new Set(csvFiles.map((f) => `${f.id}:${f.size ?? "0"}`));
+        const updatedCache = Object.fromEntries(
+          Object.entries({ ...cache, ...cacheUpdates }).filter(([k]) => liveKeys.has(k))
+        );
+        writeAppFile(accessToken, structure.fileIds.parseCache, updatedCache).catch(() => {
           // Non-fatal: worst case we re-parse next time.
         });
       }

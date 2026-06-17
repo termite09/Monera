@@ -117,7 +117,7 @@ export default function TransactionsPage() {
                   <span className="justify-self-start">Category</span>
                   <span className="justify-self-end">Amount</span>
                   <span />
-                  <span />
+                  <span />  {/* spacer aligns with delete column in TransactionRow */}
                 </div>
                 <div className="divide-y divide-border">
                   {filtered.map((tx) => (

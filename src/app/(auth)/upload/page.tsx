@@ -173,7 +173,7 @@ export default function UploadPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => setConfirmDeleteId(file.id)}
+                          onClick={() => setConfirmDeleteId(confirmDeleteId === file.id ? null : file.id)}
                           className="shrink-0 p-1.5 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-secondary transition-colors"
                           aria-label="Delete file"
                         >

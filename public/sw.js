@@ -42,16 +42,20 @@ self.addEventListener("fetch", (e) => {
       })
     );
   } else {
-    // Network-first for pages; fall back to cache when offline
+    // Network-first for pages; fall back to cache when offline.
+    const networkFetch = fetch(request).then((response) => {
+      if (response.ok) {
+        // Wrap in waitUntil so the SW isn't terminated before the write finishes.
+        e.waitUntil(
+          caches.open(CACHE).then((cache) => cache.put(request, response.clone()))
+        );
+      }
+      return response;
+    });
     e.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
+      networkFetch.catch(() =>
+        caches.match(request).then((r) => r ?? Response.error())
+      )
     );
   }
 });

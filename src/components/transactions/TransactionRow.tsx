@@ -46,10 +46,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
   return (
     <div
       className={cn(
-        "grid items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
-        onDelete
-          ? "grid-cols-[2.8rem_1fr_auto_auto_1.75rem_1.75rem]"
-          : "grid-cols-[2.8rem_1fr_auto_auto_1.75rem]",
+        "grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
       )}
     >
@@ -123,9 +120,14 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         </button>
       )}
 
-      {onDelete && (
+      {onDelete ? (
         confirmDelete ? (
           <button
+            // onMouseDown e.preventDefault() prevents the initial trash button
+            // from losing focus (blur) before this click fires — otherwise the
+            // blur handler on the initial button would hide this confirm button
+            // before the click event can be processed.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={async () => {
               if (deleting) return;
               setDeleting(true);
@@ -154,6 +156,10 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
             <Trash2 size={14} />
           </button>
         )
+      ) : (
+        // Spacer keeps column alignment consistent with the 6-column header
+        // regardless of whether this row has a delete action.
+        <span />
       )}
     </div>
   );
