@@ -1,5 +1,6 @@
 import { DriveFile } from "@/types";
 import { getCached, setCached, invalidateCache } from "@/lib/cache";
+import { DriveAuthError } from "@/lib/errors";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
@@ -17,6 +18,8 @@ async function driveRequest(
       ...options.headers,
     },
   });
+
+  if (response.status === 401) throw new DriveAuthError();
 
   // Back off on rate limiting, but cap retries so a sustained 429 can't spin
   // forever — surface the error after a few exponential attempts instead.
@@ -145,4 +148,12 @@ export async function uploadCSV(
   content: string
 ): Promise<string> {
   return createFile(accessToken, name, parentId, content, "text/csv");
+}
+
+export async function deleteFile(accessToken: string, fileId: string): Promise<void> {
+  const res = await driveRequest(`${DRIVE_API}/files/${fileId}`, accessToken, {
+    method: "DELETE",
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`Drive deleteFile failed: ${res.statusText}`);
+  invalidateCache(`file:${fileId}`);
 }

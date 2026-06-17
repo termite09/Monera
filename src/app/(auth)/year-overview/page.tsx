@@ -45,7 +45,7 @@ export default function YearOverviewPage() {
           <Card className="shadow-none border-border">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Total Expenses</p>
-              <p className="text-xl font-medium text-foreground tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+              <p className="text-xl font-medium text-foreground tabular-nums font-mono">
                 {formatCurrency(totalExpenses)}
               </p>
             </CardContent>
@@ -53,7 +53,7 @@ export default function YearOverviewPage() {
           <Card className="shadow-none border-border">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Total Savings</p>
-              <p className="text-xl font-medium text-emerald-600 dark:text-emerald-400 tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+              <p className="text-xl font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">
                 {formatCurrency(totalSavings)}
               </p>
             </CardContent>

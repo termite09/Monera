@@ -15,7 +15,7 @@ export default function LoginPage() {
       >
         {/* Brand */}
         <div className="mb-12 text-center">
-          <h1 className="text-5xl text-foreground tracking-tight mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
+          <h1 className="text-5xl text-foreground tracking-tight mb-2 font-serif">
             Monera
           </h1>
           <p className="text-sm text-muted-foreground tracking-wide uppercase">

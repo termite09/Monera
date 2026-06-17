@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 import { Category } from "@/types";
 
 export default function TransactionsPage() {
-  const { transactions, settings, isLoading, addManualTransaction, updateCategory, toggleExclude } = useAppData();
+  const { transactions, settings, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, refetch } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
@@ -37,7 +37,7 @@ export default function TransactionsPage() {
       .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
       .filter((t) => filterCat === "All" || t.category === filterCat)
       .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
   }, [transactions, settings.recurringPayments, month, filterCat, search, paydayOfMonth]);
 
   // Sum of visible transactions, ignoring excluded ones
@@ -51,6 +51,15 @@ export default function TransactionsPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
+        {txError && (
+          <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
+            <AlertCircle size={16} className="shrink-0 text-destructive" />
+            <p className="flex-1 text-sm text-destructive">{txError}</p>
+            <button onClick={refetch} className="flex items-center gap-1 text-xs text-destructive underline-offset-2 hover:underline">
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -77,7 +86,7 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             {filtered.length} transactions ·{" "}
-            <span className="font-medium text-foreground tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+            <span className="font-medium text-foreground tabular-nums font-mono">
               {formatCurrency(total)}
             </span>
           </p>
@@ -102,16 +111,23 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <span>Date</span>
                   <span>Description</span>
                   <span className="justify-self-start">Category</span>
                   <span className="justify-self-end">Amount</span>
                   <span />
+                  <span />
                 </div>
                 <div className="divide-y divide-border">
                   {filtered.map((tx) => (
-                    <TransactionRow key={tx.id} transaction={tx} onCategoryChange={updateCategory} onToggleExclude={toggleExclude} />
+                    <TransactionRow
+                      key={tx.id}
+                      transaction={tx}
+                      onCategoryChange={updateCategory}
+                      onToggleExclude={toggleExclude}
+                      onDelete={tx.source === "manual" ? deleteManualTransaction : undefined}
+                    />
                   ))}
                 </div>
               </>

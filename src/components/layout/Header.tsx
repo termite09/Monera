@@ -46,7 +46,7 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
       </AnimatePresence>
 
       <div className="px-4 h-14 flex items-center justify-between">
-        <span className="text-base font-semibold text-foreground md:hidden" style={{ fontFamily: "'DM Serif Display', serif" }}>
+        <span className="text-base font-semibold text-foreground md:hidden font-serif">
           Monera
         </span>
 

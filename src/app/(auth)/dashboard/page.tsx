@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { SummaryCard } from "@/components/budget/SummaryCard";
@@ -31,7 +31,7 @@ import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 
 export default function DashboardPage() {
-  const { transactions, settings, isLoading, addManualTransaction } = useAppData();
+  const { transactions, settings, isLoading, txError, addManualTransaction, refetch } = useAppData();
   const { session } = useAuth();
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAdd, setShowAdd] = useState(false);
@@ -86,6 +86,15 @@ export default function DashboardPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
+        {txError && (
+          <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
+            <AlertCircle size={16} className="shrink-0 text-destructive" />
+            <p className="flex-1 text-sm text-destructive">{txError}</p>
+            <button onClick={refetch} className="flex items-center gap-1 text-xs text-destructive underline-offset-2 hover:underline">
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (

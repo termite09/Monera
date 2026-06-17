@@ -22,7 +22,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-56 h-screen fixed left-0 top-0 bg-card border-r border-border z-30">
       <div className="px-5 py-6">
-        <h1 className="text-2xl text-foreground" style={{ fontFamily: "'DM Serif Display', serif" }}>
+        <h1 className="text-2xl text-foreground font-serif">
           Monera
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5 tracking-wide">Personal Finance</p>

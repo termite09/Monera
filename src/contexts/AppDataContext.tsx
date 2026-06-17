@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo, ReactNode } from "react";
+import { createContext, useContext, useMemo, useEffect, ReactNode } from "react";
+import { signOut } from "next-auth/react";
 import { Transaction, Settings, Category, CategoryRule } from "@/types";
 import { DriveStructure } from "@/lib/google/folders";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,8 +16,10 @@ interface AppDataContextValue {
   transactions: Transaction[];
   settings: Settings;
   isLoading: boolean;
+  txError: string | null;
   rules: CategoryRule[];
   addManualTransaction: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
+  deleteManualTransaction: (txId: string) => Promise<void>;
   updateCategory: (txId: string, category: Category) => Promise<void>;
   toggleExclude: (txId: string) => Promise<void>;
   updateSettings: (s: Settings) => Promise<void>;
@@ -28,12 +31,15 @@ const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth();
-  const { structure, isLoading: isDriveLoading, error: driveError, refetch: refetchDrive } = useDrive(accessToken);
+  const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken);
   const { rules, updateRules } = useRules(accessToken, structure);
   const {
     transactions,
     isLoading: isTxLoading,
+    error: txError,
+    needsReauth: txNeedsReauth,
     addManualTransaction,
+    deleteManualTransaction,
     updateCategory,
     toggleExclude,
     refetch,
@@ -42,6 +48,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const isLoading = isDriveLoading || isTxLoading;
 
+  // If either hook detected an expired token, sign the user out immediately.
+  useEffect(() => {
+    if (driveNeedsReauth || txNeedsReauth) {
+      signOut({ redirectTo: "/login" });
+    }
+  }, [driveNeedsReauth, txNeedsReauth]);
+
   const value = useMemo(
     () => ({
       structure,
@@ -49,19 +62,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       settings,
       rules,
       isLoading,
+      txError,
       addManualTransaction,
+      deleteManualTransaction,
       updateCategory,
       toggleExclude,
       updateSettings,
       updateRules,
       refetch,
     }),
-    [structure, transactions, settings, rules, isLoading, addManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
+    [structure, transactions, settings, rules, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
   );
 
-  // First run (or after a failed setup): the Drive folder/files don't exist yet.
-  // Block the app behind a setup screen until the structure is ready, so the
-  // user always sees progress instead of an empty/broken dashboard.
   if (!structure) {
     return <SetupScreen error={driveError} onRetry={refetchDrive} />;
   }

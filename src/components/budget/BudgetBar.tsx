@@ -32,7 +32,7 @@ export function BudgetBar({ label, spent, allocated, colorClass }: BudgetBarProp
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <span className={cn("text-sm font-medium", colorClass)}>{label}</span>
-        <span className={cn("text-xs tabular-nums", statusColor)} style={{ fontFamily: "'DM Mono', monospace" }}>
+        <span className={cn("text-xs tabular-nums font-mono", statusColor)}>
           {formatCurrency(spent)} / {formatCurrency(allocated)}
         </span>
       </div>
@@ -40,11 +40,11 @@ export function BudgetBar({ label, spent, allocated, colorClass }: BudgetBarProp
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{pct.toFixed(0)}%</span>
         {over ? (
-          <span className="text-destructive" style={{ fontFamily: "'DM Mono', monospace" }}>
+          <span className="text-destructive font-mono">
             +{formatCurrency(spent - allocated)} over
           </span>
         ) : (
-          <span className="text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "'DM Mono', monospace" }}>
+          <span className="text-emerald-600 dark:text-emerald-400 font-mono">
             {formatCurrency(allocated - spent)} left
           </span>
         )}

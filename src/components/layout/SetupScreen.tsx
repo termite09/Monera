@@ -27,7 +27,7 @@ export function SetupScreen({ error, onRetry }: SetupScreenProps) {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="w-full max-w-sm flex flex-col items-center text-center"
       >
-        <h1 className="text-4xl text-foreground" style={{ fontFamily: "'DM Serif Display', serif" }}>
+        <h1 className="text-4xl text-foreground font-serif">
           Monera
         </h1>
 

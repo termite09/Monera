@@ -59,10 +59,9 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass }: Budg
         <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
           <span
             className={cn(
-              "text-base sm:text-lg font-bold tabular-nums leading-none text-center",
+              "text-base sm:text-lg font-bold tabular-nums leading-none text-center font-mono",
               over ? "text-destructive" : allocated > 0 ? "text-foreground" : "text-muted-foreground"
             )}
-            style={{ fontFamily: "'DM Mono', monospace" }}
           >
             {allocated > 0 ? formatCurrency(over ? spent - allocated : remaining) : "—"}
           </span>

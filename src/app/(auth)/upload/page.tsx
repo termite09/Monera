@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Trash2, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
-import { listFiles, uploadCSV } from "@/lib/google/drive";
+import { listFiles, uploadCSV, deleteFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,8 @@ export default function UploadPage() {
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [existingFiles, setExistingFiles] = useState<UploadedFile[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = useCallback(async () => {
@@ -56,6 +58,21 @@ export default function UploadPage() {
       setMessage(err instanceof Error ? err.message : "Upload failed");
     }
   }, [accessToken, structure, loadFiles]);
+
+  const handleDelete = useCallback(async (fileId: string) => {
+    if (!accessToken) return;
+    setDeletingId(fileId);
+    try {
+      await deleteFile(accessToken, fileId);
+      setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+      refetch();
+    } catch {
+      // Non-fatal: show nothing, file stays in list
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  }, [accessToken, refetch]);
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -145,6 +162,24 @@ export default function UploadPage() {
                         <p className="text-sm text-foreground truncate">{file.name}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(file.createdTime)}</p>
                       </div>
+                      {confirmDeleteId === file.id ? (
+                        <button
+                          onClick={() => handleDelete(file.id)}
+                          disabled={deletingId === file.id}
+                          className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 disabled:cursor-wait transition-colors"
+                        >
+                          {deletingId === file.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          Confirm
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(file.id)}
+                          className="shrink-0 p-1.5 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-secondary transition-colors"
+                          aria-label="Delete file"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

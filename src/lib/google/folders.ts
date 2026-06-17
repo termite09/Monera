@@ -13,6 +13,7 @@ export interface DriveStructure {
     settings: string;
     categoryRules: string;
     excludedTransactions: string;
+    parseCache: string;
   };
 }
 
@@ -58,20 +59,21 @@ export async function ensureDriveStructure(accessToken: string): Promise<DriveSt
 
   // Ensure JSON files exist. These are independent, so create/look them up in
   // parallel — on first run this roughly halves setup time vs. awaiting each.
-  const [manualTransactions, categoryOverrides, settings, categoryRules, excludedTransactions] =
+  const [manualTransactions, categoryOverrides, settings, categoryRules, excludedTransactions, parseCache] =
     await Promise.all([
       ensureFile(accessToken, DRIVE_FILES.manualTransactions, appDataId, "[]"),
       ensureFile(accessToken, DRIVE_FILES.categoryOverrides, appDataId, "{}"),
       ensureFile(accessToken, DRIVE_FILES.settings, appDataId, JSON.stringify(DEFAULT_SETTINGS, null, 2)),
       ensureFile(accessToken, DRIVE_FILES.categoryRules, appDataId, JSON.stringify(DEFAULT_CATEGORY_RULES, null, 2)),
       ensureFile(accessToken, DRIVE_FILES.excludedTransactions, appDataId, "[]"),
+      ensureFile(accessToken, DRIVE_FILES.parseCache, appDataId, "{}"),
     ]);
 
   return {
     rootId,
     revolutExportsId,
     appDataId,
-    fileIds: { manualTransactions, categoryOverrides, settings, categoryRules, excludedTransactions },
+    fileIds: { manualTransactions, categoryOverrides, settings, categoryRules, excludedTransactions, parseCache },
   };
 }
 

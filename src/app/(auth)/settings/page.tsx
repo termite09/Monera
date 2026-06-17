@@ -325,7 +325,7 @@ function RecurringForm({ settings, updateSettings }: {
                       {ordinal(item.dayOfMonth)} · {item.category}
                     </p>
                   </div>
-                  <span className="text-sm tabular-nums text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                  <span className="text-sm tabular-nums text-foreground font-mono">
                     {formatCurrency(item.amount)}
                   </span>
                   <button

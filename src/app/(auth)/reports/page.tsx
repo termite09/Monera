@@ -97,7 +97,7 @@ export default function ReportsPage() {
                   <div key={m.name} className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-foreground truncate pr-2">{m.name}</span>
-                      <span className="font-medium tabular-nums text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                      <span className="font-medium tabular-nums text-foreground font-mono">
                         {formatCurrency(m.total)}
                       </span>
                     </div>
@@ -132,7 +132,7 @@ export default function ReportsPage() {
                           </span>
                           <span className="text-sm text-foreground truncate">{m.name}</span>
                         </div>
-                        <span className="text-sm font-medium tabular-nums text-foreground shrink-0 pl-2" style={{ fontFamily: "'DM Mono', monospace" }}>
+                        <span className="text-sm font-medium tabular-nums text-foreground shrink-0 pl-2 font-mono">
                           {formatCurrency(m.total)}
                         </span>
                       </div>
@@ -167,7 +167,7 @@ export default function ReportsPage() {
                         {c.category}
                         <span className="text-muted-foreground text-xs">{c.pct.toFixed(0)}%</span>
                       </span>
-                      <span className="font-medium tabular-nums text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                      <span className="font-medium tabular-nums text-foreground font-mono">
                         {formatCurrency(c.total)}
                       </span>
                     </div>
@@ -191,7 +191,7 @@ export default function ReportsPage() {
                         <p className="text-sm text-foreground truncate">{t.description}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(t.date)} · {t.category}</p>
                       </div>
-                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0" style={{ fontFamily: "'DM Mono', monospace" }}>
+                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">
                         {formatCurrency(t.amount)}
                       </span>
                     </div>
@@ -227,10 +227,9 @@ function StatTile({
           {label}
         </p>
         <p
-          className={`mt-2 text-xl leading-none font-medium tabular-nums ${
+          className={`mt-2 text-xl leading-none font-medium tabular-nums font-mono ${
             trend === "good" ? "text-emerald-600 dark:text-emerald-400" : trend === "bad" ? "text-destructive" : "text-foreground"
           }`}
-          style={{ fontFamily: "'DM Mono', monospace" }}
         >
           {trend === "good" && <TrendingDown size={15} className="inline mr-1 -mt-0.5" />}
           {trend === "bad" && <TrendingUp size={15} className="inline mr-1 -mt-0.5" />}

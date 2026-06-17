@@ -14,7 +14,6 @@ export function mergeTransactions(
   manualTxs: Transaction[]
 ): Transaction[] {
   const all = [...revolutTxs, ...manualTxs];
-  return deduplicateTransactions(all).sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  // ISO date strings sort lexically — no Date object allocation needed.
+  return deduplicateTransactions(all).sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
 }

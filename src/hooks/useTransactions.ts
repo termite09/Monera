@@ -5,25 +5,27 @@ import { listFiles, readFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { applyCategorizationRules } from "@/lib/categorizer";
 import { mergeTransactions } from "@/lib/dedup";
+import { DriveAuthError } from "@/lib/errors";
+
+type ParseCache = Record<string, Transaction[]>;
 
 export function useTransactions(
   accessToken: string | undefined,
   structure: DriveStructure | null,
   rules: CategoryRule[]
 ) {
-  // Raw, uncategorized transactions parsed from Drive (CSVs + manual file).
-  // Kept separate from categorization so changing rules/overrides/excludes is a
-  // cheap in-memory recompute and never re-downloads or re-parses the CSVs.
   const [rawTxs, setRawTxs] = useState<Transaction[]>([]);
   const [overrides, setOverrides] = useState<Record<string, Category>>({});
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(!!accessToken);
   const [error, setError] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
   const loadTransactions = useCallback(async () => {
     if (!accessToken || !structure) return;
     setIsLoading(true);
     setError(null);
+    setNeedsReauth(false);
 
     try {
       const [manualTxs, ov, ex] = await Promise.all([
@@ -36,14 +38,46 @@ export function useTransactions(
         accessToken,
         `'${structure.revolutExportsId}' in parents and mimeType='text/csv' and trashed=false`
       );
-      const csvContents = await Promise.all(csvFiles.map((f) => readFile(accessToken, f.id)));
-      const importedTxs = csvContents.flatMap((content) => parseCSV(content).transactions);
+
+      // Load parse cache — keyed by fileId:size so we skip re-parsing unchanged files.
+      let cache: ParseCache = {};
+      try {
+        cache = await readAppFile<ParseCache>(accessToken, structure.fileIds.parseCache);
+      } catch {
+        // Cache file unreadable/corrupt — start fresh, will be rebuilt below.
+      }
+
+      let cacheUpdated = false;
+      const importedTxs: Transaction[] = [];
+
+      for (const f of csvFiles) {
+        const cacheKey = `${f.id}:${f.size ?? "0"}`;
+        if (cache[cacheKey]) {
+          importedTxs.push(...cache[cacheKey]);
+        } else {
+          const content = await readFile(accessToken, f.id);
+          const parsed = parseCSV(content).transactions;
+          importedTxs.push(...parsed);
+          cache = { ...cache, [cacheKey]: parsed };
+          cacheUpdated = true;
+        }
+      }
+
+      if (cacheUpdated) {
+        writeAppFile(accessToken, structure.fileIds.parseCache, cache).catch(() => {
+          // Non-fatal: worst case we re-parse next time.
+        });
+      }
 
       setRawTxs(mergeTransactions(importedTxs, manualTxs ?? []));
       setOverrides(ov ?? {});
       setExcludedIds(ex ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load transactions");
+      if (err instanceof DriveAuthError) {
+        setNeedsReauth(true);
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to load transactions");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -53,8 +87,6 @@ export function useTransactions(
     loadTransactions();
   }, [loadTransactions]);
 
-  // Categorization is a pure transform over the raw data — recomputed only when
-  // the inputs actually change, not on every render or rule reference churn.
   const excludedSet = useMemo(() => new Set(excludedIds), [excludedIds]);
   const transactions = useMemo(
     () =>
@@ -79,6 +111,22 @@ export function useTransactions(
       await writeAppFile(accessToken, structure.fileIds.manualTransactions, [newTx, ...existing]);
 
       setRawTxs((prev) => [newTx, ...prev]);
+    },
+    [accessToken, structure]
+  );
+
+  const deleteManualTransaction = useCallback(
+    async (txId: string) => {
+      if (!accessToken || !structure) return;
+
+      const existing = await readAppFile<Transaction[]>(
+        accessToken,
+        structure.fileIds.manualTransactions
+      );
+      const updated = existing.filter((t) => t.id !== txId);
+      await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
+
+      setRawTxs((prev) => prev.filter((t) => t.id !== txId));
     },
     [accessToken, structure]
   );
@@ -122,8 +170,10 @@ export function useTransactions(
     transactions,
     isLoading,
     error,
+    needsReauth,
     refetch: loadTransactions,
     addManualTransaction,
+    deleteManualTransaction,
     updateCategory,
     toggleExclude,
   };

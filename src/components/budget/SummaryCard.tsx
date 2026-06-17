@@ -47,7 +47,7 @@ export function SummaryCard({ label, amount, colorClass, index, secondaryText, a
               {label}
             </p>
           </div>
-          <p className={cn("text-2xl leading-none font-medium tabular-nums", colorClass)} style={{ fontFamily: "'DM Mono', monospace" }}>
+          <p className={cn("text-2xl leading-none font-medium tabular-nums font-mono", colorClass)}>
             {formatCurrency(displayed)}
           </p>
           {secondaryText && (

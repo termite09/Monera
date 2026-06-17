@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Repeat, EyeOff, RotateCcw, Loader2 } from "lucide-react";
+import { Repeat, EyeOff, RotateCcw, Loader2, Trash2 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ interface TransactionRowProps {
   transaction: Transaction;
   onCategoryChange: (id: string, category: Category) => void;
   onToggleExclude?: (id: string) => void | Promise<void>;
+  onDelete?: (id: string) => void | Promise<void>;
 }
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
@@ -32,9 +33,11 @@ function shortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
-export function TransactionRow({ transaction, onCategoryChange, onToggleExclude }: TransactionRowProps) {
+export function TransactionRow({ transaction, onCategoryChange, onToggleExclude, onDelete }: TransactionRowProps) {
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const tx = transaction;
   const isIncome = tx.type === "income";
   const isRecurring = tx.source === "recurring";
@@ -43,11 +46,14 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude 
   return (
     <div
       className={cn(
-        "grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem] items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
+        "grid items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
+        onDelete
+          ? "grid-cols-[2.8rem_1fr_auto_auto_1.75rem_1.75rem]"
+          : "grid-cols-[2.8rem_1fr_auto_auto_1.75rem]",
         excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
       )}
     >
-      <span className="text-xs text-muted-foreground tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+      <span className="text-xs text-muted-foreground tabular-nums font-mono">
         {shortDate(tx.date)}
       </span>
 
@@ -87,10 +93,9 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude 
 
       <span
         className={cn(
-          "text-sm tabular-nums text-right justify-self-end",
+          "text-sm tabular-nums text-right justify-self-end font-mono",
           excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
-        style={{ fontFamily: "'DM Mono', monospace" }}
       >
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
@@ -116,6 +121,39 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude 
         >
           {toggling ? <Loader2 size={14} className="animate-spin" /> : excluded ? <RotateCcw size={14} /> : <EyeOff size={14} />}
         </button>
+      )}
+
+      {onDelete && (
+        confirmDelete ? (
+          <button
+            onClick={async () => {
+              if (deleting) return;
+              setDeleting(true);
+              try {
+                await onDelete(tx.id);
+              } finally {
+                setDeleting(false);
+                setConfirmDelete(false);
+              }
+            }}
+            disabled={deleting}
+            className="justify-self-end p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
+            aria-label="Confirm delete"
+            title="Tap again to confirm"
+          >
+            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+          </button>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            onBlur={() => setConfirmDelete(false)}
+            className="justify-self-end p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
+            aria-label="Delete transaction"
+            title="Delete manual transaction"
+          >
+            <Trash2 size={14} />
+          </button>
+        )
       )}
     </div>
   );
