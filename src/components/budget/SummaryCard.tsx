@@ -13,9 +13,10 @@ interface SummaryCardProps {
   colorClass: string;
   index: number;
   secondaryText?: string;
+  accent?: string;
 }
 
-export function SummaryCard({ label, amount, colorClass, index, secondaryText }: SummaryCardProps) {
+export function SummaryCard({ label, amount, colorClass, index, secondaryText, accent = "#94a3b8" }: SummaryCardProps) {
   const [displayed, setDisplayed] = useState(0);
   const rafRef = useRef<number>(0);
 
@@ -38,18 +39,23 @@ export function SummaryCard({ label, amount, colorClass, index, secondaryText }:
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, duration: 0.3, ease: "easeOut" }}
     >
-      <Card className="shadow-none border-border">
-        <CardContent className="p-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            {label}
-          </p>
-          <p className={cn("text-2xl font-medium tabular-nums", colorClass)} style={{ fontFamily: "'DM Mono', monospace" }}>
+      <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_4px_16px_rgba(15,23,42,0.07)]">
+        <CardContent className="p-4 h-[108px] flex flex-col">
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <span className="size-1.5 rounded-full shrink-0" style={{ background: accent }} />
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+              {label}
+            </p>
+          </div>
+          <p className={cn("text-2xl leading-none font-medium tabular-nums", colorClass)} style={{ fontFamily: "'DM Mono', monospace" }}>
             {formatCurrency(displayed)}
           </p>
           {secondaryText && (
-            <p className="text-xs text-muted-foreground mt-1.5 tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
-              {secondaryText}
-            </p>
+            <span className="mt-auto">
+              <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
+                {secondaryText}
+              </span>
+            </span>
           )}
         </CardContent>
       </Card>

@@ -8,6 +8,7 @@ export const DRIVE_FILES = {
   categoryOverrides: "category-overrides.json",
   settings: "settings.json",
   categoryRules: "category-rules.json",
+  excludedTransactions: "excluded-transactions.json",
 } as const;
 
 export const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {

@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Transaction, Category, CategoryRule } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { listFiles, readFile } from "@/lib/google/drive";
-import { parseRevolutCSV } from "@/lib/parser/revolut";
+import { parseCSV } from "@/lib/parser";
 import { applyCategorizationRules } from "@/lib/categorizer";
 import { mergeTransactions } from "@/lib/dedup";
-import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
 
 export function useTransactions(
   accessToken: string | undefined,
-  structure: DriveStructure | null
+  structure: DriveStructure | null,
+  rules: CategoryRule[]
 ) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(!!accessToken);
@@ -22,11 +22,12 @@ export function useTransactions(
 
     try {
       // Load app data files
-      const [manualTxs, overrides, rules] = await Promise.all([
+      const [manualTxs, overrides, excludedIds] = await Promise.all([
         readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions),
         readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
-        readAppFile<CategoryRule[]>(accessToken, structure.fileIds.categoryRules),
+        readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
       ]);
+      const excludedSet = new Set(excludedIds);
 
       // Load and parse all Revolut CSVs
       const csvFiles = await listFiles(
@@ -38,17 +39,17 @@ export function useTransactions(
         csvFiles.map((f) => readFile(accessToken, f.id))
       );
 
-      const revolutTxs = csvContents.flatMap((content) => {
-        const parsed = parseRevolutCSV(content);
+      const importedTxs = csvContents.flatMap((content) => {
+        const parsed = parseCSV(content);
         return parsed.transactions;
       });
 
-      const merged = mergeTransactions(revolutTxs, manualTxs);
+      const merged = mergeTransactions(importedTxs, manualTxs);
       const categorized = applyCategorizationRules(
         merged,
-        rules.length > 0 ? rules : DEFAULT_CATEGORY_RULES,
+        rules,
         overrides
-      );
+      ).map((tx) => (excludedSet.has(tx.id) ? { ...tx, excluded: true } : tx));
 
       setTransactions(categorized);
     } catch (err) {
@@ -56,7 +57,7 @@ export function useTransactions(
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, structure]);
+  }, [accessToken, structure, rules]);
 
   useEffect(() => {
     loadTransactions();
@@ -109,6 +110,27 @@ export function useTransactions(
     [accessToken, structure]
   );
 
+  const toggleExclude = useCallback(
+    async (txId: string) => {
+      if (!accessToken || !structure) return;
+
+      const existing = await readAppFile<string[]>(
+        accessToken,
+        structure.fileIds.excludedTransactions
+      );
+      const set = new Set(existing);
+      const willExclude = !set.has(txId);
+      if (willExclude) set.add(txId);
+      else set.delete(txId);
+      await writeAppFile(accessToken, structure.fileIds.excludedTransactions, [...set]);
+
+      setTransactions((prev) =>
+        prev.map((tx) => (tx.id === txId ? { ...tx, excluded: willExclude } : tx))
+      );
+    },
+    [accessToken, structure]
+  );
+
   return {
     transactions,
     isLoading,
@@ -116,5 +138,6 @@ export function useTransactions(
     refetch: loadTransactions,
     addManualTransaction,
     updateCategory,
+    toggleExclude,
   };
 }

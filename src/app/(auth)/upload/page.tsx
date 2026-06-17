@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listFiles, uploadCSV } from "@/lib/google/drive";
-import { parseRevolutCSV } from "@/lib/parser/revolut";
+import { parseCSV } from "@/lib/parser";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export default function UploadPage() {
 
     try {
       const content = await file.text();
-      const { transactions, errors } = parseRevolutCSV(content);
+      const { transactions, errors } = parseCSV(content);
       await uploadCSV(accessToken, file.name, structure.revolutExportsId, content);
       setStatus("success");
       setMessage(`Uploaded ${file.name} — found ${transactions.length} transactions${errors.length > 0 ? `, ${errors.length} parse errors` : ""}`);
@@ -72,7 +72,7 @@ export default function UploadPage() {
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Upload CSV</h1>
-          <p className="text-sm text-muted-foreground mt-1">Upload Revolut CSV exports to import transactions</p>
+          <p className="text-sm text-muted-foreground mt-1">Import any bank CSV — Revolut is auto-detected, other formats are matched by their column headers</p>
         </div>
 
         {/* Drop zone */}
@@ -97,7 +97,7 @@ export default function UploadPage() {
           />
           <Upload size={32} className="mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">Drag & drop CSV or click to browse</p>
-          <p className="text-xs text-muted-foreground mt-1">Revolut export CSV files only</p>
+          <p className="text-xs text-muted-foreground mt-1">CSV files — Revolut or any bank with date / description / amount columns</p>
         </div>
 
         {/* Status */}

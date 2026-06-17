@@ -1,7 +1,11 @@
 import { CategoryRule } from "@/types";
 
 export const DEFAULT_CATEGORY_RULES: CategoryRule[] = [
+  // INTERNAL SAVINGS TRANSFERS — checked first so they win over other rules
+  { keyword: "to eur savings", category: "Savings" },
+  { keyword: "savings for weddings", category: "Savings" },
   // NEEDS — housing, utilities, transport essentials, insurance
+  { keyword: "irene andrea michael", category: "Needs" },
   { keyword: "rent", category: "Needs" },
   { keyword: "apartment", category: "Needs" },
   { keyword: "electricity authority", category: "Needs" },
@@ -26,8 +30,6 @@ export const DEFAULT_CATEGORY_RULES: CategoryRule[] = [
   { keyword: "car insurance", category: "Needs" },
   { keyword: "health insurance", category: "Needs" },
   { keyword: "gov.cy", category: "Needs" },
-  { keyword: "wedding savings", category: "Needs" },
-  { keyword: "weddings", category: "Needs" },
   // WANTS — food, entertainment, subscriptions, shopping, personal care
   { keyword: "alphamega", category: "Wants" },
   { keyword: "alpha mega", category: "Wants" },

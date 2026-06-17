@@ -13,11 +13,11 @@ import { AddTransactionForm } from "@/components/transactions/AddTransactionForm
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
+import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 import { Category } from "@/types";
 
 export default function TransactionsPage() {
-  const { transactions, settings, isLoading, addManualTransaction, updateCategory } = useAppData();
+  const { transactions, settings, isLoading, addManualTransaction, updateCategory, toggleExclude } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
@@ -37,8 +37,14 @@ export default function TransactionsPage() {
       .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
       .filter((t) => filterCat === "All" || t.category === filterCat)
       .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [transactions, settings.recurringPayments, month, filterCat, search, paydayOfMonth]);
+
+  // Sum of visible transactions, ignoring excluded ones
+  const total = useMemo(
+    () => filtered.filter((t) => !t.excluded).reduce((s, t) => s + t.amount, 0),
+    [filtered]
+  );
 
   return (
     <PageShell>
@@ -69,7 +75,12 @@ export default function TransactionsPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{filtered.length} transactions</p>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} transactions ·{" "}
+            <span className="font-medium text-foreground tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+              {formatCurrency(total)}
+            </span>
+          </p>
           <Button onClick={() => setShowAdd(true)} size="sm" className="hidden md:inline-flex">
             <Plus size={14} className="mr-1" />
             Add
@@ -91,15 +102,16 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-[2.8rem_1fr_auto_auto] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <span>Date</span>
                   <span>Description</span>
                   <span className="justify-self-start">Category</span>
                   <span className="justify-self-end">Amount</span>
+                  <span />
                 </div>
                 <div className="divide-y divide-border">
                   {filtered.map((tx) => (
-                    <TransactionRow key={tx.id} transaction={tx} onCategoryChange={updateCategory} />
+                    <TransactionRow key={tx.id} transaction={tx} onCategoryChange={updateCategory} onToggleExclude={toggleExclude} />
                   ))}
                 </div>
               </>

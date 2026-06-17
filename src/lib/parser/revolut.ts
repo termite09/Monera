@@ -94,6 +94,17 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
 
     const description = typedRow.Description || "Unknown";
     const currency = typedRow.Currency || "EUR";
+
+    const descLower = description.toLowerCase();
+    const isSavingsVault = descLower.includes("eur savings") || descLower.includes("savings for");
+    const isSelfTransfer = descLower.includes("alexandros christou") || descLower.includes("alex christou");
+
+    // Self-transfers move your own money between accounts — not income or spending
+    if (isSelfTransfer) continue;
+    // Internal savings deposits appear twice (main account out + savings pocket in).
+    // Keep the outgoing as a Savings expense; drop the positive mirror to avoid double counting.
+    if (isSavingsVault && amount > 0) continue;
+
     const dedupKey = `${parsedDate}|${description}|${amount}|${currency}`;
 
     transactions.push({

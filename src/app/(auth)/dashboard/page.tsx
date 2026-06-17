@@ -44,6 +44,7 @@ export default function DashboardPage() {
 
   const { start, end } = getPeriodBounds(month, paydayOfMonth);
   const monthTxs = allTxs.filter((t) => {
+    if (t.excluded) return false;
     const d = new Date(t.date + "T00:00:00");
     return d >= start && d <= end;
   });
@@ -65,10 +66,10 @@ export default function DashboardPage() {
   const othersText = othersTotal > 0 ? `+${formatCurrency(othersTotal)} from others` : undefined;
 
   const summaryCards = [
-    { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", secondaryText: othersText },
-    { label: "Expenses", amount: summary.totalExpenses, icon: "↓", colorClass: "text-foreground" },
-    { label: "Remaining", amount: summary.remaining, icon: "=", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive" },
-    { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary" },
+    { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", secondaryText: othersText },
+    { label: "Expenses", amount: summary.totalExpenses, icon: "↓", colorClass: "text-foreground", accent: "#64748b" },
+    { label: "Remaining", amount: summary.remaining, icon: "=", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive", accent: summary.remaining >= 0 ? "#10b981" : "#ef4444" },
+    { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary", accent: "#1C3557" },
   ];
 
   return (
@@ -79,7 +80,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-3">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-card rounded-xl border border-border p-4">
+                <div key={i} className="bg-card rounded-2xl border border-border/70 p-4 h-[108px]">
                   <Skeleton className="h-3 w-16 mb-3" />
                   <Skeleton className="h-7 w-24 mb-2" />
                 </div>
@@ -89,14 +90,14 @@ export default function DashboardPage() {
               ))}
         </div>
 
-        <Card className="shadow-none border-border">
+        <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Budget Progress
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-5">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               <BudgetDonut label="Needs" spent={summary.needs} allocated={budgetAllocations.needs} color="#1C3557" labelClass="text-primary" />
               <BudgetDonut label="Wants" spent={summary.wants} allocated={budgetAllocations.wants} color="#d97706" labelClass="text-amber-600 dark:text-amber-400" />
               <BudgetDonut label="Savings" spent={summary.savings} allocated={budgetAllocations.savings} color="#10b981" labelClass="text-emerald-600 dark:text-emerald-400" />
@@ -105,7 +106,7 @@ export default function DashboardPage() {
         </Card>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Card className="shadow-none border-border">
+          <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">By Category</CardTitle>
             </CardHeader>
@@ -113,7 +114,7 @@ export default function DashboardPage() {
               <SpendingPie transactions={monthTxs} />
             </CardContent>
           </Card>
-          <Card className="shadow-none border-border">
+          <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Spending</CardTitle>
             </CardHeader>

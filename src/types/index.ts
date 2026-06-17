@@ -15,6 +15,7 @@ export interface Transaction {
   categorySource: CategorySource;
   notes?: string;
   month: string;
+  excluded?: boolean;
 }
 
 export interface MonthlyBudget {

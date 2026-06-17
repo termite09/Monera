@@ -12,6 +12,7 @@ export interface DriveStructure {
     categoryOverrides: string;
     settings: string;
     categoryRules: string;
+    excludedTransactions: string;
   };
 }
 
@@ -61,6 +62,7 @@ export async function ensureDriveStructure(accessToken: string): Promise<DriveSt
     categoryOverrides: await ensureFile(accessToken, DRIVE_FILES.categoryOverrides, appDataId, "{}"),
     settings: await ensureFile(accessToken, DRIVE_FILES.settings, appDataId, JSON.stringify(DEFAULT_SETTINGS, null, 2)),
     categoryRules: await ensureFile(accessToken, DRIVE_FILES.categoryRules, appDataId, JSON.stringify(DEFAULT_CATEGORY_RULES, null, 2)),
+    excludedTransactions: await ensureFile(accessToken, DRIVE_FILES.excludedTransactions, appDataId, "[]"),
   };
 
   return { rootId, revolutExportsId, appDataId, fileIds };

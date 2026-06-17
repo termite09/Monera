@@ -27,7 +27,10 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border px-4 h-14 flex items-center justify-between">
+    <header
+      className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
       {/* Top loading bar */}
       <AnimatePresence>
         {isLoading && (
@@ -42,20 +45,22 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
         )}
       </AnimatePresence>
 
-      <span className="text-sm font-semibold text-foreground md:hidden" style={{ fontFamily: "'DM Serif Display', serif" }}>
-        Monera
-      </span>
-
-      <div className="flex items-center gap-1 ml-auto md:ml-0">
-        <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground">
-          <ChevronLeft size={16} />
-        </Button>
-        <span className="text-sm font-medium text-foreground min-w-[140px] text-center">
-          {monthLabel}
+      <div className="px-4 h-14 flex items-center justify-between">
+        <span className="text-base font-semibold text-foreground md:hidden" style={{ fontFamily: "'DM Serif Display', serif" }}>
+          Monera
         </span>
-        <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground">
-          <ChevronRight size={16} />
-        </Button>
+
+        <div className="flex items-center gap-1 ml-auto md:ml-0">
+          <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground">
+            <ChevronLeft size={16} />
+          </Button>
+          <span className="text-sm font-medium text-foreground min-w-[140px] text-center">
+            {monthLabel}
+          </span>
+          <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground">
+            <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
     </header>
   );

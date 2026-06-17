@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Repeat } from "lucide-react";
+import { Repeat, EyeOff, RotateCcw, Loader2 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 interface TransactionRowProps {
   transaction: Transaction;
   onCategoryChange: (id: string, category: Category) => void;
+  onToggleExclude?: (id: string) => void | Promise<void>;
 }
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
@@ -31,25 +32,32 @@ function shortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
-export function TransactionRow({ transaction, onCategoryChange }: TransactionRowProps) {
+export function TransactionRow({ transaction, onCategoryChange, onToggleExclude }: TransactionRowProps) {
   const [editing, setEditing] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const tx = transaction;
   const isIncome = tx.type === "income";
   const isRecurring = tx.source === "recurring";
+  const excluded = !!tx.excluded;
 
   return (
-    <div className="grid grid-cols-[2.8rem_1fr_auto_auto] items-center gap-2 sm:gap-3 py-2 px-2 hover:bg-secondary/50 transition-colors">
+    <div
+      className={cn(
+        "grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem] items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
+        excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
+      )}
+    >
       <span className="text-xs text-muted-foreground tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
         {shortDate(tx.date)}
       </span>
 
-      <span className="truncate text-sm text-foreground flex items-center gap-1.5 min-w-0">
+      <span className={cn("truncate text-sm text-foreground flex items-center gap-1.5 min-w-0", excluded && "line-through")}>
         {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0" />}
         <span className="truncate">{tx.description}</span>
       </span>
 
       <div className="justify-self-start">
-        {editing ? (
+        {editing && !excluded ? (
           <select
             value={tx.category}
             onChange={(e) => {
@@ -66,8 +74,9 @@ export function TransactionRow({ transaction, onCategoryChange }: TransactionRow
           </select>
         ) : (
           <button
-            onClick={() => setEditing(true)}
-            className="flex items-center gap-1.5 focus:outline-none"
+            onClick={() => !excluded && setEditing(true)}
+            disabled={excluded}
+            className="flex items-center gap-1.5 focus:outline-none disabled:cursor-default"
             aria-label={`Category: ${tx.category}`}
           >
             <span className={cn("size-2 rounded-full shrink-0", catDot[tx.category])} />
@@ -79,12 +88,35 @@ export function TransactionRow({ transaction, onCategoryChange }: TransactionRow
       <span
         className={cn(
           "text-sm tabular-nums text-right justify-self-end",
-          isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+          excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
         style={{ fontFamily: "'DM Mono', monospace" }}
       >
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
+
+      {onToggleExclude && (
+        <button
+          onClick={async () => {
+            if (toggling) return;
+            setToggling(true);
+            try {
+              await onToggleExclude(tx.id);
+            } finally {
+              setToggling(false);
+            }
+          }}
+          disabled={toggling}
+          className={cn(
+            "justify-self-end p-1 rounded-md transition-colors disabled:cursor-wait",
+            excluded ? "text-primary hover:bg-secondary" : "text-muted-foreground/40 hover:text-destructive hover:bg-secondary"
+          )}
+          aria-label={excluded ? "Include in calculations" : "Exclude from calculations"}
+          title={excluded ? "Include in calculations" : "Exclude from calculations"}
+        >
+          {toggling ? <Loader2 size={14} className="animate-spin" /> : excluded ? <RotateCcw size={14} /> : <EyeOff size={14} />}
+        </button>
+      )}
     </div>
   );
 }

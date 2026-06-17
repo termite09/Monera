@@ -10,6 +10,7 @@ export function useBudget(
   const { start, end } = getPeriodBounds(month, paydayOfMonth);
 
   const inPeriod = (tx: Transaction) => {
+    if (tx.excluded) return false;
     const d = new Date(tx.date + "T00:00:00");
     return d >= start && d <= end;
   };

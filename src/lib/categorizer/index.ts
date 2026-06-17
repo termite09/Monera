@@ -12,7 +12,8 @@ export function categorizeTransaction(
     }
   }
 
-  return { category: "Uncategorized", categorySource: "auto" };
+  // Default unmatched transactions to Wants
+  return { category: "Wants", categorySource: "auto" };
 }
 
 export function applyCategorizationRules(

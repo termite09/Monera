@@ -18,7 +18,7 @@ export default function YearOverviewPage() {
   const { transactions, isLoading } = useAppData();
   const [year, setYear] = useState(new Date().getFullYear());
 
-  const yearTxs = transactions.filter((t) => t.date.startsWith(String(year)));
+  const yearTxs = transactions.filter((t) => t.date.startsWith(String(year)) && !t.excluded);
   const totalExpenses = yearTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   const totalSavings = yearTxs.filter((t) => t.category === "Savings").reduce((s, t) => s + t.amount, 0);
 
