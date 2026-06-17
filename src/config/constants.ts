@@ -30,6 +30,9 @@ export const DEFAULT_SETTINGS = {
   defaultBudgetRule: { needs: 30, wants: 60, savings: 10 },
   monthlyBudgets: {},
   salaryKeywords: [],
+  selfTransferKeywords: [],
+  // Generic Revolut savings-vault phrasing — safe defaults the user can edit.
+  savingsVaultKeywords: ["eur savings", "savings for"],
   recurringPayments: [],
 };
 

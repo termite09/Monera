@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,13 +14,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
-import { Category } from "@/types";
+import { Category, TransactionType } from "@/types";
 
 export default function TransactionsPage() {
   const { transactions, settings, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, refetch } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
+  const [filterType, setFilterType] = useState<TransactionType | "all">("expense");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [showAdd, setShowAdd] = useState(false);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
@@ -33,18 +35,29 @@ export default function TransactionsPage() {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
     const recurringTxs = getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth);
     return [...transactions, ...recurringTxs]
-      .filter((t) => t.type === "expense")
+      .filter((t) => filterType === "all" || t.type === filterType)
       .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
       .filter((t) => filterCat === "All" || t.category === filterCat)
       .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
-  }, [transactions, settings.recurringPayments, month, filterCat, search, paydayOfMonth]);
+      .sort((a, b) => {
+        const cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
+        return sortDir === "desc" ? -cmp : cmp;
+      });
+  }, [transactions, settings.recurringPayments, month, filterCat, filterType, search, paydayOfMonth, sortDir]);
 
-  // Sum of visible transactions, ignoring excluded ones
-  const total = useMemo(
-    () => filtered.filter((t) => !t.excluded).reduce((s, t) => s + t.amount, 0),
-    [filtered]
-  );
+  // Totals of visible transactions, ignoring excluded ones. The headline figure
+  // adapts to the type filter: spent, received, or net when showing all.
+  const { summaryTotal } = useMemo(() => {
+    let expense = 0;
+    let income = 0;
+    for (const t of filtered) {
+      if (t.excluded) continue;
+      if (t.type === "income") income += t.amount;
+      else expense += t.amount;
+    }
+    const total = filterType === "income" ? income : filterType === "all" ? income - expense : expense;
+    return { summaryTotal: total };
+  }, [filtered, filterType]);
 
   return (
     <PageShell>
@@ -71,9 +84,20 @@ export default function TransactionsPage() {
             />
           </div>
           <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as TransactionType | "all")}
+            className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filter by type"
+          >
+            <option value="expense">Expenses</option>
+            <option value="income">Income</option>
+            <option value="all">All types</option>
+          </select>
+          <select
             value={filterCat}
             onChange={(e) => setFilterCat(e.target.value as Category | "All")}
             className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filter by category"
           >
             <option value="All">All</option>
             <option value="Needs">Needs</option>
@@ -87,13 +111,24 @@ export default function TransactionsPage() {
           <p className="text-sm text-muted-foreground">
             {filtered.length} transactions ·{" "}
             <span className="font-medium text-foreground tabular-nums font-mono">
-              {formatCurrency(total)}
+              {formatCurrency(summaryTotal)}
             </span>
           </p>
-          <Button onClick={() => setShowAdd(true)} size="sm" className="hidden md:inline-flex">
-            <Plus size={14} className="mr-1" />
-            Add
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+              aria-label={`Sort by date, ${sortDir === "desc" ? "newest" : "oldest"} first`}
+            >
+              {sortDir === "desc" ? <ArrowDown size={14} className="mr-1" /> : <ArrowUp size={14} className="mr-1" />}
+              {sortDir === "desc" ? "Newest" : "Oldest"}
+            </Button>
+            <Button onClick={() => setShowAdd(true)} size="sm" className="hidden md:inline-flex">
+              <Plus size={14} className="mr-1" />
+              Add
+            </Button>
+          </div>
         </div>
 
         <Card className="shadow-none border-border overflow-hidden">
@@ -140,7 +175,6 @@ export default function TransactionsPage() {
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
-          paydayOfMonth={paydayOfMonth}
           onSubmit={async (tx) => { await addManualTransaction(tx); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />

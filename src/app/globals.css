@@ -82,7 +82,10 @@ html {
 }
 
 html, body {
-  overflow-x: hidden;
+  /* `clip` prevents horizontal scroll without forcing overflow-y to `auto`
+     (which `hidden` does, turning html/body into scroll containers and breaking
+     normal vertical page scrolling). */
+  overflow-x: clip;
   overscroll-behavior-y: none;
 }
 

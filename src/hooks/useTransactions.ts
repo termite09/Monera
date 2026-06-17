@@ -1,22 +1,29 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Transaction, Category, CategoryRule } from "@/types";
+import { Transaction, Category, CategoryRule, Settings } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { listFiles, readFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { applyCategorizationRules } from "@/lib/categorizer";
+import { filterInternalTransfers } from "@/lib/transfers";
 import { mergeTransactions } from "@/lib/dedup";
 import { DriveAuthError } from "@/lib/errors";
 
 type ParseCache = Record<string, Transaction[]>;
 
+// Bump when the parser's output changes so stale entries are re-parsed once.
+// v2: parser no longer strips self-transfers / savings-vault mirrors (that moved
+// to settings-driven filterInternalTransfers), so cached rows must be rebuilt.
+const CACHE_VERSION = "v2";
+
 function cacheKey(f: { id: string; size?: string }): string {
-  return `${f.id}:${f.size ?? "0"}`;
+  return `${f.id}:${f.size ?? "0"}:${CACHE_VERSION}`;
 }
 
 export function useTransactions(
   accessToken: string | undefined,
   structure: DriveStructure | null,
-  rules: CategoryRule[]
+  rules: CategoryRule[],
+  settings: Settings
 ) {
   const [rawTxs, setRawTxs] = useState<Transaction[]>([]);
   const [overrides, setOverrides] = useState<Record<string, Category>>({});
@@ -115,20 +122,25 @@ export function useTransactions(
   }, [loadTransactions]);
 
   const excludedSet = useMemo(() => new Set(excludedIds), [excludedIds]);
-  const transactions = useMemo(
-    () =>
-      applyCategorizationRules(rawTxs, rules, overrides).map((tx) =>
-        excludedSet.has(tx.id) ? { ...tx, excluded: true } : tx
-      ),
-    [rawTxs, rules, overrides, excludedSet]
-  );
+  const transactions = useMemo(() => {
+    // Drop internal money movements (self-transfers, savings-vault mirrors) using
+    // the user's configured keywords before categorizing.
+    const visible = filterInternalTransfers(rawTxs, {
+      selfTransferKeywords: settings?.selfTransferKeywords,
+      savingsVaultKeywords: settings?.savingsVaultKeywords,
+    });
+    return applyCategorizationRules(visible, rules, overrides).map((tx) =>
+      excludedSet.has(tx.id) ? { ...tx, excluded: true } : tx
+    );
+  }, [rawTxs, rules, overrides, excludedSet, settings?.selfTransferKeywords, settings?.savingsVaultKeywords]);
 
   const addManualTransaction = useCallback(
     async (tx: Omit<Transaction, "id" | "source" | "categorySource">) => {
       if (!accessToken || !structure) return;
 
       const { generateId } = await import("@/lib/utils");
-      const id = generateId(`manual-${tx.date}-${tx.description}-${tx.amount}`);
+      // Include a timestamp so two identical manual entries don't collide into one.
+      const id = generateId(`manual-${tx.date}-${tx.description}-${tx.amount}-${Date.now()}`);
       const newTx: Transaction = { ...tx, id, source: "manual", categorySource: "manual" };
 
       const existing = await readAppFile<Transaction[]>(

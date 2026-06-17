@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { formatCurrency } from "@/lib/utils";
+import { monthlyCategoryTotals } from "@/lib/reports";
 
 const YearBar = dynamic(
   () => import("@/components/charts/YearBar").then((m) => m.YearBar),
@@ -16,14 +17,15 @@ const YearBar = dynamic(
 );
 
 export default function YearOverviewPage() {
-  
-  
-  const { transactions, isLoading } = useAppData();
+  const { transactions, settings, isLoading } = useAppData();
   const [year, setYear] = useState(new Date().getFullYear());
+  const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
-  const yearTxs = transactions.filter((t) => t.date.startsWith(String(year)) && !t.excluded);
-  const totalExpenses = yearTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const totalSavings = yearTxs.filter((t) => t.category === "Savings").reduce((s, t) => s + t.amount, 0);
+  // Derive the cards from the same payday-aware monthly totals the chart uses, so
+  // the headline figures always match the bars below (and honor the pay cycle).
+  const totals = monthlyCategoryTotals(transactions, year, paydayOfMonth);
+  const totalExpenses = totals.reduce((s, m) => s + m.needs + m.wants + m.savings, 0);
+  const totalSavings = totals.reduce((s, m) => s + m.savings, 0);
 
   return (
     <PageShell>
@@ -70,7 +72,7 @@ export default function YearOverviewPage() {
             {isLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <YearBar transactions={yearTxs} year={year} />
+              <YearBar transactions={transactions} year={year} paydayOfMonth={paydayOfMonth} />
             )}
           </CardContent>
         </Card>

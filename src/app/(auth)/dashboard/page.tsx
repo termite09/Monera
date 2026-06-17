@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { useAppData } from "@/contexts/AppDataContext";
-import { useAuth } from "@/hooks/useAuth";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
@@ -32,7 +31,6 @@ import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { transactions, settings, isLoading, txError, addManualTransaction, refetch } = useAppData();
-  const { session } = useAuth();
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAdd, setShowAdd] = useState(false);
 
@@ -45,7 +43,7 @@ export default function DashboardPage() {
   );
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
-  const { summary, budgetAllocations } = useBudget(allTxs, settings, month);
+  const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
 
   useEffect(() => {
     setMonth(getCurrentMonth(paydayOfMonth));
@@ -58,24 +56,18 @@ export default function DashboardPage() {
     return d >= start && d <= end;
   });
 
-  // Auto-detect self-transfers by matching user's own name in description
-  const nameWords = (session?.user?.name ?? "")
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length >= 4);
-
-  const monthIncomeTxs = monthTxs.filter((t) => t.type === "income");
-  const othersTotal = monthIncomeTxs
-    .filter((t) => {
-      const desc = t.description.toLowerCase();
-      return nameWords.length === 0 || !nameWords.some((w) => desc.includes(w));
-    })
-    .reduce((s, t) => s + t.amount, 0);
-
-  const othersText = othersTotal > 0 ? `+${formatCurrency(othersTotal)} from others` : undefined;
+  // Money received from others = CSV income excluding salary (one source of
+  // truth: useBudget, driven by salaryKeywords). Self-transfers are already
+  // removed upstream by filterInternalTransfers.
+  const othersText =
+    summary.transfersReceived > 0
+      ? `+${formatCurrency(summary.transfersReceived)} from others`
+      : undefined;
+  // When no planned income is set, show that the figure came from the statement.
+  const incomeNote = othersText ?? (incomeIsDetected ? "Detected from statement" : undefined);
 
   const summaryCards = [
-    { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", secondaryText: othersText },
+    { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", secondaryText: incomeNote },
     { label: "Expenses", amount: summary.totalExpenses, icon: "↓", colorClass: "text-foreground", accent: "#64748b" },
     { label: "Remaining", amount: summary.remaining, icon: "=", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive", accent: summary.remaining >= 0 ? "#10b981" : "#ef4444" },
     { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary", accent: "#1C3557" },
@@ -129,7 +121,7 @@ export default function DashboardPage() {
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">By Category</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <SpendingPie transactions={monthTxs} />
+              <SpendingPie transactions={allTxs} month={month} paydayOfMonth={paydayOfMonth} />
             </CardContent>
           </Card>
           <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -137,7 +129,7 @@ export default function DashboardPage() {
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Spending</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <DailyTrend transactions={monthTxs} month={month} />
+              <DailyTrend transactions={monthTxs} />
             </CardContent>
           </Card>
         </div>
@@ -154,7 +146,6 @@ export default function DashboardPage() {
 
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <AddTransactionForm
-          paydayOfMonth={paydayOfMonth}
           onSubmit={async (tx) => { await addManualTransaction(tx); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />

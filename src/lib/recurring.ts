@@ -44,7 +44,6 @@ export function getRecurringTransactions(
       category: r.category,
       source: "recurring",
       categorySource: "manual",
-      month: monthKey,
     });
   }
 

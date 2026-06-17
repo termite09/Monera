@@ -1,7 +1,7 @@
 import { Transaction, ParsedCSV } from "@/types";
 import { parseRevolutCSV } from "./revolut";
 import { parseRevolutDate } from "./dates";
-import { generateId, getMonthKey } from "@/lib/utils";
+import { occurrenceId } from "@/lib/utils";
 
 function splitLine(line: string): string[] {
   const out: string[] = [];
@@ -65,6 +65,7 @@ export function parseGenericCSV(content: string): ParsedCSV {
   if (errors.length) return { transactions: [], errors };
 
   const transactions: Transaction[] = [];
+  const counts = new Map<string, number>();
   for (let i = 1; i < lines.length; i++) {
     const v = splitLine(lines[i]).map((x) => x.replace(/"/g, "").trim());
     if (v.length < headers.length) continue;
@@ -83,7 +84,7 @@ export function parseGenericCSV(content: string): ParsedCSV {
     const dedupKey = `${date}|${description}|${amount}|${currency}`;
 
     transactions.push({
-      id: generateId(dedupKey),
+      id: occurrenceId(dedupKey, counts),
       date,
       description,
       amount: Math.abs(amount),
@@ -92,7 +93,6 @@ export function parseGenericCSV(content: string): ParsedCSV {
       category: "Uncategorized",
       source: "revolut",
       categorySource: "auto",
-      month: getMonthKey(date),
     });
   }
 

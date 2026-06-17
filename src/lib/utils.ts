@@ -60,6 +60,19 @@ export function generateId(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
+/**
+ * Stable id for a transaction within a single CSV file, disambiguating genuinely
+ * identical rows (e.g. two €3.50 coffees on the same day) that would otherwise
+ * collapse to one id and be lost during dedup. The FIRST occurrence keeps the
+ * plain `generateId(baseKey)` so existing ids — and the overrides/exclusions
+ * keyed by them — never change; only previously-dropped duplicates get new ids.
+ */
+export function occurrenceId(baseKey: string, counts: Map<string, number>): string {
+  const n = counts.get(baseKey) ?? 0;
+  counts.set(baseKey, n + 1);
+  return generateId(n === 0 ? baseKey : `${baseKey}#${n}`);
+}
+
 export function getCategoryColor(category: Category): string {
   const colors: Record<Category, string> = {
     Needs: "#1E3A5F",

@@ -14,7 +14,6 @@ export interface Transaction {
   source: TransactionSource;
   categorySource: CategorySource;
   notes?: string;
-  month: string;
   excluded?: boolean;
 }
 
@@ -41,7 +40,12 @@ export interface Settings {
   paydayOfMonth: number;
   defaultBudgetRule: { needs: number; wants: number; savings: number };
   monthlyBudgets: Record<string, MonthlyBudget>;
+  /** Descriptions identifying your salary — excluded from "received from others". */
   salaryKeywords: string[];
+  /** Descriptions identifying transfers between your own accounts — dropped entirely. */
+  selfTransferKeywords: string[];
+  /** Descriptions identifying Revolut savings-vault deposits — positive mirror dropped. */
+  savingsVaultKeywords: string[];
   recurringPayments: RecurringPayment[];
 }
 

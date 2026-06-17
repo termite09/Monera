@@ -15,11 +15,10 @@ export function PageShell({ children, className = "" }: PageShellProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={`
-        min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#FAFAFA] dark:bg-[#0F0F0F]
-        md:pb-6 md:ml-60
+        min-h-[100dvh] w-full max-w-full overflow-x-clip bg-[#FAFAFA] dark:bg-[#0F0F0F]
+        pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6 md:ml-56
         ${className}
       `}
-      style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}
     >
       {children}
     </motion.main>

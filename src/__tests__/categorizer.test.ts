@@ -19,7 +19,6 @@ function makeTx(id: string, description: string, type: "expense" | "income" = "e
     category: "Uncategorized",
     source: "revolut",
     categorySource: "auto",
-    month: "2024-06",
   };
 }
 

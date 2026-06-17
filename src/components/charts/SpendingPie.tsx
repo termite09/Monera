@@ -1,22 +1,25 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Transaction } from "@/types";
+import { Category, Transaction } from "@/types";
 import { getCategoryColor, formatCurrency } from "@/lib/utils";
+import { getPeriodSpend } from "@/lib/finance";
 
 interface SpendingPieProps {
   transactions: Transaction[];
+  month: string;
+  paydayOfMonth?: number;
 }
 
-export function SpendingPie({ transactions }: SpendingPieProps) {
-  const expenses = transactions.filter((t) => t.type === "expense");
+export function SpendingPie({ transactions, month, paydayOfMonth = 1 }: SpendingPieProps) {
+  // Use the shared period-spend helper so the category breakdown nets refunds
+  // identically to the budget donuts and the reports page.
+  const { byCategory } = getPeriodSpend(transactions, month, paydayOfMonth);
+  const cats: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
 
-  const data = ["Needs", "Wants", "Savings", "Uncategorized"].map((cat) => ({
-    name: cat,
-    value: expenses
-      .filter((t) => t.category === cat)
-      .reduce((s, t) => s + t.amount, 0),
-  })).filter((d) => d.value > 0);
+  const data = cats
+    .map((cat) => ({ name: cat, value: byCategory[cat] }))
+    .filter((d) => d.value > 0);
 
   if (data.length === 0) {
     return (

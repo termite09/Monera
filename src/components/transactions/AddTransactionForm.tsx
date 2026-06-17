@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Transaction, Category } from "@/types";
+import { Transaction, Category, TransactionType } from "@/types";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -12,22 +13,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getMonthKey } from "@/lib/utils";
-
 interface AddTransactionFormProps {
   onSubmit: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
   onCancel: () => void;
-  paydayOfMonth?: number;
 }
 
-export function AddTransactionForm({ onSubmit, onCancel, paydayOfMonth = 1 }: AddTransactionFormProps) {
+export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormProps) {
   const today = new Date().toISOString().split("T")[0];
   const [date, setDate] = useState(today);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [type, setType] = useState<TransactionType>("expense");
   const [category, setCategory] = useState<Category>("Wants");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Income is usually salary/transfers, not a spending bucket, so default it to
+  // Uncategorized; expenses default to Wants.
+  const selectType = (t: TransactionType) => {
+    setType(t);
+    setCategory(t === "income" ? "Uncategorized" : "Wants");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,11 +44,10 @@ export function AddTransactionForm({ onSubmit, onCancel, paydayOfMonth = 1 }: Ad
         date,
         description,
         amount: parseFloat(amount),
-        type: "expense",
+        type,
         currency: "EUR",
         category,
         notes: notes || undefined,
-        month: getMonthKey(date, paydayOfMonth),
       });
     } finally {
       setLoading(false);
@@ -51,6 +56,25 @@ export function AddTransactionForm({ onSubmit, onCancel, paydayOfMonth = 1 }: Ad
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <Label>Type</Label>
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-secondary">
+          {(["expense", "income"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => selectType(t)}
+              className={cn(
+                "h-9 rounded-md text-sm font-medium capitalize transition-colors",
+                type === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="tx-date">Date <span className="text-destructive">*</span></Label>
         <Input id="tx-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="h-11" />

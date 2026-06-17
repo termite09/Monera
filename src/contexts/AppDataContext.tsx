@@ -32,6 +32,7 @@ const AppDataContext = createContext<AppDataContextValue | null>(null);
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth();
   const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken);
+  const { settings, updateSettings } = useSettings(accessToken, structure);
   const { rules, updateRules } = useRules(accessToken, structure);
   const {
     transactions,
@@ -43,8 +44,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateCategory,
     toggleExclude,
     refetch,
-  } = useTransactions(accessToken, structure, rules);
-  const { settings, updateSettings } = useSettings(accessToken, structure);
+  } = useTransactions(accessToken, structure, rules, settings);
 
   const isLoading = isDriveLoading || isTxLoading;
 

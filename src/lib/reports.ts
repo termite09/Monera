@@ -1,5 +1,43 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds } from "@/lib/utils";
+import { getPeriodBounds, getMonthKey } from "@/lib/utils";
+import { getPeriodSpend } from "@/lib/finance";
+
+export interface MonthlyTotals {
+  needs: number;
+  wants: number;
+  savings: number;
+}
+
+/**
+ * Per-period expense totals for each of the 12 budget periods in a year, bucketed
+ * by the payday-aware period key (not the calendar month). Index 0 = the period
+ * keyed `${year}-01`. Used by the year overview chart; replaces the old reliance
+ * on a stored `tx.month` field that was computed with an inconsistent payday.
+ */
+export function monthlyCategoryTotals(
+  transactions: Transaction[],
+  year: number,
+  paydayOfMonth = 1
+): MonthlyTotals[] {
+  const totals: MonthlyTotals[] = Array.from({ length: 12 }, () => ({
+    needs: 0,
+    wants: 0,
+    savings: 0,
+  }));
+
+  for (const t of transactions) {
+    if (t.excluded || t.type !== "expense") continue;
+    const key = getMonthKey(t.date, paydayOfMonth);
+    const [ky, km] = key.split("-").map(Number);
+    if (ky !== year) continue;
+    const bucket = totals[km - 1];
+    if (t.category === "Needs") bucket.needs += t.amount;
+    else if (t.category === "Wants") bucket.wants += t.amount;
+    else if (t.category === "Savings") bucket.savings += t.amount;
+  }
+
+  return totals;
+}
 
 export interface MerchantStat {
   name: string;
@@ -62,16 +100,77 @@ function prevMonthKey(monthKey: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+export interface Subscription {
+  name: string;
+  amount: number; // representative (median) charge
+  months: number; // distinct calendar months the charge was seen in
+  lastDate: string;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Surfaces likely subscriptions from transaction history: a merchant charged a
+ * consistent amount across two or more distinct months. Variable spending (e.g.
+ * groceries) is excluded because its amounts don't cluster. Operates on all
+ * history, independent of the selected period.
+ */
+export function detectSubscriptions(transactions: Transaction[]): Subscription[] {
+  const groups = new Map<string, { name: string; amounts: number[]; months: Set<string>; lastDate: string }>();
+
+  for (const t of transactions) {
+    if (t.excluded || t.type !== "expense") continue;
+    const key = merchantKey(t.description) || "other";
+    const g = groups.get(key);
+    const monthKey = t.date.slice(0, 7);
+    if (g) {
+      g.amounts.push(t.amount);
+      g.months.add(monthKey);
+      if (t.date > g.lastDate) g.lastDate = t.date;
+    } else {
+      groups.set(key, {
+        name: displayName(t.description),
+        amounts: [t.amount],
+        months: new Set([monthKey]),
+        lastDate: t.date,
+      });
+    }
+  }
+
+  const subs: Subscription[] = [];
+  for (const g of groups.values()) {
+    if (g.months.size < 2) continue;
+    const mid = median(g.amounts);
+    // Treat the charge as recurring only if every amount is close to the median
+    // (small price changes are tolerated; variable spend is not).
+    const tolerance = Math.max(1, mid * 0.15);
+    const consistent = g.amounts.every((a) => Math.abs(a - mid) <= tolerance);
+    if (!consistent) continue;
+    subs.push({ name: g.name, amount: mid, months: g.months.size, lastDate: g.lastDate });
+  }
+
+  return subs.sort((a, b) => b.months - a.months || b.amount - a.amount);
+}
+
 export function buildReport(
   transactions: Transaction[],
   monthKey: string,
   paydayOfMonth: number
 ): ReportData {
   const expenses = periodExpenses(transactions, monthKey, paydayOfMonth);
-  const prevExpenses = periodExpenses(transactions, prevMonthKey(monthKey), paydayOfMonth);
 
-  const totalSpent = expenses.reduce((s, t) => s + t.amount, 0);
-  const prevTotal = prevExpenses.reduce((s, t) => s + t.amount, 0);
+  // Headline spend + category split come from the shared period-spend helper so
+  // they net refunds identically to the dashboard. The gross `expenses` list is
+  // still used below for merchant grouping and biggest-purchase rankings (which
+  // are per-transaction views, not netted totals).
+  const spend = getPeriodSpend(transactions, monthKey, paydayOfMonth);
+  const prevSpend = getPeriodSpend(transactions, prevMonthKey(monthKey), paydayOfMonth);
+  const totalSpent = spend.total;
+  const prevTotal = prevSpend.total;
 
   // Group by merchant
   const groups = new Map<string, MerchantStat>();
@@ -94,11 +193,11 @@ export function buildReport(
     .slice(0, 6);
   const biggest = [...expenses].sort((a, b) => b.amount - a.amount).slice(0, 5);
 
-  // Category breakdown
+  // Category breakdown — netted per category (matches the dashboard donuts).
   const cats: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
   const byCategory: CategoryStat[] = cats
     .map((category) => {
-      const total = expenses.filter((t) => t.category === category).reduce((s, t) => s + t.amount, 0);
+      const total = spend.byCategory[category];
       return { category, total, pct: totalSpent > 0 ? (total / totalSpent) * 100 : 0 };
     })
     .filter((c) => c.total > 0)

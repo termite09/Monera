@@ -13,7 +13,6 @@ function makeTx(id: string, date: string, amount = 10): Transaction {
     category: "Wants",
     source: "revolut",
     categorySource: "auto",
-    month: date.slice(0, 7),
   };
 }
 

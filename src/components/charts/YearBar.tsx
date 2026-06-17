@@ -3,24 +3,21 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Transaction } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { monthlyCategoryTotals } from "@/lib/reports";
 import { MONTH_NAMES } from "@/config/constants";
 
 interface YearBarProps {
   transactions: Transaction[];
   year: number;
+  paydayOfMonth?: number;
 }
 
-export function YearBar({ transactions, year }: YearBarProps) {
-  const data = MONTH_NAMES.map((name, idx) => {
-    const month = `${year}-${String(idx + 1).padStart(2, "0")}`;
-    const monthTxs = transactions.filter((t) => t.month === month && t.type === "expense");
-    return {
-      month: name.slice(0, 3),
-      needs: monthTxs.filter((t) => t.category === "Needs").reduce((s, t) => s + t.amount, 0),
-      wants: monthTxs.filter((t) => t.category === "Wants").reduce((s, t) => s + t.amount, 0),
-      savings: monthTxs.filter((t) => t.category === "Savings").reduce((s, t) => s + t.amount, 0),
-    };
-  });
+export function YearBar({ transactions, year, paydayOfMonth = 1 }: YearBarProps) {
+  const totals = monthlyCategoryTotals(transactions, year, paydayOfMonth);
+  const data = MONTH_NAMES.map((name, idx) => ({
+    month: name.slice(0, 3),
+    ...totals[idx],
+  }));
 
   return (
     <ResponsiveContainer width="100%" height={260}>

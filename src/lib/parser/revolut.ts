@@ -1,6 +1,6 @@
 import { Transaction, ParsedCSV } from "@/types";
 import { parseRevolutDate, normalizeAmount } from "./dates";
-import { generateId, getMonthKey } from "@/lib/utils";
+import { occurrenceId } from "@/lib/utils";
 
 interface RevolutRow {
   Type: string;
@@ -59,6 +59,8 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
   const headers = parseCSVLine(lines[0]).map((h) => h.replace(/"/g, "").trim());
   const transactions: Transaction[] = [];
   const errors: string[] = [];
+  // Counts identical dedup keys within this file so repeat purchases stay distinct.
+  const counts = new Map<string, number>();
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
@@ -95,20 +97,13 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
     const description = typedRow.Description || "Unknown";
     const currency = typedRow.Currency || "EUR";
 
-    const descLower = description.toLowerCase();
-    const isSavingsVault = descLower.includes("eur savings") || descLower.includes("savings for");
-    const isSelfTransfer = descLower.includes("alexandros christou") || descLower.includes("alex christou");
-
-    // Self-transfers move your own money between accounts — not income or spending
-    if (isSelfTransfer) continue;
-    // Internal savings deposits appear twice (main account out + savings pocket in).
-    // Keep the outgoing as a Savings expense; drop the positive mirror to avoid double counting.
-    if (isSavingsVault && amount > 0) continue;
-
+    // Internal transfers (self-transfers + savings-vault mirrors) are filtered
+    // downstream via user-configured keywords (see filterInternalTransfers), not
+    // hardcoded here — so the parser works for any account.
     const dedupKey = `${parsedDate}|${description}|${amount}|${currency}`;
 
     transactions.push({
-      id: generateId(dedupKey),
+      id: occurrenceId(dedupKey, counts),
       date: parsedDate,
       description,
       amount: Math.abs(amount),
@@ -117,7 +112,6 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
       category: "Uncategorized",
       source: "revolut",
       categorySource: "auto",
-      month: getMonthKey(parsedDate),
     });
   }
 

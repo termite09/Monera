@@ -5,12 +5,12 @@ import { Transaction } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface DailyTrendProps {
+  // Transactions are already filtered to the selected budget period by the caller.
   transactions: Transaction[];
-  month: string;
 }
 
-export function DailyTrend({ transactions, month }: DailyTrendProps) {
-  const expenses = transactions.filter((t) => t.type === "expense" && t.month === month);
+export function DailyTrend({ transactions }: DailyTrendProps) {
+  const expenses = transactions.filter((t) => t.type === "expense");
 
   const byDay: Record<string, number> = {};
   expenses.forEach((t) => {

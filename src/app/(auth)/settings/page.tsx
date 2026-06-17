@@ -13,7 +13,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { getCurrentMonth, getMonthLabel, generateId, formatCurrency, cn } from "@/lib/utils";
 import { Category, RecurringPayment, CategoryRule } from "@/types";
 import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
-import { Trash2, Plus, Search } from "lucide-react";
+import { Trash2, Plus, Search, X } from "lucide-react";
 
 function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   month: string;
@@ -103,7 +103,7 @@ function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
           <Label htmlFor="income">Amount (€)</Label>
           <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11" />
           <p className="text-xs text-muted-foreground">
-            Fallback for budget calculations. If your Revolut CSV contains a salary deposit this period, that amount is used instead.
+            Your expected income for this period. Leave blank to use the income detected in your statement. Drives the budget split and remaining balance.
           </p>
         </CardContent>
       </Card>
@@ -553,7 +553,151 @@ function RulesForm({ rules, updateRules }: {
   );
 }
 
-type Tab = "budget" | "recurring" | "rules";
+function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
+  label: string;
+  hint: string;
+  placeholder: string;
+  keywords: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const add = () => {
+    const kw = draft.trim().toLowerCase();
+    if (!kw || keywords.includes(kw)) {
+      setDraft("");
+      return;
+    }
+    onChange([...keywords, kw]);
+    setDraft("");
+  };
+
+  return (
+    <Card className="shadow-none border-border">
+      <CardHeader className="pb-3 pt-4 px-4">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 flex flex-col gap-3">
+        <p className="text-xs text-muted-foreground">{hint}</p>
+        {keywords.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {keywords.map((kw) => (
+              <Badge key={kw} variant="secondary" className="gap-1 pr-1 text-sm font-normal">
+                {kw}
+                <button
+                  onClick={() => onChange(keywords.filter((k) => k !== kw))}
+                  className="rounded-full p-0.5 hover:bg-background/60"
+                  aria-label={`Remove ${kw}`}
+                >
+                  <X size={13} />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            placeholder={placeholder}
+            className="h-11"
+          />
+          <Button onClick={add} variant="outline" className="shrink-0">
+            <Plus size={16} className="mr-1.5" />
+            Add
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function IncomeForm({ settings, updateSettings }: {
+  settings: ReturnType<typeof useAppData>["settings"];
+  updateSettings: ReturnType<typeof useAppData>["updateSettings"];
+}) {
+  const [salary, setSalary] = useState<string[]>(settings.salaryKeywords ?? []);
+  const [selfTransfer, setSelfTransfer] = useState<string[]>(settings.selfTransferKeywords ?? []);
+  const [savingsVault, setSavingsVault] = useState<string[]>(settings.savingsVaultKeywords ?? []);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setSalary(settings.salaryKeywords ?? []);
+    setSelfTransfer(settings.selfTransferKeywords ?? []);
+    setSavingsVault(settings.savingsVaultKeywords ?? []);
+  }, [settings]);
+
+  const dirty =
+    JSON.stringify(salary) !== JSON.stringify(settings.salaryKeywords ?? []) ||
+    JSON.stringify(selfTransfer) !== JSON.stringify(settings.selfTransferKeywords ?? []) ||
+    JSON.stringify(savingsVault) !== JSON.stringify(settings.savingsVaultKeywords ?? []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(false);
+    try {
+      await updateSettings({
+        ...settings,
+        salaryKeywords: salary,
+        selfTransferKeywords: selfTransfer,
+        savingsVaultKeywords: savingsVault,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Income & Transfers</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Teach Monera which deposits are your salary, which move between your own accounts, and which are savings.
+        </p>
+      </div>
+
+      <KeywordEditor
+        label="Salary keywords"
+        hint="Deposits whose description contains one of these are treated as salary and excluded from “received from others”."
+        placeholder="e.g. employer name"
+        keywords={salary}
+        onChange={setSalary}
+      />
+      <KeywordEditor
+        label="Self-transfer keywords"
+        hint="Transfers between your own accounts (often your own name). These are dropped entirely — neither income nor spending."
+        placeholder="e.g. your full name"
+        keywords={selfTransfer}
+        onChange={setSelfTransfer}
+      />
+      <KeywordEditor
+        label="Savings-vault keywords"
+        hint="Revolut savings-vault deposits show up twice. The outgoing amount counts as Savings; the positive mirror matching these keywords is dropped."
+        placeholder="e.g. eur savings"
+        keywords={savingsVault}
+        onChange={setSavingsVault}
+      />
+
+      <Button onClick={handleSave} disabled={isSaving || !dirty} className={cn("w-full", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}>
+        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Income Settings"}
+      </Button>
+    </div>
+  );
+}
+
+type Tab = "budget" | "income" | "recurring" | "rules";
 
 export default function SettingsPage() {
   const { settings, rules, isLoading, updateSettings, updateRules } = useAppData();
@@ -567,6 +711,7 @@ export default function SettingsPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "budget", label: "Budget" },
+    { id: "income", label: "Income" },
     { id: "recurring", label: "Recurring" },
     { id: "rules", label: "Mappings" },
   ];
@@ -577,7 +722,7 @@ export default function SettingsPage() {
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5">
         {/* Tab switcher */}
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-secondary">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -615,6 +760,8 @@ export default function SettingsPage() {
             />
           </>
         )}
+
+        {tab === "income" && <IncomeForm settings={settings} updateSettings={updateSettings} />}
 
         {tab === "recurring" && <RecurringForm settings={settings} updateSettings={updateSettings} />}
 

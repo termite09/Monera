@@ -16,17 +16,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    // Lock the app to specific Google accounts. Set ALLOWED_EMAILS (comma-separated)
-    // in the environment. If unset, anyone can sign in — always set it in production.
-    async signIn({ user }) {
-      const allowed = (process.env.ALLOWED_EMAILS ?? "")
-        .split(",")
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean);
-      if (allowed.length === 0) return true;
-      const email = user.email?.toLowerCase();
-      return !!email && allowed.includes(email);
-    },
+    // Access is controlled by Google itself: OAuth test users during the testing
+    // phase, then anyone with a Google account once the app is published. Each
+    // user's data lives in their own Drive (drive.file scope), so there is no
+    // app-level allow-list — any successful Google sign-in is permitted.
     async jwt({ token, account }) {
       // Initial sign-in: persist the tokens from Google
       if (account) {

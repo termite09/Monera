@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseRevolutCSV } from "@/lib/parser/revolut";
+import { generateId } from "@/lib/utils";
 
 const HEADER = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance";
 
@@ -52,16 +53,31 @@ describe("parseRevolutCSV", () => {
     expect(transactions).toHaveLength(0);
   });
 
-  it("skips self-transfers", () => {
+  it("keeps self-transfer rows (internal-transfer filtering happens downstream)", () => {
     const csv = [HEADER, makeRow({ Description: "Alexandros Christou" })].join("\n");
     const { transactions } = parseRevolutCSV(csv);
-    expect(transactions).toHaveLength(0);
+    expect(transactions).toHaveLength(1);
   });
 
-  it("skips positive savings vault entries (mirror of outgoing)", () => {
+  it("keeps savings vault rows (the positive mirror is dropped downstream)", () => {
     const csv = [HEADER, makeRow({ Description: "EUR Savings vault", Amount: "50.00" })].join("\n");
     const { transactions } = parseRevolutCSV(csv);
-    expect(transactions).toHaveLength(0);
+    expect(transactions).toHaveLength(1);
+  });
+
+  it("keeps two genuinely identical same-day purchases as distinct transactions", () => {
+    const row = makeRow({ Description: "Coffee Shop", Amount: "-3.50" });
+    const csv = [HEADER, row, row].join("\n");
+    const { transactions } = parseRevolutCSV(csv);
+    expect(transactions).toHaveLength(2);
+    expect(transactions[0].id).not.toBe(transactions[1].id);
+  });
+
+  it("preserves the original id for the first occurrence (no migration needed)", () => {
+    const csv = [HEADER, makeRow({ Description: "Coffee Shop", Amount: "-3.50" })].join("\n");
+    const { transactions } = parseRevolutCSV(csv);
+    // baseKey = `${date}|${description}|${amount}|${currency}` with amount = -3.5
+    expect(transactions[0].id).toBe(generateId("2024-06-10|Coffee Shop|-3.5|EUR"));
   });
 
   it("returns empty for empty input", () => {

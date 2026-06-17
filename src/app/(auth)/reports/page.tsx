@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock } from "lucide-react";
+import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
-import { buildReport } from "@/lib/reports";
+import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { getCurrentMonth, formatCurrency, formatDate, getCategoryColor } from "@/lib/utils";
 
@@ -30,6 +30,10 @@ export default function ReportsPage() {
     () => buildReport(allTxs, month, paydayOfMonth),
     [allTxs, month, paydayOfMonth]
   );
+
+  // Subscriptions span all history, not just the selected period.
+  const subscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
+  const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
 
   const maxMerchantTotal = Math.max(1, ...report.topMerchants.map((m) => m.total));
   const maxFreq = Math.max(1, ...report.frequentMerchants.map((m) => m.count));
@@ -134,6 +138,41 @@ export default function ReportsPage() {
                         </div>
                         <span className="text-sm font-medium tabular-nums text-foreground shrink-0 pl-2 font-mono">
                           {formatCurrency(m.total)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Detected subscriptions (across all history) */}
+            <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+              <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <CreditCard size={13} /> Subscriptions
+                </CardTitle>
+                {subscriptions.length > 0 && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    ~{formatCurrency(subsMonthly)}/mo
+                  </span>
+                )}
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                {subscriptions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No recurring subscriptions detected yet.</p>
+                ) : (
+                  <div className="flex flex-col divide-y divide-border">
+                    {subscriptions.map((s) => (
+                      <div key={s.name} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                        <div className="min-w-0 pr-2">
+                          <p className="text-sm text-foreground truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {s.months} month{s.months === 1 ? "" : "s"} · last {formatDate(s.lastDate)}
+                          </p>
+                        </div>
+                        <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">
+                          {formatCurrency(s.amount)}
                         </span>
                       </div>
                     ))}
