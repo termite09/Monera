@@ -133,6 +133,9 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
               setDeleting(true);
               try {
                 await onDelete(tx.id);
+              } catch {
+                // Error is handled upstream (AppDataContext reauth or caller feedback);
+                // reset UI state so the row doesn't stay in a spinner.
               } finally {
                 setDeleting(false);
                 setConfirmDelete(false);

@@ -9,6 +9,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listFiles, uploadCSV, deleteFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
+import { DriveAuthError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -66,8 +67,10 @@ export default function UploadPage() {
       await deleteFile(accessToken, fileId);
       setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
       refetch();
-    } catch {
-      // Non-fatal: show nothing, file stays in list
+    } catch (err) {
+      if (err instanceof DriveAuthError) throw err; // let AppDataContext handle reauth
+      setStatus("error");
+      setMessage("Failed to delete file — please try again");
     } finally {
       setDeletingId(null);
       setConfirmDeleteId(null);
@@ -173,7 +176,7 @@ export default function UploadPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => setConfirmDeleteId(confirmDeleteId === file.id ? null : file.id)}
+                          onClick={() => setConfirmDeleteId(file.id)}
                           className="shrink-0 p-1.5 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-secondary transition-colors"
                           aria-label="Delete file"
                         >

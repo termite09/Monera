@@ -9,6 +9,10 @@ import { DriveAuthError } from "@/lib/errors";
 
 type ParseCache = Record<string, Transaction[]>;
 
+function cacheKey(f: { id: string; size?: string }): string {
+  return `${f.id}:${f.size ?? "0"}`;
+}
+
 export function useTransactions(
   accessToken: string | undefined,
   structure: DriveStructure | null,
@@ -53,7 +57,7 @@ export function useTransactions(
       const hits: Transaction[] = [];
       const misses: typeof csvFiles = [];
       for (const f of csvFiles) {
-        const key = `${f.id}:${f.size ?? "0"}`;
+        const key = cacheKey(f);
         if (cache[key]) {
           hits.push(...cache[key]);
         } else {
@@ -64,7 +68,7 @@ export function useTransactions(
       const missResults = await Promise.all(
         misses.map(async (f) => {
           const content = await readFile(accessToken, f.id);
-          return { key: `${f.id}:${f.size ?? "0"}`, parsed: parseCSV(content).transactions };
+          return { key: cacheKey(f), parsed: parseCSV(content).transactions };
         })
       );
 
@@ -75,13 +79,19 @@ export function useTransactions(
         cacheUpdates[key] = parsed;
       }
 
-      if (missResults.length > 0) {
-        // Prune dead entries (deleted/replaced CSV files) then write.
-        const liveKeys = new Set(csvFiles.map((f) => `${f.id}:${f.size ?? "0"}`));
-        const updatedCache = Object.fromEntries(
-          Object.entries({ ...cache, ...cacheUpdates }).filter(([k]) => liveKeys.has(k))
-        );
-        writeAppFile(accessToken, structure.fileIds.parseCache, updatedCache).catch(() => {
+      // Always prune dead entries (deleted CSV files) and write when the cache
+      // changed. Pruning is unconditional so stale keys are removed even when
+      // every file was a cache hit (missResults empty).
+      const liveKeys = new Set(csvFiles.map(cacheKey));
+      const merged = { ...cache, ...cacheUpdates };
+      const prunedCache = Object.fromEntries(
+        Object.entries(merged).filter(([k]) => liveKeys.has(k))
+      );
+      const cacheChanged =
+        missResults.length > 0 ||
+        Object.keys(merged).some((k) => !liveKeys.has(k));
+      if (cacheChanged) {
+        writeAppFile(accessToken, structure.fileIds.parseCache, prunedCache).catch(() => {
           // Non-fatal: worst case we re-parse next time.
         });
       }

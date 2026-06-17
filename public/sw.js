@@ -43,19 +43,23 @@ self.addEventListener("fetch", (e) => {
     );
   } else {
     // Network-first for pages; fall back to cache when offline.
-    const networkFetch = fetch(request).then((response) => {
-      if (response.ok) {
-        // Wrap in waitUntil so the SW isn't terminated before the write finishes.
-        e.waitUntil(
-          caches.open(CACHE).then((cache) => cache.put(request, response.clone()))
-        );
-      }
-      return response;
-    });
+    // Cache write is chained inside respondWith's promise so the event stays
+    // active for the full duration — calling waitUntil() from an unchained
+    // .then() violates the SW spec and throws InvalidStateError in Firefox.
     e.respondWith(
-      networkFetch.catch(() =>
-        caches.match(request).then((r) => r ?? Response.error())
-      )
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            return caches
+              .open(CACHE)
+              .then((cache) => cache.put(request, response.clone()))
+              .then(() => response);
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((r) => r ?? Response.error())
+        )
     );
   }
 });
