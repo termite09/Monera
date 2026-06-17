@@ -12,7 +12,7 @@ import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
-import { useBudget } from "@/hooks/useBudget";
+import { getRecurringTransactions } from "@/lib/recurring";
 import { getCurrentMonth, getPeriodBounds } from "@/lib/utils";
 import { Category } from "@/types";
 
@@ -23,7 +23,7 @@ export default function TransactionsPage() {
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
   const [showAdd, setShowAdd] = useState(false);
 
-  const { paydayOfMonth } = useBudget(transactions, settings, month);
+  const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
   useEffect(() => {
     setMonth(getCurrentMonth(paydayOfMonth));
@@ -31,12 +31,14 @@ export default function TransactionsPage() {
 
   const filtered = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return transactions
+    const recurringTxs = getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth);
+    return [...transactions, ...recurringTxs]
       .filter((t) => t.type === "expense")
       .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
       .filter((t) => filterCat === "All" || t.category === filterCat)
-      .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()));
-  }, [transactions, month, filterCat, search, paydayOfMonth]);
+      .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, settings.recurringPayments, month, filterCat, search, paydayOfMonth]);
 
   return (
     <PageShell>
@@ -74,12 +76,12 @@ export default function TransactionsPage() {
           </Button>
         </div>
 
-        <Card className="shadow-none border-border">
-          <CardContent className="p-3">
+        <Card className="shadow-none border-border overflow-hidden">
+          <CardContent className="p-0">
             {isLoading ? (
-              <div className="flex flex-col gap-3 p-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
+              <div className="flex flex-col gap-2 p-3">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full" />
                 ))}
               </div>
             ) : filtered.length === 0 ? (
@@ -88,11 +90,19 @@ export default function TransactionsPage() {
                 <p className="text-muted-foreground/50 text-xs mt-1">Try adjusting your filters</p>
               </div>
             ) : (
-              <div className="divide-y divide-border">
-                {filtered.map((tx) => (
-                  <TransactionRow key={tx.id} transaction={tx} onCategoryChange={updateCategory} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-[2.8rem_1fr_auto_auto] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span>Date</span>
+                  <span>Description</span>
+                  <span className="justify-self-start">Category</span>
+                  <span className="justify-self-end">Amount</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {filtered.map((tx) => (
+                    <TransactionRow key={tx.id} transaction={tx} onCategoryChange={updateCategory} />
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

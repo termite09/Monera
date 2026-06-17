@@ -16,6 +16,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    // Lock the app to specific Google accounts. Set ALLOWED_EMAILS (comma-separated)
+    // in the environment. If unset, anyone can sign in — always set it in production.
+    async signIn({ user }) {
+      const allowed = (process.env.ALLOWED_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+      if (allowed.length === 0) return true;
+      const email = user.email?.toLowerCase();
+      return !!email && allowed.includes(email);
+    },
     async jwt({ token, account }) {
       if (account) {
         token.accessToken = account.access_token;

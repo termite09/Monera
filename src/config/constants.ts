@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS = {
   defaultBudgetRule: { needs: 30, wants: 60, savings: 10 },
   monthlyBudgets: {},
   salaryKeywords: [],
+  recurringPayments: [],
 };
 
 export const MONTH_NAMES = [

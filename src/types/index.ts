@@ -1,5 +1,5 @@
 export type Category = "Needs" | "Wants" | "Savings" | "Uncategorized";
-export type TransactionSource = "revolut" | "manual";
+export type TransactionSource = "revolut" | "manual" | "recurring";
 export type CategorySource = "auto" | "override" | "manual";
 export type TransactionType = "expense" | "income";
 
@@ -27,12 +27,21 @@ export interface MonthlyBudget {
   };
 }
 
+export interface RecurringPayment {
+  id: string;
+  name: string;
+  amount: number;
+  dayOfMonth: number;
+  category: Category;
+}
+
 export interface Settings {
   currency: string;
   paydayOfMonth: number;
   defaultBudgetRule: { needs: number; wants: number; savings: number };
   monthlyBudgets: Record<string, MonthlyBudget>;
   salaryKeywords: string[];
+  recurringPayments: RecurringPayment[];
 }
 
 export interface CategoryRule {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -17,6 +17,7 @@ import { AddTransactionForm } from "@/components/transactions/AddTransactionForm
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useBudget } from "@/hooks/useBudget";
+import { getRecurringTransactions } from "@/lib/recurring";
 import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 
@@ -26,14 +27,23 @@ export default function DashboardPage() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAdd, setShowAdd] = useState(false);
 
-  const { summary, budgetAllocations, paydayOfMonth } = useBudget(transactions, settings, month);
+  const paydayOfMonth = settings.paydayOfMonth ?? 1;
+
+  // Recurring bills (paid outside Revolut) injected as synthetic expenses
+  const recurringTxs = useMemo(
+    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth),
+    [settings.recurringPayments, month, paydayOfMonth]
+  );
+  const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
+
+  const { summary, budgetAllocations } = useBudget(allTxs, settings, month);
 
   useEffect(() => {
     setMonth(getCurrentMonth(paydayOfMonth));
   }, [paydayOfMonth]);
 
   const { start, end } = getPeriodBounds(month, paydayOfMonth);
-  const monthTxs = transactions.filter((t) => {
+  const monthTxs = allTxs.filter((t) => {
     const d = new Date(t.date + "T00:00:00");
     return d >= start && d <= end;
   });

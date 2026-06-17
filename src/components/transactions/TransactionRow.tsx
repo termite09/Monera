@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Repeat } from "lucide-react";
 import { Transaction, Category } from "@/types";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface TransactionRowProps {
@@ -13,76 +13,78 @@ interface TransactionRowProps {
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
 
-const categoryStyles: Record<Category, string> = {
-  Needs: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
-  Wants: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
-  Savings: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
-  Uncategorized: "bg-muted text-muted-foreground border-border",
+const catDot: Record<Category, string> = {
+  Needs: "bg-blue-500",
+  Wants: "bg-amber-500",
+  Savings: "bg-emerald-500",
+  Uncategorized: "bg-muted-foreground/40",
 };
+
+const catText: Record<Category, string> = {
+  Needs: "text-blue-600 dark:text-blue-400",
+  Wants: "text-amber-600 dark:text-amber-400",
+  Savings: "text-emerald-600 dark:text-emerald-400",
+  Uncategorized: "text-muted-foreground",
+};
+
+function shortDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
 
 export function TransactionRow({ transaction, onCategoryChange }: TransactionRowProps) {
   const [editing, setEditing] = useState(false);
+  const tx = transaction;
+  const isIncome = tx.type === "income";
+  const isRecurring = tx.source === "recurring";
 
   return (
-    <div className="py-3 px-4 hover:bg-secondary/50 transition-colors rounded-lg">
-      {/* Top row: description + amount */}
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-foreground truncate flex-1">
-          {transaction.description}
-        </p>
-        <span
-          className={cn(
-            "text-sm font-medium flex-shrink-0 tabular-nums",
-            transaction.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
-          )}
-          style={{ fontFamily: "'DM Mono', monospace" }}
-        >
-          {transaction.type === "income" ? "+" : "−"}
-          {formatCurrency(transaction.amount)}
-        </span>
-      </div>
+    <div className="grid grid-cols-[2.8rem_1fr_auto_auto] items-center gap-2 sm:gap-3 py-2 px-2 hover:bg-secondary/50 transition-colors">
+      <span className="text-xs text-muted-foreground tabular-nums" style={{ fontFamily: "'DM Mono', monospace" }}>
+        {shortDate(tx.date)}
+      </span>
 
-      {/* Bottom row: date + badges */}
-      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-        <span className="text-xs text-muted-foreground">{formatDate(transaction.date)}</span>
+      <span className="truncate text-sm text-foreground flex items-center gap-1.5 min-w-0">
+        {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0" />}
+        <span className="truncate">{tx.description}</span>
+      </span>
 
+      <div className="justify-self-start">
         {editing ? (
           <select
-            value={transaction.category}
+            value={tx.category}
             onChange={(e) => {
-              onCategoryChange(transaction.id, e.target.value as Category);
+              onCategoryChange(tx.id, e.target.value as Category);
               setEditing(false);
             }}
             onBlur={() => setEditing(false)}
             autoFocus
-            className="text-xs border border-input rounded-md px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
+            className="text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
         ) : (
-          <button onClick={() => setEditing(true)} className="focus:outline-none min-h-[28px] flex items-center">
-            <Badge variant="outline" className={cn("text-xs font-medium cursor-pointer", categoryStyles[transaction.category])}>
-              {transaction.category}
-            </Badge>
+          <button
+            onClick={() => setEditing(true)}
+            className="flex items-center gap-1.5 focus:outline-none"
+            aria-label={`Category: ${tx.category}`}
+          >
+            <span className={cn("size-2 rounded-full shrink-0", catDot[tx.category])} />
+            <span className={cn("hidden sm:inline text-xs font-medium", catText[tx.category])}>{tx.category}</span>
           </button>
         )}
-
-        <span className="hidden sm:inline-flex">
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-xs font-medium",
-              transaction.source === "revolut"
-                ? "bg-blue-50 text-[#0075EB] border-blue-200 dark:bg-blue-950/30 dark:border-blue-800"
-                : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800"
-            )}
-          >
-            {transaction.source === "revolut" ? "Revolut" : "Manual"}
-          </Badge>
-        </span>
       </div>
+
+      <span
+        className={cn(
+          "text-sm tabular-nums text-right justify-self-end",
+          isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+        )}
+        style={{ fontFamily: "'DM Mono', monospace" }}
+      >
+        {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
+      </span>
     </div>
   );
 }

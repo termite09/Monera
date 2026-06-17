@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAppData } from "@/contexts/AppDataContext";
-import { useBudget } from "@/hooks/useBudget";
-import { getCurrentMonth, getMonthLabel } from "@/lib/utils";
+import { getCurrentMonth, getMonthLabel, generateId, formatCurrency } from "@/lib/utils";
+import { Category, RecurringPayment } from "@/types";
+import { Trash2, Plus } from "lucide-react";
 
 function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   month: string;
@@ -146,7 +147,6 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
   const [needs, setNeeds] = useState(String(settings.defaultBudgetRule.needs));
   const [wants, setWants] = useState(String(settings.defaultBudgetRule.wants));
   const [saving, setSaving] = useState(String(settings.defaultBudgetRule.savings));
-  const [salaryKeywords, setSalaryKeywords] = useState((settings.salaryKeywords ?? []).join(", "));
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -155,17 +155,14 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
     setNeeds(String(settings.defaultBudgetRule.needs));
     setWants(String(settings.defaultBudgetRule.wants));
     setSaving(String(settings.defaultBudgetRule.savings));
-    setSalaryKeywords((settings.salaryKeywords ?? []).join(", "));
   }, [settings]);
 
   const handleSave = async () => {
     setIsSaving(true);
     const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
-    const keywords = salaryKeywords.split(",").map((k) => k.trim()).filter(Boolean);
     await updateSettings({
       ...settings,
       paydayOfMonth: paydayNum,
-      salaryKeywords: keywords,
       defaultBudgetRule: {
         needs: parseFloat(needs) || 0,
         wants: parseFloat(wants) || 0,
@@ -203,25 +200,6 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
 
       <Card className="shadow-none border-border">
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Salary Detection</CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-          <Label htmlFor="salary-keywords">Salary keywords</Label>
-          <Input
-            id="salary-keywords"
-            value={salaryKeywords}
-            onChange={(e) => setSalaryKeywords(e.target.value)}
-            placeholder="e.g. employer name, PAYROLL"
-            className="h-11"
-          />
-          <p className="text-xs text-muted-foreground">
-            Comma-separated. Income transactions whose description contains any of these words are shown as Salary on the dashboard. Everything else is shown as Transfers & other.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-none border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Default Budget Split (%)</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
@@ -253,10 +231,145 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
   );
 }
 
+const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
+
+function RecurringForm({ settings, updateSettings }: {
+  settings: ReturnType<typeof useAppData>["settings"];
+  updateSettings: ReturnType<typeof useAppData>["updateSettings"];
+}) {
+  const [items, setItems] = useState<RecurringPayment[]>(settings.recurringPayments ?? []);
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [day, setDay] = useState("");
+  const [category, setCategory] = useState<Category>("Needs");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setItems(settings.recurringPayments ?? []);
+  }, [settings]);
+
+  const dirty = JSON.stringify(items) !== JSON.stringify(settings.recurringPayments ?? []);
+
+  const addItem = () => {
+    const amt = parseFloat(amount);
+    const d = parseInt(day);
+    if (!name.trim() || !amt || amt <= 0 || !d || d < 1 || d > 31) return;
+    setItems((prev) => [
+      ...prev,
+      { id: generateId(`rec-${name}-${Date.now()}`), name: name.trim(), amount: amt, dayOfMonth: Math.min(31, d), category },
+    ]);
+    setName("");
+    setAmount("");
+    setDay("");
+    setCategory("Needs");
+  };
+
+  const removeItem = (id: string) => setItems((prev) => prev.filter((i) => i.id !== id));
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    await updateSettings({ ...settings, recurringPayments: items });
+    setIsSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const ordinal = (n: number) => {
+    if (n % 10 === 1 && n !== 11) return `${n}st`;
+    if (n % 10 === 2 && n !== 12) return `${n}nd`;
+    if (n % 10 === 3 && n !== 13) return `${n}rd`;
+    return `${n}th`;
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Recurring Payments</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Fixed bills paid outside Revolut — counted automatically each period</p>
+      </div>
+
+      <Card className="shadow-none border-border">
+        <CardContent className="p-3 flex flex-col">
+          {items.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No recurring payments yet</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 py-2.5 px-1">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ordinal(item.dayOfMonth)} · {item.category}
+                    </p>
+                  </div>
+                  <span className="text-sm tabular-nums text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                    {formatCurrency(item.amount)}
+                  </span>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                    aria-label={`Remove ${item.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-border">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Add Payment</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="r-name">Name</Label>
+            <Input id="r-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. CNP Insurance" className="h-11" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="r-amount">Amount (€)</Label>
+              <Input id="r-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="45" className="h-11" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="r-day">Day of month</Label>
+              <Input id="r-day" type="number" min={1} max={31} value={day} onChange={(e) => setDay(e.target.value)} placeholder="11" className="h-11" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="r-cat">Category</Label>
+            <select
+              id="r-cat"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as Category)}
+              className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={addItem} variant="outline" className="w-full">
+            <Plus size={16} className="mr-1.5" />
+            Add to list
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSave} disabled={isSaving || !dirty} className="w-full bg-primary text-primary-foreground">
+        {saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Recurring Payments"}
+      </Button>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const { transactions, settings, isLoading, updateSettings } = useAppData();
+  const { settings, isLoading, updateSettings } = useAppData();
+  const paydayOfMonth = settings.paydayOfMonth ?? 1;
   const [month, setMonth] = useState(getCurrentMonth());
-  const { paydayOfMonth } = useBudget(transactions, settings, month);
 
   useEffect(() => {
     setMonth(getCurrentMonth(paydayOfMonth));
@@ -275,6 +388,11 @@ export default function SettingsPage() {
           paydayOfMonth={paydayOfMonth}
           updateSettings={updateSettings}
         />
+
+        <Separator />
+
+        {/* Recurring payments */}
+        <RecurringForm settings={settings} updateSettings={updateSettings} />
 
         <Separator />
 

@@ -15,6 +15,21 @@ interface RevolutRow {
   Balance: string;
 }
 
+// Only these transaction types are imported. Everything else (Topup, Interest,
+// Exchange, Fee, etc.) is ignored. Normalized by uppercasing and stripping
+// spaces/underscores so both "Card payment" and "CARD_PAYMENT" match.
+const ALLOWED_TYPES = new Set([
+  "CARDPAYMENT",
+  "CARDREFUND",
+  "CHARGE",
+  "REVPAYMENT",
+  "TRANSFER",
+]);
+
+function normalizeType(type: string): string {
+  return type.toUpperCase().replace(/[\s_]/g, "");
+}
+
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
@@ -57,6 +72,9 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
     const typedRow = row as unknown as RevolutRow;
 
     if (typedRow.State?.toUpperCase() !== "COMPLETED") continue;
+
+    // Skip transaction types we don't track (Topup, Interest, Exchange, etc.)
+    if (!ALLOWED_TYPES.has(normalizeType(typedRow.Type ?? ""))) continue;
 
     const dateStr = typedRow["Completed Date"] || typedRow["Started Date"];
     const parsedDate = parseRevolutDate(dateStr);
