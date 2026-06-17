@@ -1,16 +1,25 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Plus } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { SummaryCard } from "@/components/budget/SummaryCard";
 import { BudgetDonut } from "@/components/budget/BudgetDonut";
-import { SpendingPie } from "@/components/charts/SpendingPie";
-import { DailyTrend } from "@/components/charts/DailyTrend";
 import { Modal } from "@/components/ui/Modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Recharts is heavy; load the charts after the shell paints to cut initial JS.
+const SpendingPie = dynamic(
+  () => import("@/components/charts/SpendingPie").then((m) => m.SpendingPie),
+  { ssr: false, loading: () => <Skeleton className="h-[200px] w-full" /> }
+);
+const DailyTrend = dynamic(
+  () => import("@/components/charts/DailyTrend").then((m) => m.DailyTrend),
+  { ssr: false, loading: () => <Skeleton className="h-[200px] w-full" /> }
+);
 import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, useMemo, ReactNode } from "react";
 import { Transaction, Settings, Category, CategoryRule } from "@/types";
 import { DriveStructure } from "@/lib/google/folders";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +42,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const isLoading = isDriveLoading || isTxLoading;
 
+  const value = useMemo(
+    () => ({
+      structure,
+      transactions,
+      settings,
+      rules,
+      isLoading,
+      addManualTransaction,
+      updateCategory,
+      toggleExclude,
+      updateSettings,
+      updateRules,
+      refetch,
+    }),
+    [structure, transactions, settings, rules, isLoading, addManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
+  );
+
   // First run (or after a failed setup): the Drive folder/files don't exist yet.
   // Block the app behind a setup screen until the structure is ready, so the
   // user always sees progress instead of an empty/broken dashboard.
@@ -49,13 +66,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return <SetupScreen error={driveError} onRetry={refetchDrive} />;
   }
 
-  return (
-    <AppDataContext.Provider
-      value={{ structure, transactions, settings, rules, isLoading, addManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch }}
-    >
-      {children}
-    </AppDataContext.Provider>
-  );
+  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }
 
 export function useAppData() {

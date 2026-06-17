@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { YearBar } from "@/components/charts/YearBar";
 import { useAppData } from "@/contexts/AppDataContext";
-
-
 import { formatCurrency } from "@/lib/utils";
+
+const YearBar = dynamic(
+  () => import("@/components/charts/YearBar").then((m) => m.YearBar),
+  { ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 export default function YearOverviewPage() {
   

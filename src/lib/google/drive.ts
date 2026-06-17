@@ -7,7 +7,8 @@ const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 async function driveRequest(
   url: string,
   accessToken: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  attempt = 0
 ): Promise<Response> {
   const response = await fetch(url, {
     ...options,
@@ -17,9 +18,13 @@ async function driveRequest(
     },
   });
 
-  if (response.status === 429) {
-    await new Promise((r) => setTimeout(r, 2000));
-    return driveRequest(url, accessToken, options);
+  // Back off on rate limiting, but cap retries so a sustained 429 can't spin
+  // forever — surface the error after a few exponential attempts instead.
+  const MAX_RETRIES = 4;
+  if (response.status === 429 && attempt < MAX_RETRIES) {
+    const delay = 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s
+    await new Promise((r) => setTimeout(r, delay));
+    return driveRequest(url, accessToken, options, attempt + 1);
   }
 
   return response;

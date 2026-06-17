@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Transaction, Category, CategoryRule } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { listFiles, readFile } from "@/lib/google/drive";
@@ -11,7 +11,12 @@ export function useTransactions(
   structure: DriveStructure | null,
   rules: CategoryRule[]
 ) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Raw, uncategorized transactions parsed from Drive (CSVs + manual file).
+  // Kept separate from categorization so changing rules/overrides/excludes is a
+  // cheap in-memory recompute and never re-downloads or re-parses the CSVs.
+  const [rawTxs, setRawTxs] = useState<Transaction[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, Category>>({});
+  const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(!!accessToken);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,47 +26,43 @@ export function useTransactions(
     setError(null);
 
     try {
-      // Load app data files
-      const [manualTxs, overrides, excludedIds] = await Promise.all([
+      const [manualTxs, ov, ex] = await Promise.all([
         readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions),
         readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
         readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
       ]);
-      const excludedSet = new Set(excludedIds);
 
-      // Load and parse all Revolut CSVs
       const csvFiles = await listFiles(
         accessToken,
         `'${structure.revolutExportsId}' in parents and mimeType='text/csv' and trashed=false`
       );
+      const csvContents = await Promise.all(csvFiles.map((f) => readFile(accessToken, f.id)));
+      const importedTxs = csvContents.flatMap((content) => parseCSV(content).transactions);
 
-      const csvContents = await Promise.all(
-        csvFiles.map((f) => readFile(accessToken, f.id))
-      );
-
-      const importedTxs = csvContents.flatMap((content) => {
-        const parsed = parseCSV(content);
-        return parsed.transactions;
-      });
-
-      const merged = mergeTransactions(importedTxs, manualTxs);
-      const categorized = applyCategorizationRules(
-        merged,
-        rules,
-        overrides
-      ).map((tx) => (excludedSet.has(tx.id) ? { ...tx, excluded: true } : tx));
-
-      setTransactions(categorized);
+      setRawTxs(mergeTransactions(importedTxs, manualTxs ?? []));
+      setOverrides(ov ?? {});
+      setExcludedIds(ex ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load transactions");
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, structure, rules]);
+  }, [accessToken, structure]);
 
   useEffect(() => {
     loadTransactions();
   }, [loadTransactions]);
+
+  // Categorization is a pure transform over the raw data — recomputed only when
+  // the inputs actually change, not on every render or rule reference churn.
+  const excludedSet = useMemo(() => new Set(excludedIds), [excludedIds]);
+  const transactions = useMemo(
+    () =>
+      applyCategorizationRules(rawTxs, rules, overrides).map((tx) =>
+        excludedSet.has(tx.id) ? { ...tx, excluded: true } : tx
+      ),
+    [rawTxs, rules, overrides, excludedSet]
+  );
 
   const addManualTransaction = useCallback(
     async (tx: Omit<Transaction, "id" | "source" | "categorySource">) => {
@@ -69,23 +70,15 @@ export function useTransactions(
 
       const { generateId } = await import("@/lib/utils");
       const id = generateId(`manual-${tx.date}-${tx.description}-${tx.amount}`);
-      const newTx: Transaction = {
-        ...tx,
-        id,
-        source: "manual",
-        categorySource: "manual",
-      };
+      const newTx: Transaction = { ...tx, id, source: "manual", categorySource: "manual" };
 
       const existing = await readAppFile<Transaction[]>(
         accessToken,
         structure.fileIds.manualTransactions
       );
-      await writeAppFile(accessToken, structure.fileIds.manualTransactions, [
-        newTx,
-        ...existing,
-      ]);
+      await writeAppFile(accessToken, structure.fileIds.manualTransactions, [newTx, ...existing]);
 
-      setTransactions((prev) => [newTx, ...prev]);
+      setRawTxs((prev) => [newTx, ...prev]);
     },
     [accessToken, structure]
   );
@@ -101,11 +94,7 @@ export function useTransactions(
       const updated = { ...existing, [txId]: category };
       await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
 
-      setTransactions((prev) =>
-        prev.map((tx) =>
-          tx.id === txId ? { ...tx, category, categorySource: "override" } : tx
-        )
-      );
+      setOverrides(updated);
     },
     [accessToken, structure]
   );
@@ -119,14 +108,12 @@ export function useTransactions(
         structure.fileIds.excludedTransactions
       );
       const set = new Set(existing);
-      const willExclude = !set.has(txId);
-      if (willExclude) set.add(txId);
-      else set.delete(txId);
-      await writeAppFile(accessToken, structure.fileIds.excludedTransactions, [...set]);
+      if (set.has(txId)) set.delete(txId);
+      else set.add(txId);
+      const next = [...set];
+      await writeAppFile(accessToken, structure.fileIds.excludedTransactions, next);
 
-      setTransactions((prev) =>
-        prev.map((tx) => (tx.id === txId ? { ...tx, excluded: willExclude } : tx))
-      );
+      setExcludedIds(next);
     },
     [accessToken, structure]
   );

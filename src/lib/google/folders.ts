@@ -56,16 +56,23 @@ export async function ensureDriveStructure(accessToken: string): Promise<DriveSt
     appDataId = await createFolder(accessToken, APP_DATA_FOLDER, rootId);
   }
 
-  // Ensure JSON files exist
-  const fileIds = {
-    manualTransactions: await ensureFile(accessToken, DRIVE_FILES.manualTransactions, appDataId, "[]"),
-    categoryOverrides: await ensureFile(accessToken, DRIVE_FILES.categoryOverrides, appDataId, "{}"),
-    settings: await ensureFile(accessToken, DRIVE_FILES.settings, appDataId, JSON.stringify(DEFAULT_SETTINGS, null, 2)),
-    categoryRules: await ensureFile(accessToken, DRIVE_FILES.categoryRules, appDataId, JSON.stringify(DEFAULT_CATEGORY_RULES, null, 2)),
-    excludedTransactions: await ensureFile(accessToken, DRIVE_FILES.excludedTransactions, appDataId, "[]"),
-  };
+  // Ensure JSON files exist. These are independent, so create/look them up in
+  // parallel — on first run this roughly halves setup time vs. awaiting each.
+  const [manualTransactions, categoryOverrides, settings, categoryRules, excludedTransactions] =
+    await Promise.all([
+      ensureFile(accessToken, DRIVE_FILES.manualTransactions, appDataId, "[]"),
+      ensureFile(accessToken, DRIVE_FILES.categoryOverrides, appDataId, "{}"),
+      ensureFile(accessToken, DRIVE_FILES.settings, appDataId, JSON.stringify(DEFAULT_SETTINGS, null, 2)),
+      ensureFile(accessToken, DRIVE_FILES.categoryRules, appDataId, JSON.stringify(DEFAULT_CATEGORY_RULES, null, 2)),
+      ensureFile(accessToken, DRIVE_FILES.excludedTransactions, appDataId, "[]"),
+    ]);
 
-  return { rootId, revolutExportsId, appDataId, fileIds };
+  return {
+    rootId,
+    revolutExportsId,
+    appDataId,
+    fileIds: { manualTransactions, categoryOverrides, settings, categoryRules, excludedTransactions },
+  };
 }
 
 async function ensureFile(
