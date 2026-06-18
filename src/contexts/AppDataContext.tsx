@@ -34,8 +34,8 @@ interface AppDataContextValue {
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { accessToken } = useAuth();
-  const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken);
+  const { accessToken, session } = useAuth();
+  const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken, session?.user?.email ?? undefined);
   const { settings, updateSettings, settingsLoaded } = useSettings(accessToken, structure);
   const { rules, updateRules } = useRules(accessToken, structure);
   const {
