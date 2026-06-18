@@ -54,7 +54,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
   return (
     <div
       className={cn(
-        "grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
+        "grid w-full grid-cols-[2.8rem_minmax(0,1fr)_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
       )}
     >

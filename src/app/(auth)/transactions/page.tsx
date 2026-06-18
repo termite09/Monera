@@ -152,7 +152,7 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-[2.8rem_1fr_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="grid w-full grid-cols-[2.8rem_minmax(0,1fr)_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <span>Date</span>
                   <span>Description</span>
                   <span className="justify-self-start">Category</span>
