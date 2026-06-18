@@ -62,9 +62,9 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         {shortDate(tx.date)}
       </span>
 
-      <span className={cn("truncate text-sm text-foreground flex items-center gap-1.5 min-w-0", excluded && "line-through")}>
-        {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0" />}
-        <span className="truncate">{tx.description}</span>
+      <span className={cn("text-sm text-foreground flex items-start gap-1.5 min-w-0", excluded && "line-through")}>
+        {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.75" />}
+        <span className="wrap-break-word min-w-0">{tx.description}</span>
       </span>
 
       <div className="justify-self-start">
