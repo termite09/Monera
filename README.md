@@ -15,7 +15,7 @@
 - **Recurring payments & manual entries.** Track fixed bills paid outside your card, and add manual income or expenses by hand.
 - **Duplicate-safe imports.** Re-uploading the same statement never creates duplicates, and two genuinely identical same-day purchases are both preserved.
 - **Guided first run.** New users get a short onboarding flow: connect Drive → upload a statement → set payday → done.
-- **Installable PWA** with offline-friendly caching and a mobile-first, responsive UI.
+- **Instant & responsive.** Data is cached and persisted locally (TanStack Query) and revalidated in the background, so reloads are near-instant; edits like re-categorizing or excluding a transaction apply optimistically. Installable PWA with a mobile-first, responsive UI.
 
 ---
 
@@ -26,6 +26,7 @@
 | Framework | [Next.js 16](https://nextjs.org) (App Router) + React 19 |
 | Auth | [NextAuth v5](https://authjs.dev) — Google OAuth (JWT sessions) |
 | Storage | Google Drive REST API (`drive.file` scope) |
+| Data layer | [TanStack Query](https://tanstack.com/query) — persisted, offline-friendly cache |
 | Styling | Tailwind CSS v4, shadcn/ui (Radix), Framer Motion |
 | Charts | Recharts |
 | Spreadsheets | SheetJS (lazy-loaded for `.xlsx`) |
