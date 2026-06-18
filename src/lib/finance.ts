@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds } from "@/lib/utils";
+import { getPeriodBounds, roundMoney } from "@/lib/utils";
 
 export interface PeriodSpend {
   byCategory: Record<Category, number>;
@@ -38,18 +38,19 @@ export function getPeriodSpend(
   const sumBy = (txs: Transaction[], cat: Category) =>
     txs.filter((t) => t.category === cat).reduce((s, t) => s + t.amount, 0);
 
-  const netSpend = (cat: Category) => Math.max(0, sumBy(expenses, cat) - sumBy(income, cat));
+  const netSpend = (cat: Category) => roundMoney(Math.max(0, sumBy(expenses, cat) - sumBy(income, cat)));
 
   const byCategory: Record<Category, number> = {
     Needs: netSpend("Needs"),
     Wants: netSpend("Wants"),
     Savings: netSpend("Savings"),
     // Income never erases real uncategorized spending.
-    Uncategorized: sumBy(expenses, "Uncategorized"),
+    Uncategorized: roundMoney(sumBy(expenses, "Uncategorized")),
   };
 
-  const total =
-    byCategory.Needs + byCategory.Wants + byCategory.Savings + byCategory.Uncategorized;
+  const total = roundMoney(
+    byCategory.Needs + byCategory.Wants + byCategory.Savings + byCategory.Uncategorized
+  );
 
   return { byCategory, total };
 }

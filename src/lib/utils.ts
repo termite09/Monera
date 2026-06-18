@@ -86,3 +86,13 @@ export function getCategoryColor(category: Category): string {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Rounds a monetary amount to clean cents, eliminating floating-point
+ * accumulation drift (e.g. 0.1 + 0.2 → 0.3, not 0.30000000000000004). Use at
+ * aggregation boundaries so totals and budget comparisons don't read as off by a
+ * sub-cent epsilon.
+ */
+export function roundMoney(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}

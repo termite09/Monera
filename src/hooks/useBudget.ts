@@ -1,5 +1,5 @@
 import { Transaction, Settings, MonthSummary } from "@/types";
-import { getPeriodBounds } from "@/lib/utils";
+import { getPeriodBounds, roundMoney } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 export function useBudget(
@@ -26,20 +26,22 @@ export function useBudget(
   // Total income actually received this period (self-transfers already removed
   // upstream). Used as a fallback so the dashboard reflects real deposits instead
   // of €0 when the user hasn't entered a planned figure.
-  const detectedIncome = monthIncomeTxs.reduce((s, t) => s + t.amount, 0);
+  const detectedIncome = roundMoney(monthIncomeTxs.reduce((s, t) => s + t.amount, 0));
 
   // A configured planned income (explicit intent) wins; otherwise reconcile with
   // what the statement shows.
-  const income = configuredIncome > 0 ? configuredIncome : detectedIncome;
+  const income = roundMoney(configuredIncome > 0 ? configuredIncome : detectedIncome);
   const incomeIsDetected = configuredIncome <= 0 && detectedIncome > 0;
 
   // Individual transfers = CSV income excluding anything matching salary keywords
-  const individualTransfers = monthIncomeTxs
-    .filter((t) =>
-      salaryKeywords.length === 0 ||
-      !salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
-    )
-    .reduce((s, t) => s + t.amount, 0);
+  const individualTransfers = roundMoney(
+    monthIncomeTxs
+      .filter((t) =>
+        salaryKeywords.length === 0 ||
+        !salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
+      )
+      .reduce((s, t) => s + t.amount, 0)
+  );
 
   // Single source of truth for period spend / refund-netting — shared with the
   // reports page so the two can never show different totals.
@@ -52,18 +54,18 @@ export function useBudget(
   const summary: MonthSummary = {
     income,
     transfersReceived: individualTransfers,
-    totalExpenses: needs + wants + savings + uncategorizedExpense,
+    totalExpenses: roundMoney(needs + wants + savings + uncategorizedExpense),
     needs,
     wants,
     savings,
     remaining: 0,
   };
-  summary.remaining = summary.income - summary.totalExpenses;
+  summary.remaining = roundMoney(summary.income - summary.totalExpenses);
 
   const budgetAllocations = {
-    needs: (summary.income * budgetRule.needs) / 100,
-    wants: (summary.income * budgetRule.wants) / 100,
-    savings: (summary.income * budgetRule.savings) / 100,
+    needs: roundMoney((summary.income * budgetRule.needs) / 100),
+    wants: roundMoney((summary.income * budgetRule.wants) / 100),
+    savings: roundMoney((summary.income * budgetRule.savings) / 100),
   };
 
   return { paydayOfMonth, summary, budgetAllocations, budgetRule, incomeIsDetected };

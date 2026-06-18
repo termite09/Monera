@@ -73,6 +73,16 @@ describe("getPeriodSpend", () => {
     expect(getPeriodSpend(txs, "2024-06", 24).byCategory.Wants).toBe(20);
   });
 
+  it("returns cent-clean totals despite floating-point drift", () => {
+    const txs = [
+      tx({ amount: 0.1, type: "expense", category: "Wants" }),
+      tx({ amount: 0.2, type: "expense", category: "Wants" }),
+    ];
+    const spend = getPeriodSpend(txs, "2024-06", 1);
+    expect(spend.byCategory.Wants).toBe(0.3);
+    expect(spend.total).toBe(0.3);
+  });
+
   it("total equals the sum of all category buckets", () => {
     const txs = [
       tx({ amount: 100, type: "expense", category: "Needs" }),

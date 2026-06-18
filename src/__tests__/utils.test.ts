@@ -1,5 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency } from "@/lib/utils";
+import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency, roundMoney } from "@/lib/utils";
+
+describe("roundMoney", () => {
+  it("eliminates floating-point accumulation drift to clean cents", () => {
+    expect(roundMoney(0.1 + 0.2)).toBe(0.3);
+    expect(roundMoney(15.5 + 3.99 + 0.01)).toBe(19.5);
+    // a sum that drifts above its true value must not read as "over" by an epsilon
+    expect(roundMoney(19.99 * 3)).toBe(59.97);
+  });
+
+  it("leaves already-clean values untouched", () => {
+    expect(roundMoney(265)).toBe(265);
+    expect(roundMoney(0)).toBe(0);
+    expect(roundMoney(12.34)).toBe(12.34);
+  });
+});
 
 describe("getMonthKey", () => {
   it("returns YYYY-MM for payday=1", () => {
