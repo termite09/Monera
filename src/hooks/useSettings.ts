@@ -1,31 +1,41 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { DEFAULT_SETTINGS } from "@/config/constants";
+import { DriveAuthError } from "@/lib/errors";
 
 export function useSettings(
   accessToken: string | undefined,
   structure: DriveStructure | null
 ) {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const qc = useQueryClient();
+  const fileId = structure?.fileIds.settings;
+  const queryKey = ["settings", fileId ?? "none"];
 
-  useEffect(() => {
-    if (!accessToken || !structure) return;
-    readAppFile<Settings>(accessToken, structure.fileIds.settings)
-      .then((s) => setSettings({ ...DEFAULT_SETTINGS, ...s }))
-      .catch(() => setSettings(DEFAULT_SETTINGS))
-      .finally(() => setSettingsLoaded(true));
-  }, [accessToken, structure]);
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const s = await readAppFile<Settings>(accessToken as string, fileId as string);
+      return { ...DEFAULT_SETTINGS, ...s } as Settings;
+    },
+    enabled: !!accessToken && !!fileId,
+    retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
+  });
 
   const updateSettings = useCallback(
     async (newSettings: Settings) => {
-      if (!accessToken || !structure) return;
-      await writeAppFile(accessToken, structure.fileIds.settings, newSettings);
-      setSettings(newSettings);
+      if (!accessToken || !fileId) return;
+      await writeAppFile(accessToken, fileId, newSettings);
+      qc.setQueryData(["settings", fileId], newSettings);
     },
-    [accessToken, structure]
+    [accessToken, fileId, qc]
   );
 
-  return { settings, updateSettings, settingsLoaded };
+  return {
+    settings: query.data ?? DEFAULT_SETTINGS,
+    updateSettings,
+    // Settled (loaded from Drive, or failed and falling back to defaults).
+    settingsLoaded: query.isSuccess || query.isError,
+  };
 }
