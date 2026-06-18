@@ -156,9 +156,8 @@ export default function TransactionsPage() {
                   <span className="w-11 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Description</span>
                   <span className="shrink-0">Category</span>
-                  <span className="shrink-0">Amount</span>
-                  {/* spacers align with the exclude + delete actions in each row */}
-                  <span className="w-6 shrink-0" />
+                  <span className="shrink-0 w-24 text-right">Amount</span>
+                  {/* spacer aligns with the exclude action in each row */}
                   <span className="w-6 shrink-0" />
                 </div>
                 <div className="divide-y divide-border">

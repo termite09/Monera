@@ -54,7 +54,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
   return (
     <div
       className={cn(
-        "flex items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
+        "flex w-full items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
       )}
     >
@@ -105,7 +105,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
       {/* Amount */}
       <span
         className={cn(
-          "shrink-0 pt-0.5 text-sm tabular-nums text-right font-mono",
+          "shrink-0 w-24 pt-0.5 text-sm tabular-nums text-right font-mono",
           excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
       >
@@ -173,9 +173,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
             <Trash2 size={14} />
           </button>
         )
-      ) : (
-        <span className="w-6 shrink-0" />
-      )}
+      ) : null}
     </div>
   );
 }
