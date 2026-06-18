@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   // Generic Revolut savings-vault phrasing — safe defaults the user can edit.
   savingsVaultKeywords: ["eur savings", "savings for"],
   recurringPayments: [],
+  onboarded: false,
 };
 
 export const MONTH_NAMES = [

@@ -29,6 +29,7 @@ export function useTransactions(
   const [overrides, setOverrides] = useState<Record<string, Category>>({});
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(!!accessToken);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
 
@@ -114,10 +115,14 @@ export function useTransactions(
       }
     } finally {
       setIsLoading(false);
+      setHasLoaded(true);
     }
   }, [accessToken, structure]);
 
   useEffect(() => {
+    // Data-loading effect: pulling transactions from Google Drive is a legitimate
+    // synchronization with an external system.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTransactions();
   }, [loadTransactions]);
 
@@ -208,6 +213,7 @@ export function useTransactions(
   return {
     transactions,
     isLoading,
+    hasLoaded,
     error,
     needsReauth,
     refetch: loadTransactions,

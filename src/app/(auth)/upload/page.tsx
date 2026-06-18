@@ -9,6 +9,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listFiles, uploadCSV, deleteFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
+import { readSpreadsheetAsCsv, csvFileName } from "@/lib/spreadsheet";
 import { DriveAuthError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -47,9 +48,11 @@ export default function UploadPage() {
     setMessage("Uploading...");
 
     try {
-      const content = await file.text();
+      // Excel files are converted to CSV and stored as .csv so everything
+      // downstream (parsing, dedup, cache) stays CSV-only.
+      const content = await readSpreadsheetAsCsv(file);
       const { transactions, errors } = parseCSV(content);
-      await uploadCSV(accessToken, file.name, structure.revolutExportsId, content);
+      await uploadCSV(accessToken, csvFileName(file.name), structure.revolutExportsId, content);
       setStatus("success");
       setMessage(`Uploaded ${file.name} — found ${transactions.length} transactions${errors.length > 0 ? `, ${errors.length} parse errors` : ""}`);
       await loadFiles();
@@ -58,7 +61,7 @@ export default function UploadPage() {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Upload failed");
     }
-  }, [accessToken, structure, loadFiles]);
+  }, [accessToken, structure, loadFiles, refetch]);
 
   const handleDelete = useCallback(async (fileId: string) => {
     if (!accessToken) return;
@@ -91,8 +94,8 @@ export default function UploadPage() {
     <PageShell>
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Upload CSV</h1>
-          <p className="text-sm text-muted-foreground mt-1">Import any bank CSV — Revolut is auto-detected, other formats are matched by their column headers</p>
+          <h1 className="text-xl font-semibold text-foreground">Upload Statement</h1>
+          <p className="text-sm text-muted-foreground mt-1">Import any bank CSV or Excel file — Revolut is auto-detected, other formats are matched by their column headers</p>
         </div>
 
         {/* Drop zone */}
@@ -111,13 +114,13 @@ export default function UploadPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
           />
           <Upload size={32} className="mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">Drag & drop CSV or click to browse</p>
-          <p className="text-xs text-muted-foreground mt-1">CSV files — Revolut or any bank with date / description / amount columns</p>
+          <p className="text-sm font-medium text-foreground">Drag & drop CSV or Excel, or click to browse</p>
+          <p className="text-xs text-muted-foreground mt-1">CSV or Excel (.xlsx) — Revolut or any bank with date / description / amount columns</p>
         </div>
 
         {/* Status */}

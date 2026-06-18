@@ -30,7 +30,7 @@ export function LoginCard() {
           <div className="flex flex-col gap-1.5">
             <p className="text-sm font-medium text-foreground">Sign in to continue</p>
             <p className="text-xs text-muted-foreground">
-              Your data lives in your own Google Drive — we store nothing.
+              We store everything in a private Monera folder in your Google Drive. We never see your data.
             </p>
           </div>
 

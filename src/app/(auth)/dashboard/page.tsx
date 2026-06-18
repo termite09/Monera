@@ -23,6 +23,7 @@ const DailyTrend = dynamic(
 import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
+import { Onboarding } from "@/components/onboarding/Onboarding";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
@@ -30,11 +31,32 @@ import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 
 export default function DashboardPage() {
-  const { transactions, settings, isLoading, txError, addManualTransaction, refetch } = useAppData();
+  const { transactions, settings, isLoading, ready, txError, addManualTransaction, refetch } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAdd, setShowAdd] = useState(false);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
+
+  // First-run flow: latch whether this is a brand-new, empty account on first load,
+  // so uploading mid-flow doesn't dismiss the flow and existing users (who already
+  // have data) never see it. Stays shown until the user finishes (onboarded = true).
+  const [wasNewAtLoad, setWasNewAtLoad] = useState<boolean | null>(null);
+  useEffect(() => {
+    // Wait for everything to actually load (ready) before deciding — otherwise an
+    // existing user briefly looks "new" while data is still loading.
+    if (wasNewAtLoad !== null || !ready) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWasNewAtLoad(!settings.onboarded && transactions.length === 0);
+  }, [wasNewAtLoad, ready, settings.onboarded, transactions.length]);
+  const showOnboarding = !settings.onboarded && wasNewAtLoad === true;
+
+  // Snap to the current period on every mount and whenever the payday loads/changes
+  // (its boundaries depend on the payday). Must run on mount so client-side
+  // navigation lands on the correct current period, not a calendar month.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMonth(getCurrentMonth(paydayOfMonth));
+  }, [paydayOfMonth]);
 
   // Recurring bills (paid outside Revolut) injected as synthetic expenses
   const recurringTxs = useMemo(
@@ -44,10 +66,6 @@ export default function DashboardPage() {
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
-
-  useEffect(() => {
-    setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
 
   const { start, end } = getPeriodBounds(month, paydayOfMonth);
   const monthTxs = allTxs.filter((t) => {
@@ -72,6 +90,14 @@ export default function DashboardPage() {
     { label: "Remaining", amount: summary.remaining, icon: "=", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive", accent: summary.remaining >= 0 ? "#10b981" : "#ef4444" },
     { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary", accent: "#1C3557" },
   ];
+
+  if (showOnboarding) {
+    return (
+      <PageShell>
+        <Onboarding />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell>

@@ -47,6 +47,8 @@ export interface Settings {
   /** Descriptions identifying Revolut savings-vault deposits — positive mirror dropped. */
   savingsVaultKeywords: string[];
   recurringPayments: RecurringPayment[];
+  /** True once the user has finished (or skipped) the first-run setup flow. */
+  onboarded?: boolean;
 }
 
 export interface CategoryRule {

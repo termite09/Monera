@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -27,7 +27,9 @@ export default function TransactionsPage() {
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
+  // Snap to the current period on mount and when the payday loads/changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonth(getCurrentMonth(paydayOfMonth));
   }, [paydayOfMonth]);
 
@@ -73,7 +75,9 @@ export default function TransactionsPage() {
             </button>
           </div>
         )}
-        <div className="flex gap-2">
+        {/* Search on its own row on phones; the two filters share a row beneath it.
+            Everything sits inline from the sm breakpoint up. */}
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -83,28 +87,30 @@ export default function TransactionsPage() {
               className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as TransactionType | "all")}
-            className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Filter by type"
-          >
-            <option value="expense">Expenses</option>
-            <option value="income">Income</option>
-            <option value="all">All types</option>
-          </select>
-          <select
-            value={filterCat}
-            onChange={(e) => setFilterCat(e.target.value as Category | "All")}
-            className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Filter by category"
-          >
-            <option value="All">All</option>
-            <option value="Needs">Needs</option>
-            <option value="Wants">Wants</option>
-            <option value="Savings">Savings</option>
-            <option value="Uncategorized">Uncategorized</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as TransactionType | "all")}
+              className="flex-1 sm:flex-none h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by type"
+            >
+              <option value="expense">Expenses</option>
+              <option value="income">Income</option>
+              <option value="all">All types</option>
+            </select>
+            <select
+              value={filterCat}
+              onChange={(e) => setFilterCat(e.target.value as Category | "All")}
+              className="flex-1 sm:flex-none h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by category"
+            >
+              <option value="All">All</option>
+              <option value="Needs">Needs</option>
+              <option value="Wants">Wants</option>
+              <option value="Savings">Savings</option>
+              <option value="Uncategorized">Uncategorized</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">

@@ -33,10 +33,12 @@ function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
 
-  // Reload form when month or settings change externally
+  // Reset editable fields when the selected month or the settings loaded from Drive
+  // change — an intentional sync from external state, not a render-cascade bug.
   useEffect(() => {
     const mb = settings.monthlyBudgets[month];
     const r = mb?.budgetRule ?? settings.defaultBudgetRule;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIncome(String(mb?.income ?? ""));
     setNeeds(String(r.needs));
     setWants(String(r.wants));
@@ -146,9 +148,8 @@ function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   );
 }
 
-function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
+function GlobalForm({ settings, updateSettings }: {
   settings: ReturnType<typeof useAppData>["settings"];
-  paydayOfMonth: number;
   updateSettings: ReturnType<typeof useAppData>["updateSettings"];
 }) {
   const [payday, setPayday] = useState(String(settings.paydayOfMonth ?? 1));
@@ -159,7 +160,9 @@ function GlobalForm({ settings, paydayOfMonth, updateSettings }: {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
 
+  // Intentional sync from externally-loaded settings.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPayday(String(settings.paydayOfMonth ?? 1));
     setNeeds(String(settings.defaultBudgetRule.needs));
     setWants(String(settings.defaultBudgetRule.wants));
@@ -261,7 +264,9 @@ function RecurringForm({ settings, updateSettings }: {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
 
+  // Intentional sync from externally-loaded settings.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(settings.recurringPayments ?? []);
   }, [settings]);
 
@@ -400,6 +405,8 @@ function RulesForm({ rules, updateRules }: {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
 
+  // Intentional sync from externally-loaded rules.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setItems(rules), [rules]);
 
   const dirty = JSON.stringify(items) !== JSON.stringify(rules);
@@ -629,7 +636,9 @@ function IncomeForm({ settings, updateSettings }: {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
 
+  // Intentional sync from externally-loaded settings.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSalary(settings.salaryKeywords ?? []);
     setSelfTransfer(settings.selfTransferKeywords ?? []);
     setSavingsVault(settings.savingsVaultKeywords ?? []);
@@ -705,7 +714,9 @@ export default function SettingsPage() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [tab, setTab] = useState<Tab>("budget");
 
+  // Snap to the current period on mount and when the payday loads/changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonth(getCurrentMonth(paydayOfMonth));
   }, [paydayOfMonth]);
 
@@ -755,7 +766,6 @@ export default function SettingsPage() {
             {/* Global defaults */}
             <GlobalForm
               settings={settings}
-              paydayOfMonth={paydayOfMonth}
               updateSettings={updateSettings}
             />
           </>

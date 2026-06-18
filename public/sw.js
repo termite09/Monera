@@ -7,7 +7,7 @@ function isStaticAsset(url) {
   return STATIC_EXTENSIONS.some((ext) => path.endsWith(ext)) || path.startsWith("/_next/static/");
 }
 
-self.addEventListener("install", (e) => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 

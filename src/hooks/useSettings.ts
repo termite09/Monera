@@ -8,12 +8,14 @@ export function useSettings(
   structure: DriveStructure | null
 ) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
     if (!accessToken || !structure) return;
     readAppFile<Settings>(accessToken, structure.fileIds.settings)
       .then((s) => setSettings({ ...DEFAULT_SETTINGS, ...s }))
-      .catch(() => setSettings(DEFAULT_SETTINGS));
+      .catch(() => setSettings(DEFAULT_SETTINGS))
+      .finally(() => setSettingsLoaded(true));
   }, [accessToken, structure]);
 
   const updateSettings = useCallback(
@@ -25,5 +27,5 @@ export function useSettings(
     [accessToken, structure]
   );
 
-  return { settings, updateSettings };
+  return { settings, updateSettings, settingsLoaded };
 }

@@ -16,6 +16,10 @@ interface AppDataContextValue {
   transactions: Transaction[];
   settings: Settings;
   isLoading: boolean;
+  // True only once Drive structure, settings, and transactions have all loaded —
+  // a reliable signal for first-run/onboarding decisions (isLoading can read false
+  // before a load has even started).
+  ready: boolean;
   txError: string | null;
   rules: CategoryRule[];
   addManualTransaction: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
@@ -32,11 +36,12 @@ const AppDataContext = createContext<AppDataContextValue | null>(null);
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth();
   const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken);
-  const { settings, updateSettings } = useSettings(accessToken, structure);
+  const { settings, updateSettings, settingsLoaded } = useSettings(accessToken, structure);
   const { rules, updateRules } = useRules(accessToken, structure);
   const {
     transactions,
     isLoading: isTxLoading,
+    hasLoaded: txLoaded,
     error: txError,
     needsReauth: txNeedsReauth,
     addManualTransaction,
@@ -47,6 +52,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   } = useTransactions(accessToken, structure, rules, settings);
 
   const isLoading = isDriveLoading || isTxLoading;
+  const ready = !!structure && settingsLoaded && txLoaded;
 
   // If either hook detected an expired token, sign the user out immediately.
   useEffect(() => {
@@ -62,6 +68,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       settings,
       rules,
       isLoading,
+      ready,
       txError,
       addManualTransaction,
       deleteManualTransaction,
@@ -71,7 +78,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateRules,
       refetch,
     }),
-    [structure, transactions, settings, rules, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
+    [structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
   );
 
   if (!structure) {

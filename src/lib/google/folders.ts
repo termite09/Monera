@@ -24,6 +24,8 @@ export async function ensureDriveStructure(accessToken: string): Promise<DriveSt
     `name='${DRIVE_ROOT_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
   );
 
+  // listFiles is ordered by createdTime desc, so [0] is the newest match — the one
+  // the app has consistently read/written, where the user's data lives.
   let rootId: string;
   if (rootFolders.length > 0) {
     rootId = rootFolders[0].id;
