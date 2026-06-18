@@ -29,6 +29,14 @@ const catText: Record<Category, string> = {
   Uncategorized: "text-muted-foreground",
 };
 
+// Shown on small screens so category is never conveyed by color alone (a11y).
+const catShort: Record<Category, string> = {
+  Needs: "Needs",
+  Wants: "Wants",
+  Savings: "Savings",
+  Uncategorized: "Uncat.",
+};
+
 function shortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
@@ -83,7 +91,10 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
             aria-label={`Category: ${tx.category}`}
           >
             <span className={cn("size-2 rounded-full shrink-0", catDot[tx.category])} />
-            <span className={cn("hidden sm:inline text-xs font-medium", catText[tx.category])}>{tx.category}</span>
+            <span className={cn("text-xs font-medium", catText[tx.category])}>
+              <span className="sm:hidden">{catShort[tx.category]}</span>
+              <span className="hidden sm:inline">{tx.category}</span>
+            </span>
           </button>
         )}
       </div>

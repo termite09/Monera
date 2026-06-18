@@ -165,29 +165,49 @@ export function useTransactions(
     [accessToken, structure, patch]
   );
 
+  // Category and exclude are rapid, tap-heavy interactions, so update the UI
+  // optimistically (instantly) and roll back if the Drive write fails.
   const updateCategory = useCallback(
     async (txId: string, category: Category) => {
       if (!accessToken || !structure) return;
-      const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-      const updated = { ...existing, [txId]: category };
-      await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
-      patch((d) => ({ ...d, overrides: updated }));
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      patch((d) => ({ ...d, overrides: { ...d.overrides, [txId]: category } }));
+      try {
+        const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+        const updated = { ...existing, [txId]: category };
+        await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
+        patch((d) => ({ ...d, overrides: updated })); // reconcile with the merged Drive value
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
     },
-    [accessToken, structure, patch]
+    [accessToken, structure, patch, qc, appDataId]
   );
 
   const toggleExclude = useCallback(
     async (txId: string) => {
       if (!accessToken || !structure) return;
-      const existing = await readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions);
-      const set = new Set(existing);
-      if (set.has(txId)) set.delete(txId);
-      else set.add(txId);
-      const next = [...set];
-      await writeAppFile(accessToken, structure.fileIds.excludedTransactions, next);
-      patch((d) => ({ ...d, excludedIds: next }));
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      // Target a definite state (not an independent toggle) so the optimistic
+      // update and the Drive write always agree.
+      const willExclude = !(prev?.excludedIds ?? []).includes(txId);
+      const apply = (ids: string[]) =>
+        willExclude ? Array.from(new Set([...ids, txId])) : ids.filter((i) => i !== txId);
+      patch((d) => ({ ...d, excludedIds: apply(d.excludedIds) }));
+      try {
+        const existing = await readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions);
+        const next = apply(existing);
+        await writeAppFile(accessToken, structure.fileIds.excludedTransactions, next);
+        patch((d) => ({ ...d, excludedIds: next }));
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
     },
-    [accessToken, structure, patch]
+    [accessToken, structure, patch, qc, appDataId]
   );
 
   return {
