@@ -152,13 +152,14 @@ export default function TransactionsPage() {
               </div>
             ) : (
               <>
-                <div className="grid w-full grid-cols-[2.8rem_minmax(0,1fr)_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <span>Date</span>
-                  <span>Description</span>
-                  <span className="justify-self-start">Category</span>
-                  <span className="justify-self-end">Amount</span>
-                  <span />
-                  <span />  {/* spacer aligns with delete column in TransactionRow */}
+                <div className="flex items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="w-11 shrink-0">Date</span>
+                  <span className="flex-1 min-w-0">Description</span>
+                  <span className="shrink-0">Category</span>
+                  <span className="shrink-0">Amount</span>
+                  {/* spacers align with the exclude + delete actions in each row */}
+                  <span className="w-6 shrink-0" />
+                  <span className="w-6 shrink-0" />
                 </div>
                 <div className="divide-y divide-border">
                   {filtered.map((tx) => (

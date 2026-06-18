@@ -54,20 +54,23 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
   return (
     <div
       className={cn(
-        "grid w-full grid-cols-[2.8rem_minmax(0,1fr)_auto_auto_1.75rem_1.75rem] items-center gap-2 sm:gap-3 py-2 px-2 transition-colors",
+        "flex items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
       )}
     >
-      <span className="text-xs text-muted-foreground tabular-nums font-mono">
+      {/* Date */}
+      <span className="shrink-0 w-11 pt-0.5 text-xs text-muted-foreground tabular-nums font-mono">
         {shortDate(tx.date)}
       </span>
 
-      <span className={cn("text-sm text-foreground flex items-start gap-1.5 min-w-0", excluded && "line-through")}>
+      {/* Description — fills the remaining width and wraps when long */}
+      <span className={cn("flex-1 min-w-0 flex items-start gap-1.5 text-sm text-foreground", excluded && "line-through")}>
         {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.75" />}
         <span className="wrap-break-word min-w-0">{tx.description}</span>
       </span>
 
-      <div className="justify-self-start">
+      {/* Category */}
+      <div className="shrink-0 pt-0.5">
         {editing && !excluded ? (
           <select
             value={tx.category}
@@ -99,15 +102,17 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         )}
       </div>
 
+      {/* Amount */}
       <span
         className={cn(
-          "text-sm tabular-nums text-right justify-self-end font-mono",
+          "shrink-0 pt-0.5 text-sm tabular-nums text-right font-mono",
           excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
       >
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
 
+      {/* Exclude / include */}
       {onToggleExclude && (
         <button
           onClick={async () => {
@@ -121,7 +126,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
           }}
           disabled={toggling}
           className={cn(
-            "justify-self-end p-1 rounded-md transition-colors disabled:cursor-wait",
+            "shrink-0 p-1 rounded-md transition-colors disabled:cursor-wait",
             excluded ? "text-primary hover:bg-secondary" : "text-muted-foreground/40 hover:text-destructive hover:bg-secondary"
           )}
           aria-label={excluded ? "Include in calculations" : "Exclude from calculations"}
@@ -131,13 +136,12 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         </button>
       )}
 
+      {/* Delete (manual rows) or a spacer to keep the right edge aligned */}
       {onDelete ? (
         confirmDelete ? (
           <button
-            // onMouseDown e.preventDefault() prevents the initial trash button
-            // from losing focus (blur) before this click fires — otherwise the
-            // blur handler on the initial button would hide this confirm button
-            // before the click event can be processed.
+            // onMouseDown e.preventDefault() keeps focus so the click below fires
+            // before the blur handler hides this confirm button.
             onMouseDown={(e) => e.preventDefault()}
             onClick={async () => {
               if (deleting) return;
@@ -145,15 +149,14 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
               try {
                 await onDelete(tx.id);
               } catch {
-                // Error is handled upstream (AppDataContext reauth or caller feedback);
-                // reset UI state so the row doesn't stay in a spinner.
+                // Handled upstream; reset UI so the row doesn't stay spinning.
               } finally {
                 setDeleting(false);
                 setConfirmDelete(false);
               }
             }}
             disabled={deleting}
-            className="justify-self-end p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
+            className="shrink-0 p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
             aria-label="Confirm delete"
             title="Tap again to confirm"
           >
@@ -163,7 +166,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
           <button
             onClick={() => setConfirmDelete(true)}
             onBlur={() => setConfirmDelete(false)}
-            className="justify-self-end p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
+            className="shrink-0 p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
             aria-label="Delete transaction"
             title="Delete manual transaction"
           >
@@ -171,9 +174,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
           </button>
         )
       ) : (
-        // Spacer keeps column alignment consistent with the 6-column header
-        // regardless of whether this row has a delete action.
-        <span />
+        <span className="w-6 shrink-0" />
       )}
     </div>
   );
