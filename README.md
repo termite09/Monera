@@ -1,66 +1,76 @@
 # Monera
 
-**Private, photo-finish personal finance.** Monera turns your bank statements into a clear monthly picture of where your money goes — budgets, spending breakdowns, recurring bills, and plain-language insights — while keeping **all of your data in your own Google Drive**. There is no Monera server and no database; the app reads and writes a single private folder in *your* Drive, and never sees your financial data.
+> Personal finance that lives in your Google Drive — not on someone else's server.
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
+
+Monera turns your Revolut exports into a clear monthly picture of where your money goes. Import a CSV or Excel statement, set your payday, and get budgets, spending breakdowns, merchant analytics, subscription detection, and plain-language insights — with every byte stored in a private folder in **your own Google Drive**.
+
+There is no Monera backend, no database, and no account data on any third-party server.
 
 ---
 
-## Highlights
+## Features
 
-- **Your data, your Drive.** Everything is stored in a private `Monera/` folder in your own Google Drive. The app requests only the minimal `drive.file` scope — access to the files it creates, nothing else.
-- **Import CSV or Excel.** Drop in a Revolut export (`.csv` or `.xlsx`); other banks are auto-detected by their column headers. Excel files are converted to CSV in the browser on upload.
-- **Payday-aware budgeting.** Budget periods run from one payday to the next (e.g. the 24th), not the calendar month. Set a global default or override income and the needs/wants/savings split per period.
-- **One source of truth for the numbers.** Income, expenses, savings, refunds, and category totals are computed in one place, so the Dashboard, Reports, and charts never disagree.
-- **Reports & insights.** A tabbed Reports view (Overview · Merchants · Subscriptions) with budget-vs-actual, month-over-month trends, top/most-frequent merchants, automatic **subscription detection**, and a prioritized **Insights** feed ("You're €40 over your Wants budget", "Spending is 18% lower than last period").
-- **Smart categorization.** Transactions are categorized by your keyword rules (case-insensitive, partial-match), with per-transaction overrides that always win and are remembered.
-- **Recurring payments & manual entries.** Track fixed bills paid outside your card, and add manual income or expenses by hand.
-- **Duplicate-safe imports.** Re-uploading the same statement never creates duplicates, and two genuinely identical same-day purchases are both preserved.
-- **Guided first run.** New users get a short onboarding flow: connect Drive → upload a statement → set payday → done.
-- **Instant & responsive.** Data is cached and persisted locally (TanStack Query) and revalidated in the background, so reloads are near-instant; edits like re-categorizing or excluding a transaction apply optimistically. Installable PWA with a mobile-first, responsive UI.
+| | |
+|---|---|
+| **Your data, your Drive** | All data lives in a `Monera/` folder you own. The app uses the minimal `drive.file` scope — it can only see files it created. |
+| **Payday-aware budgets** | Periods run payday-to-payday (e.g. the 24th), not calendar months. Override income and the needs / wants / savings split per period. |
+| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export. Excel files are converted in the browser — nothing leaves your machine until it hits Drive. |
+| **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Per-transaction overrides are remembered and always win. |
+| **Reports & insights** | Budget-vs-actual, month-over-month trends, top merchants, most-frequent merchants, automatic subscription detection, and a prioritized insights feed. |
+| **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
+| **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
+| **Instant & offline-ready** | Data is cached locally (TanStack Query) and revalidated in the background. Edits like re-categorizing a transaction apply optimistically. Installable PWA. |
 
 ---
 
-## Tech stack
+## Tech Stack
 
 | Area | Choice |
-|------|--------|
+|---|---|
 | Framework | [Next.js 16](https://nextjs.org) (App Router) + React 19 |
-| Auth | [NextAuth v5](https://authjs.dev) — Google OAuth (JWT sessions) |
+| Auth | [NextAuth v5](https://authjs.dev) — Google OAuth, JWT sessions |
 | Storage | Google Drive REST API (`drive.file` scope) |
-| Data layer | [TanStack Query](https://tanstack.com/query) — persisted, offline-friendly cache |
+| Data layer | [TanStack Query v5](https://tanstack.com/query) — persisted, offline-friendly cache |
 | Styling | Tailwind CSS v4, shadcn/ui (Radix), Framer Motion |
 | Charts | Recharts |
-| Spreadsheets | SheetJS (lazy-loaded for `.xlsx`) |
+| Spreadsheets | SheetJS (lazy-loaded for `.xlsx` uploads) |
 | Testing | Vitest |
-
-There is no backend service or database — the Next.js app talks directly to the Google Drive API on the user's behalf, and each user's data lives only in their own Drive.
 
 ---
 
-## Getting started
+## Getting Started
 
 ### Prerequisites
-- Node.js 20+
-- A Google Cloud project with an OAuth 2.0 Client (Web application)
 
-### 1. Configure Google OAuth
+- Node.js 20+
+- A Google Cloud project with an OAuth 2.0 Client ID (Web application type)
+
+### 1 — Configure Google OAuth
+
 In the [Google Cloud Console](https://console.cloud.google.com/):
+
 1. Enable the **Google Drive API**.
-2. Configure the **OAuth consent screen** (set the app name to *Monera* and add a logo — this is what users see on the consent dialog). While in testing, add yourself and any testers as **Test users**.
-3. Create an **OAuth Client ID** (Web application) and add the redirect URI:
+2. Set up the **OAuth consent screen** — name it *Monera*, add the `drive.file` scope, and add yourself as a **Test user** while in testing mode.
+3. Create an **OAuth 2.0 Client ID** (Web application) and add the redirect URIs:
    - `http://localhost:3000/api/auth/callback/google` (development)
    - `https://your-domain/api/auth/callback/google` (production)
 
-### 2. Environment variables
-Create `.env.local`:
+### 2 — Environment variables
+
+Create `.env.local` at the project root:
 
 ```bash
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
-NEXTAUTH_SECRET=run `openssl rand -base64 32`
+NEXTAUTH_SECRET=        # openssl rand -base64 32
 NEXTAUTH_URL=http://localhost:3000
 ```
 
-### 3. Install & run
+### 3 — Install and run
 
 ```bash
 npm install
@@ -69,67 +79,74 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with Google.
 
-> The `xlsx` dependency is installed from SheetJS's official CDN (the patched build), so the first `npm install` needs network access to `cdn.sheetjs.com`.
+> **Note:** The `xlsx` package is fetched from SheetJS's CDN on first install — `npm install` requires network access to `cdn.sheetjs.com`.
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── (auth)/          # Authenticated pages: dashboard, transactions,
+│   │                    # reports, upload, settings, year-overview
+│   ├── login/           # Sign-in screen
+│   └── api/auth/        # NextAuth route handler
+├── components/          # UI, charts, layout, budget widgets, onboarding
+├── contexts/            # AppDataContext — central state and mutations
+├── hooks/               # useDrive, useTransactions, useSettings, useBudget …
+├── lib/
+│   ├── finance.ts       # Single source of truth for period spend and refund netting
+│   ├── reports.ts       # Analytics, subscription detection
+│   ├── insights.ts      # Plain-language insight generation
+│   ├── parser/          # CSV / XLSX parsing and date handling
+│   ├── spreadsheet.ts   # XLSX → CSV conversion
+│   └── google/          # Drive API wrappers and folder helpers
+└── types/               # Shared TypeScript types
+```
+
+### Drive folder layout
+
+```
+Monera/
+├── revolut-exports/     # Uploaded CSV statements
+└── app-data/            # settings.json, category-rules.json,
+                         # category-overrides.json, manual-transactions.json,
+                         # excluded-transactions.json, parse-cache.json
+```
 
 ---
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the dev server |
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the development server |
 | `npm run build` | Production build |
-| `npm start` | Run the production build |
+| `npm start` | Serve the production build |
 | `npm run lint` | Lint with ESLint |
 | `npm test` | Run the test suite (Vitest) |
 
 ---
 
-## Project structure
+## Privacy & Security
 
-```
-src/
-├── app/
-│   ├── (auth)/            # Authenticated app: dashboard, transactions, reports,
-│   │                      # upload, settings, year-overview
-│   ├── login/             # Sign-in screen
-│   └── api/auth/          # NextAuth route handler
-├── components/            # UI, charts, layout, budget, onboarding
-├── contexts/              # AppDataContext — central state hub
-├── hooks/                 # useDrive, useTransactions, useSettings, useBudget, …
-├── lib/
-│   ├── parser/            # Revolut + generic CSV parsing, date handling
-│   ├── finance.ts         # Single source of truth for period spend / refunds
-│   ├── reports.ts         # Analytics, subscription detection
-│   ├── insights.ts        # Plain-language insight generation
-│   ├── spreadsheet.ts     # XLSX → CSV conversion
-│   └── google/            # Drive API + folder/file helpers
-└── types/                 # Shared TypeScript types
-```
-
-### How your data is stored
-
-```
-Monera/
-├── revolut-exports/       # Your uploaded statements (CSV)
-└── app-data/              # settings, category rules, overrides,
-                           # manual transactions, exclusions, parse cache (JSON)
-```
-
----
-
-## Privacy & security
-
-- Data never leaves your Google Drive; Monera has no server-side storage.
-- Minimal OAuth scope (`drive.file`) — the app can only touch the files it creates.
-- Access tokens are kept in an httpOnly session cookie and are never persisted to the browser or logged.
-- Account access is controlled entirely by Google (OAuth test users during testing; anyone with a Google account once the app is published).
+- **No server-side storage.** Data never leaves your Google Drive. Monera has no backend database or analytics pipeline.
+- **Minimal OAuth scope.** `drive.file` grants access only to the files Monera creates — it cannot read the rest of your Drive.
+- **HttpOnly session cookies.** Access tokens are stored in a server-side httpOnly cookie and are never exposed to JavaScript or logged.
+- **Zero third-party data sharing.** Authentication is handled entirely by Google. No personal data is sent to any third party.
 
 ---
 
 ## Deployment
 
-Deploys cleanly to [Vercel](https://vercel.com). Set the four environment variables above in the project settings, and add your production callback URL to the Google OAuth client. The app builds with `next build` and runs as a standard Next.js app.
+Monera deploys to [Vercel](https://vercel.com) without any configuration beyond setting environment variables:
+
+1. Import the repository in Vercel.
+2. Add the four environment variables from step 2 above.
+3. Add your production callback URL (`https://your-domain/api/auth/callback/google`) to the Google OAuth client.
+
+The app builds with `next build` and runs as a standard serverless Next.js application.
 
 ---
 
@@ -139,9 +156,10 @@ Deploys cleanly to [Vercel](https://vercel.com). Set the four environment variab
 npm test
 ```
 
-The suite covers the financial logic that matters most: refund-netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, duplicate handling, categorization, income reconciliation, subscription detection, and the insights engine.
+The test suite covers the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation, subscription detection, and the insights engine.
+
+---
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0.
-See the LICENSE file for details.
+Licensed under the [GNU Affero General Public License v3.0](LICENSE).
