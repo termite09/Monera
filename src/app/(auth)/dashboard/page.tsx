@@ -12,10 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Recharts is heavy; load the charts after the shell paints to cut initial JS.
-const SpendingPie = dynamic(
-  () => import("@/components/charts/SpendingPie").then((m) => m.SpendingPie),
-  { ssr: false, loading: () => <Skeleton className="h-[200px] w-full" /> }
-);
 const DailyTrend = dynamic(
   () => import("@/components/charts/DailyTrend").then((m) => m.DailyTrend),
   { ssr: false, loading: () => <Skeleton className="h-[200px] w-full" /> }
@@ -27,7 +23,8 @@ import { Onboarding } from "@/components/onboarding/Onboarding";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
+import { buildInsights } from "@/lib/insights";
+import { getCurrentMonth, getPeriodBounds, formatCurrency, cn } from "@/lib/utils";
 
 
 export default function DashboardPage() {
@@ -66,6 +63,7 @@ export default function DashboardPage() {
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
+  const insights = buildInsights(allTxs, settings, month, summary, budgetAllocations);
 
   const { start, end } = getPeriodBounds(month, paydayOfMonth);
   const monthTxs = allTxs.filter((t) => {
@@ -141,24 +139,21 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">By Category</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <SpendingPie transactions={allTxs} month={month} paydayOfMonth={paydayOfMonth} />
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Spending</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <DailyTrend transactions={monthTxs} />
-            </CardContent>
-          </Card>
-        </div>
+        {!isLoading && insights.length > 0 && (
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <span className={cn("size-2 rounded-full shrink-0", insights[0].tone === "warn" ? "bg-amber-500" : insights[0].tone === "good" ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+            <p className="text-sm text-foreground">{insights[0].text}</p>
+          </div>
+        )}
+
+        <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Spending</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <DailyTrend transactions={monthTxs} />
+          </CardContent>
+        </Card>
 
         <div className="hidden md:flex justify-end">
           <Button onClick={() => setShowAdd(true)}>

@@ -147,32 +147,6 @@ export default function ReportsPage() {
                     <StatTile label="Projected" value={formatCurrency(report.projectedTotal)} sub="at current pace" icon={<CalendarClock size={14} className="text-muted-foreground" />} />
                   </div>
 
-                  {/* Category breakdown */}
-                  <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-                    <CardHeader className="pb-2 pt-4 px-4">
-                      <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Category Split</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 flex flex-col gap-3">
-                      <div className="flex h-3 rounded-full overflow-hidden">
-                        {report.byCategory.map((c) => (
-                          <div key={c.category} style={{ width: `${c.pct}%`, background: getCategoryColor(c.category) }} title={`${c.category} ${c.pct.toFixed(0)}%`} />
-                        ))}
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {report.byCategory.map((c) => (
-                          <div key={c.category} className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-2 text-foreground">
-                              <span className="size-2.5 rounded-full" style={{ background: getCategoryColor(c.category) }} />
-                              {c.category}
-                              <span className="text-muted-foreground text-xs">{c.pct.toFixed(0)}%</span>
-                            </span>
-                            <span className="font-medium tabular-nums text-foreground font-mono">{formatCurrency(c.total)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Budget vs. Actual */}
                   {summary.income > 0 && (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -206,6 +180,32 @@ export default function ReportsPage() {
                       </CardContent>
                     </Card>
                   )}
+
+                  {/* Category breakdown */}
+                  <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Category Split</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4 flex flex-col gap-3">
+                      <div className="flex h-3 rounded-full overflow-hidden">
+                        {report.byCategory.map((c) => (
+                          <div key={c.category} style={{ width: `${c.pct}%`, background: getCategoryColor(c.category) }} title={`${c.category} ${c.pct.toFixed(0)}%`} />
+                        ))}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {report.byCategory.map((c) => (
+                          <div key={c.category} className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2 text-foreground">
+                              <span className="size-2.5 rounded-full" style={{ background: getCategoryColor(c.category) }} />
+                              {c.category}
+                              <span className="text-muted-foreground text-xs">{c.pct.toFixed(0)}%</span>
+                            </span>
+                            <span className="font-medium tabular-nums text-foreground font-mono">{formatCurrency(c.total)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </>
               ))}
 
