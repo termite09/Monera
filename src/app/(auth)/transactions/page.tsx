@@ -13,66 +13,112 @@ import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
-import { getRecurringTransactions } from "@/lib/recurring";
-import { getPeriodBounds, formatCurrency, cn } from "@/lib/utils";
-import { Category, TransactionType } from "@/types";
+import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
+import { netExpenseTotal } from "@/lib/finance";
+import { getPeriodBounds, formatCurrency, roundMoney, cn } from "@/lib/utils";
+import { Category, Transaction, TransactionType } from "@/types";
+
+function toInputDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function shortLabel(dateStr: string): string {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 export default function TransactionsPage() {
   const { month, setMonth, transactions, settings, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, refetch } = useAppData();
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
   const [filterType, setFilterType] = useState<TransactionType | "all">("expense");
-  const [timeRange, setTimeRange] = useState<"current" | "3m" | "6m" | "all">("current");
+  const [rangeMode, setRangeMode] = useState<"period" | "custom">("period");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [showAdd, setShowAdd] = useState(false);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
   const searching = search.trim().length > 0;
+  const customActive = rangeMode === "custom" && !!customFrom && !!customTo;
 
-  const filtered = useMemo(() => {
-    // Recurring transactions are synthetic for a specific period — exclude them
-    // whenever the user is searching across history or viewing a multi-period range.
-    const recurringTxs = !searching && timeRange === "current"
-      ? getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR")
-      : [];
+  // Switching to a custom range prefills the current period so the inputs start
+  // somewhere sensible instead of blank.
+  const selectCustom = () => {
+    setRangeMode("custom");
+    if (!customFrom || !customTo) {
+      const { start, end } = getPeriodBounds(month, paydayOfMonth);
+      setCustomFrom(toInputDate(start));
+      setCustomTo(toInputDate(end));
+    }
+  };
+
+  // The scope set: transactions + recurring, filtered by date range / search /
+  // category but NOT by type — so refunds (income in an expense category) stay
+  // available to net against. Recurring bills are generated to match the scope:
+  // one period for "this period", across the range for a custom range, and
+  // across full history when searching.
+  const scopedTxs = useMemo(() => {
+    const payments = settings.recurringPayments ?? [];
+    const currency = settings.currency ?? "EUR";
+
+    let recurringTxs: Transaction[];
+    let inRange: (t: Transaction) => boolean;
+
+    if (searching) {
+      const dates = transactions.map((t) => t.date).sort();
+      const earliest = dates[0] ? new Date(dates[0] + "T00:00:00") : new Date();
+      recurringTxs = getRecurringInRange(payments, earliest, new Date(), paydayOfMonth, currency);
+      inRange = () => true;
+    } else if (customActive) {
+      recurringTxs = getRecurringInRange(payments, new Date(customFrom + "T00:00:00"), new Date(customTo + "T00:00:00"), paydayOfMonth, currency);
+      inRange = (t) => t.date >= customFrom && t.date <= customTo;
+    } else {
+      recurringTxs = getRecurringTransactions(payments, month, paydayOfMonth, currency);
+      const { start, end } = getPeriodBounds(month, paydayOfMonth);
+      inRange = (t) => {
+        const d = new Date(t.date + "T00:00:00");
+        return d >= start && d <= end;
+      };
+    }
 
     return [...transactions, ...recurringTxs]
-      .filter((t) => filterType === "all" || t.type === filterType)
-      .filter((t) => {
-        if (searching) return true;
-        const d = new Date(t.date + "T00:00:00");
-        if (timeRange === "current") {
-          const { start, end } = getPeriodBounds(month, paydayOfMonth);
-          return d >= start && d <= end;
-        }
-        if (timeRange === "all") return true;
-        const months = timeRange === "3m" ? 3 : 6;
-        const now = new Date();
-        const cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
-        return d >= cutoff;
-      })
+      .filter(inRange)
       .filter((t) => filterCat === "All" || t.category === filterCat)
-      .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => {
-        const cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
-        return sortDir === "desc" ? -cmp : cmp;
-      });
-  }, [transactions, settings.recurringPayments, settings.currency, month, filterCat, filterType, search, searching, timeRange, paydayOfMonth, sortDir]);
+      .filter((t) => !searching || t.description.toLowerCase().includes(search.toLowerCase()));
+  }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth, filterCat, search, searching, customActive, customFrom, customTo]);
 
-  // Totals of visible transactions, ignoring excluded ones. The headline figure
-  // adapts to the type filter: spent, received, or net when showing all.
-  const { summaryTotal } = useMemo(() => {
-    let expense = 0;
+  const filtered = useMemo(
+    () =>
+      scopedTxs
+        .filter((t) => filterType === "all" || t.type === filterType)
+        .sort((a, b) => {
+          const cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
+          return sortDir === "desc" ? -cmp : cmp;
+        }),
+    [scopedTxs, filterType, sortDir]
+  );
+
+  // Headline total. Expenses are NET (refunds subtracted) so the figure matches
+  // the dashboard and reports for the same period; income is the raw sum; "all"
+  // is net cash flow (in − gross out). `refunded` reconciles the net expense
+  // figure with the gross sum of the visible expense rows.
+  const { summaryTotal, grossExpense, refunded } = useMemo(() => {
     let income = 0;
-    for (const t of filtered) {
+    let gross = 0;
+    for (const t of scopedTxs) {
       if (t.excluded) continue;
       if (t.type === "income") income += t.amount;
-      else expense += t.amount;
+      else gross += t.amount;
     }
-    const total = filterType === "income" ? income : filterType === "all" ? income - expense : expense;
-    return { summaryTotal: total };
-  }, [filtered, filterType]);
+    const net = netExpenseTotal(scopedTxs);
+    const total =
+      filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : net;
+    return { summaryTotal: total, grossExpense: roundMoney(gross), refunded: roundMoney(gross - net) };
+  }, [scopedTxs, filterType]);
+
+  const rangeLabel = customActive ? `${shortLabel(customFrom)} – ${shortLabel(customTo)}` : undefined;
+  const showRefund = filterType === "expense" && refunded > 0;
 
   return (
     <PageShell>
@@ -81,7 +127,7 @@ export default function TransactionsPage() {
         onMonthChange={setMonth}
         paydayOfMonth={paydayOfMonth}
         isLoading={isLoading}
-        navLabel={timeRange === "3m" ? "Last 3 months" : timeRange === "6m" ? "Last 6 months" : timeRange === "all" ? "All time" : undefined}
+        navLabel={searching ? "All periods" : rangeLabel}
       />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
@@ -94,20 +140,49 @@ export default function TransactionsPage() {
             </button>
           </div>
         )}
-        {/* Time range selector */}
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
-          {(["current", "3m", "6m", "all"] as const).map((r) => (
+        {/* Range selector: current payday period, or a custom from/to range */}
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-secondary">
             <button
-              key={r}
-              onClick={() => setTimeRange(r)}
+              onClick={() => setRangeMode("period")}
               className={cn(
                 "h-8 rounded-md text-xs font-medium transition-colors",
-                timeRange === r ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                rangeMode === "period" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {r === "current" ? "This period" : r === "3m" ? "3 months" : r === "6m" ? "6 months" : "All time"}
+              This period
             </button>
-          ))}
+            <button
+              onClick={selectCustom}
+              className={cn(
+                "h-8 rounded-md text-xs font-medium transition-colors",
+                rangeMode === "custom" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Custom range
+            </button>
+          </div>
+          {rangeMode === "custom" && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                aria-label="From date"
+                className="flex-1 h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <span className="text-xs text-muted-foreground shrink-0">to</span>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={(e) => setCustomTo(e.target.value)}
+                aria-label="To date"
+                className="flex-1 h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          )}
         </div>
 
         {/* Search on its own row on phones; the two filters share a row beneath it.
@@ -149,13 +224,20 @@ export default function TransactionsPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
-            {searching ? " · all periods" : timeRange === "3m" ? " · 3 months" : timeRange === "6m" ? " · 6 months" : timeRange === "all" ? " · all time" : ""}{" "}·{" "}
-            <span className="font-medium text-foreground tabular-nums font-mono">
-              {formatCurrency(summaryTotal)}
-            </span>
-          </p>
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">
+              {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+              {searching ? " · all periods" : customActive ? ` · ${rangeLabel}` : ""}{" "}·{" "}
+              <span className="font-medium text-foreground tabular-nums font-mono">
+                {formatCurrency(summaryTotal)}
+              </span>
+            </p>
+            {showRefund && (
+              <p className="text-xs text-muted-foreground/80 mt-0.5 tabular-nums font-mono">
+                {formatCurrency(grossExpense)} out · {formatCurrency(refunded)} refunded
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
