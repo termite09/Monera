@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, DM_Serif_Display, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { auth } from "@/auth";
@@ -70,6 +71,7 @@ export default async function RootLayout({
           {children}
         </Providers>
         <ServiceWorkerRegistrar />
+        <Analytics />
       </body>
     </html>
   );
