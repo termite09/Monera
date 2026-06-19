@@ -104,9 +104,10 @@ export default function ReportsPage() {
                 <>
                   {/* Income + savings summary */}
                   <div className="grid grid-cols-3 gap-3">
-                    <StatTile label="Income" value={formatCurrency(summary.income)} sub={incomeIsDetected ? "from statement" : "planned"} />
-                    <StatTile label="Saved" value={formatCurrency(summary.savings)} sub="this period" />
+                    <StatTile compact label="Income" value={formatCurrency(summary.income)} sub={incomeIsDetected ? "from statement" : "planned"} />
+                    <StatTile compact label="Saved" value={formatCurrency(summary.savings)} sub="this period" />
                     <StatTile
+                      compact
                       label="Savings Rate"
                       value={summary.income > 0 ? `${Math.round((summary.savings / summary.income) * 100)}%` : "—"}
                       sub={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "on track" : "below 20%"}
@@ -327,22 +328,24 @@ function StatTile({
   sub,
   trend,
   icon,
+  compact,
 }: {
   label: string;
   value: string;
   sub?: string;
   trend?: "good" | "bad";
   icon?: React.ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <CardContent className="p-4">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] min-w-0">
+      <CardContent className={compact ? "p-3" : "p-4"}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em] truncate">
           {icon}
           {label}
         </p>
         <p
-          className={`mt-2 text-xl leading-none font-medium tabular-nums font-mono ${
+          className={`leading-none font-medium tabular-nums font-mono ${compact ? "mt-1.5 text-sm" : "mt-2 text-xl"} ${
             trend === "good" ? "text-emerald-600 dark:text-emerald-400" : trend === "bad" ? "text-destructive" : "text-foreground"
           }`}
         >
@@ -350,7 +353,7 @@ function StatTile({
           {trend === "bad" && <TrendingUp size={15} className="inline mr-1 -mt-0.5" />}
           {value}
         </p>
-        {sub && <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>}
+        {sub && <p className="mt-1 text-xs text-muted-foreground truncate">{sub}</p>}
       </CardContent>
     </Card>
   );
