@@ -18,6 +18,8 @@ interface TxData {
   excludedIds: string[];
 }
 
+const MAX_CACHE_ENTRIES = 60;
+
 // Bump when the parser's output changes so stale entries are re-parsed once.
 // v2: parser no longer strips self-transfers / savings-vault mirrors (that moved
 // to settings-driven filterInternalTransfers), so cached rows must be rebuilt.
@@ -76,7 +78,10 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
   // Prune dead entries (deleted CSV files) and write when the cache changed.
   const liveKeys = new Set(csvFiles.map(cacheKey));
   const merged = { ...cache, ...cacheUpdates };
-  const prunedCache = Object.fromEntries(Object.entries(merged).filter(([k]) => liveKeys.has(k)));
+  const pruned = Object.entries(merged).filter(([k]) => liveKeys.has(k));
+  const prunedCache = Object.fromEntries(
+    pruned.length > MAX_CACHE_ENTRIES ? pruned.slice(-MAX_CACHE_ENTRIES) : pruned
+  );
   const cacheChanged = missResults.length > 0 || Object.keys(merged).some((k) => !liveKeys.has(k));
   if (cacheChanged) {
     writeAppFile(accessToken, structure.fileIds.parseCache, prunedCache).catch(() => {
