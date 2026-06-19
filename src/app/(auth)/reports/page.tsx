@@ -110,7 +110,7 @@ export default function ReportsPage() {
                       compact
                       label="Savings Rate"
                       value={summary.income > 0 ? `${Math.round((summary.savings / summary.income) * 100)}%` : "—"}
-                      sub={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "on track" : "below 20%"}
+                      sub={summary.income > 0 ? (summary.savings / summary.income >= 0.2 ? "on track" : "below 20%") : undefined}
                       trend={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "good" : undefined}
                     />
                   </div>

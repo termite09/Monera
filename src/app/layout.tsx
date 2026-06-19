@@ -5,6 +5,8 @@ import { Providers } from "./providers";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { auth } from "@/auth";
 
+export const dynamic = "force-dynamic";
+
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
