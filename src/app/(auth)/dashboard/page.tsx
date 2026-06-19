@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import type { WeekdayChartMode } from "@/components/charts/WeekdayChart";
 import dynamic from "next/dynamic";
 import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
@@ -30,6 +31,7 @@ import { getCurrentMonth, formatCurrency, cn } from "@/lib/utils";
 export default function DashboardPage() {
   const { transactions, settings, isLoading, ready, txError, addManualTransaction, refetch } = useAppData();
   const [month, setMonth] = useState(getCurrentMonth());
+  const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("week");
   const [showAdd, setShowAdd] = useState(false);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
@@ -140,11 +142,25 @@ export default function DashboardPage() {
         )}
 
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <CardHeader className="pb-2 pt-4 px-4">
+          <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Spending by Day</CardTitle>
+            <div className="flex gap-0.5 p-0.5 rounded-md bg-secondary">
+              {(["week", "period"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setWeekdayMode(m)}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-[11px] font-medium transition-colors",
+                    weekdayMode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {m === "week" ? "This week" : "This period"}
+                </button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <WeekdayChart transactions={allTxs} monthKey={month} paydayOfMonth={paydayOfMonth} />
+            <WeekdayChart transactions={allTxs} monthKey={month} paydayOfMonth={paydayOfMonth} mode={weekdayMode} />
           </CardContent>
         </Card>
 

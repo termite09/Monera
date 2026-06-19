@@ -6,13 +6,20 @@ import { getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+export type WeekdayChartMode = "period" | "week";
+
 interface WeekdayChartProps {
   transactions: Transaction[];
   monthKey: string;
   paydayOfMonth?: number;
+  mode?: WeekdayChartMode;
 }
 
-export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1 }: WeekdayChartProps) {
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function buildPeriodData(transactions: Transaction[], monthKey: string, paydayOfMonth: number) {
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const totals = [0, 0, 0, 0, 0, 0, 0];
 
@@ -20,21 +27,54 @@ export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1 }: Week
     if (t.type !== "expense" || t.excluded) continue;
     const d = new Date(t.date + "T00:00:00");
     if (d < start || d > end) continue;
-    // getDay(): 0=Sun…6=Sat — remap to Mon=0…Sun=6
-    const idx = (d.getDay() + 6) % 7;
-    totals[idx] += t.amount;
-  }
-
-  if (totals.every((v) => v === 0)) {
-    return (
-      <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
-        No spending data
-      </div>
-    );
+    totals[(d.getDay() + 6) % 7] += t.amount;
   }
 
   const max = Math.max(...totals);
-  const data = DAYS.map((day, i) => ({ day, amount: Math.round(totals[i] * 100) / 100 }));
+  return DAYS.map((day, i) => ({
+    day,
+    amount: Math.round(totals[i] * 100) / 100,
+    future: false,
+    isMax: totals[i] > 0 && totals[i] === max,
+  }));
+}
+
+function buildWeekData(transactions: Transaction[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOfWeek = (today.getDay() + 6) % 7; // Mon=0
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - dayOfWeek);
+
+  const points = DAYS.map((day, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const future = d > today;
+    const amount = future
+      ? 0
+      : Math.round(
+          transactions
+            .filter((t) => t.type === "expense" && !t.excluded && t.date === toDateStr(d))
+            .reduce((s, t) => s + t.amount, 0) * 100
+        ) / 100;
+    return { day, amount, future, isMax: false };
+  });
+
+  const max = Math.max(...points.map((p) => p.amount));
+  return points.map((p) => ({ ...p, isMax: !p.future && p.amount > 0 && p.amount === max }));
+}
+
+export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1, mode = "period" }: WeekdayChartProps) {
+  const data = mode === "week" ? buildWeekData(transactions) : buildPeriodData(transactions, monthKey, paydayOfMonth);
+
+  const isEmpty = data.every((d) => d.amount === 0);
+  if (isEmpty) {
+    return (
+      <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
+        {mode === "week" ? "No spending this week" : "No spending data"}
+      </div>
+    );
+  }
 
   return (
     <ResponsiveContainer width="100%" height={160}>
@@ -48,7 +88,10 @@ export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1 }: Week
         />
         <Bar dataKey="amount" radius={[3, 3, 0, 0]} animationDuration={600}>
           {data.map((entry, i) => (
-            <Cell key={i} fill={entry.amount > 0 && entry.amount === max ? "#1C3557" : "#e2e8f0"} />
+            <Cell
+              key={i}
+              fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
+            />
           ))}
         </Bar>
       </BarChart>
