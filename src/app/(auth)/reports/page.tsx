@@ -171,6 +171,40 @@ export default function ReportsPage() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Budget vs. Actual */}
+                  {summary.income > 0 && (
+                    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                      <CardHeader className="pb-2 pt-4 px-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget vs. Actual</CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-4 flex flex-col gap-3">
+                        {(["Needs", "Wants", "Savings"] as const).map((cat) => {
+                          const spent = summary[cat.toLowerCase() as "needs" | "wants" | "savings"];
+                          const allocated = budgetAllocations[cat.toLowerCase() as "needs" | "wants" | "savings"];
+                          const pct = allocated > 0 ? Math.min((spent / allocated) * 100, 150) : 0;
+                          const over = spent > allocated;
+                          return (
+                            <div key={cat} className="flex flex-col gap-1.5">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-foreground">{cat}</span>
+                                <span className={`font-medium tabular-nums font-mono ${over ? "text-destructive" : "text-foreground"}`}>
+                                  {formatCurrency(spent)}
+                                  <span className="text-muted-foreground font-normal"> / {formatCurrency(allocated)}</span>
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${over ? "bg-destructive" : "bg-primary"}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  )}
                 </>
               ))}
 
