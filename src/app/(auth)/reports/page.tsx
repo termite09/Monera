@@ -46,7 +46,7 @@ export default function ReportsPage() {
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
-  const { summary, budgetAllocations } = useBudget(allTxs, settings, month);
+  const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
   const insights = buildInsights(allTxs, settings, month, summary, budgetAllocations);
 
   // Subscriptions span all history, not just the selected period.
@@ -102,6 +102,18 @@ export default function ReportsPage() {
                 emptyPeriod
               ) : (
                 <>
+                  {/* Income + savings summary */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatTile label="Income" value={formatCurrency(summary.income)} sub={incomeIsDetected ? "from statement" : "planned"} />
+                    <StatTile label="Saved" value={formatCurrency(summary.savings)} sub="this period" />
+                    <StatTile
+                      label="Savings Rate"
+                      value={summary.income > 0 ? `${Math.round((summary.savings / summary.income) * 100)}%` : "—"}
+                      sub={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "on track" : "below 20%"}
+                      trend={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "good" : undefined}
+                    />
+                  </div>
+
                   {/* Insights */}
                   {insights.length > 0 && (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
