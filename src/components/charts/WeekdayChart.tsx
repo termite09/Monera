@@ -19,23 +19,35 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Refunds are income tagged to an expense bucket (Needs/Wants/Savings). Salary
+// lands as Uncategorized income and must never count as a negative spend.
+const isRefund = (t: Transaction) =>
+  t.type === "income" && !t.excluded && t.category !== "Uncategorized";
+
+// Each bar nets refunds against spending so the chart can't show more outflow
+// than the dashboard's net Expenses figure. Netting is per-bucket (refunds are
+// small/rare, so the period sum reconciles with the dashboard to within the
+// per-bucket flooring at zero). This stays a per-day distribution view.
 function buildPeriodData(transactions: Transaction[], monthKey: string, paydayOfMonth: number) {
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const totals = [0, 0, 0, 0, 0, 0, 0];
 
   for (const t of transactions) {
-    if (t.type !== "expense" || t.excluded) continue;
+    if (t.excluded) continue;
     const d = new Date(t.date + "T00:00:00");
     if (d < start || d > end) continue;
-    totals[(d.getDay() + 6) % 7] += t.amount;
+    const i = (d.getDay() + 6) % 7;
+    if (t.type === "expense") totals[i] += t.amount;
+    else if (isRefund(t)) totals[i] -= t.amount;
   }
 
-  const max = Math.max(...totals);
+  const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
+  const max = Math.max(...netted);
   return DAYS.map((day, i) => ({
     day,
-    amount: Math.round(totals[i] * 100) / 100,
+    amount: netted[i],
     future: false,
-    isMax: totals[i] > 0 && totals[i] === max,
+    isMax: netted[i] > 0 && netted[i] === max,
   }));
 }
 
@@ -50,14 +62,18 @@ function buildWeekData(transactions: Transaction[]) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const future = d > today;
-    const amount = future
+    const dayStr = toDateStr(d);
+    const sameDay = transactions.filter((t) => !t.excluded && t.date === dayStr);
+    const net = future
       ? 0
-      : Math.round(
-          transactions
-            .filter((t) => t.type === "expense" && !t.excluded && t.date === toDateStr(d))
-            .reduce((s, t) => s + t.amount, 0) * 100
-        ) / 100;
-    return { day, amount, future, isMax: false };
+      : Math.max(
+          0,
+          Math.round(
+            (sameDay.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0) -
+              sameDay.filter(isRefund).reduce((s, t) => s + t.amount, 0)) * 100
+          ) / 100
+        );
+    return { day, amount: net, future, isMax: false };
   });
 
   const max = Math.max(...points.map((p) => p.amount));
