@@ -63,11 +63,14 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         {shortDate(tx.date)}
       </span>
 
-      {/* Description — fills the remaining width and wraps when long */}
-      <span className={cn("flex-1 min-w-0 flex items-start gap-1.5 text-sm text-foreground", excluded && "line-through")}>
-        {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.75" />}
-        <span className="wrap-break-word min-w-0">{tx.description}</span>
-      </span>
+      {/* Description + optional notes */}
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <span className={cn("flex items-start gap-1.5 text-sm text-foreground", excluded && "line-through")}>
+          {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.75" />}
+          <span className="wrap-break-word min-w-0">{tx.description}</span>
+        </span>
+        {tx.notes && <span className="text-xs text-muted-foreground truncate">{tx.notes}</span>}
+      </div>
 
       {/* Category */}
       <div className="shrink-0 pt-0.5">

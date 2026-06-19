@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, Lightbulb } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -12,6 +13,11 @@ import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { buildInsights } from "@/lib/insights";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { getCurrentMonth, formatCurrency, formatDate, getCategoryColor, cn } from "@/lib/utils";
+
+const WeekdayChart = dynamic(
+  () => import("@/components/charts/WeekdayChart").then((m) => m.WeekdayChart),
+  { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> }
+);
 
 type ReportTab = "overview" | "merchants" | "subscriptions";
 
@@ -204,6 +210,16 @@ export default function ReportsPage() {
                           </div>
                         ))}
                       </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Spending by day of week */}
+                  <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Spending by Day</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <WeekdayChart transactions={allTxs} monthKey={month} paydayOfMonth={paydayOfMonth} />
                     </CardContent>
                   </Card>
                 </>
