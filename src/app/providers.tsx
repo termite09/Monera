@@ -1,12 +1,18 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import type { Session } from "next-auth";
 import { ReactNode, useState } from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
-export function Providers({ children }: { children: ReactNode }) {
+interface ProvidersProps {
+  children: ReactNode;
+  session?: Session | null;
+}
+
+export function Providers({ children, session }: ProvidersProps) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -38,7 +44,7 @@ export function Providers({ children }: { children: ReactNode }) {
       client={queryClient}
       persistOptions={{ persister, maxAge: 24 * 60 * 60 * 1000, buster: "v1" }}
     >
-      <SessionProvider refetchInterval={4 * 60} refetchOnWindowFocus>
+      <SessionProvider session={session} refetchInterval={4 * 60} refetchOnWindowFocus>
         {children}
       </SessionProvider>
     </PersistQueryClientProvider>
