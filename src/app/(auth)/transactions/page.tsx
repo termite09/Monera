@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
 import { Modal } from "@/components/ui/Modal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,28 +89,28 @@ export default function TransactionsPage() {
             />
           </div>
           <div className="flex gap-2">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as TransactionType | "all")}
-              className="flex-1 sm:flex-none h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Filter by type"
-            >
-              <option value="expense">Expenses</option>
-              <option value="income">Income</option>
-              <option value="all">All types</option>
-            </select>
-            <select
-              value={filterCat}
-              onChange={(e) => setFilterCat(e.target.value as Category | "All")}
-              className="flex-1 sm:flex-none h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Filter by category"
-            >
-              <option value="All">All</option>
-              <option value="Needs">Needs</option>
-              <option value="Wants">Wants</option>
-              <option value="Savings">Savings</option>
-              <option value="Uncategorized">Uncategorized</option>
-            </select>
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as TransactionType | "all")}>
+              <SelectTrigger className="flex-1 sm:flex-none h-11 sm:w-32" aria-label="Filter by type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="expense">Expenses</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
+                <SelectItem value="all">All types</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterCat} onValueChange={(v) => setFilterCat(v as Category | "All")}>
+              <SelectTrigger className="flex-1 sm:flex-none h-11 sm:w-36" aria-label="Filter by category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All categories</SelectItem>
+                <SelectItem value="Needs">Needs</SelectItem>
+                <SelectItem value="Wants">Wants</SelectItem>
+                <SelectItem value="Savings">Savings</SelectItem>
+                <SelectItem value="Uncategorized">Uncategorized</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
