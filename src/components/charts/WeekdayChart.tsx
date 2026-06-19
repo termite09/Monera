@@ -80,7 +80,7 @@ export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1, mode =
     <ResponsiveContainer width="100%" height={160}>
       <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={40} />
+        <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
         <Tooltip
           formatter={(v) => [formatCurrency(v as number), "Spent"]}
           contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}

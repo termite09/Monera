@@ -24,7 +24,6 @@ import { Onboarding } from "@/components/onboarding/Onboarding";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { buildInsights } from "@/lib/insights";
 import { getCurrentMonth, formatCurrency, cn } from "@/lib/utils";
 
 
@@ -65,8 +64,6 @@ export default function DashboardPage() {
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
-  const insights = buildInsights(allTxs, settings, month, summary, budgetAllocations);
-
   // Money received from others = CSV income excluding salary (one source of
   // truth: useBudget, driven by salaryKeywords). Self-transfers are already
   // removed upstream by filterInternalTransfers.
@@ -133,13 +130,6 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
-        {!isLoading && insights.length > 0 && (
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <span className={cn("size-2 rounded-full shrink-0", insights[0].tone === "warn" ? "bg-amber-500" : insights[0].tone === "good" ? "bg-emerald-500" : "bg-muted-foreground/40")} />
-            <p className="text-sm text-foreground">{insights[0].text}</p>
-          </div>
-        )}
 
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
