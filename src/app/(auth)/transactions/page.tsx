@@ -35,7 +35,7 @@ export default function TransactionsPage() {
 
   const filtered = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    const recurringTxs = getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth);
+    const recurringTxs = getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR");
     return [...transactions, ...recurringTxs]
       .filter((t) => filterType === "all" || t.type === filterType)
       .filter((t) => { const d = new Date(t.date + "T00:00:00"); return d >= start && d <= end; })
@@ -45,7 +45,7 @@ export default function TransactionsPage() {
         const cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
         return sortDir === "desc" ? -cmp : cmp;
       });
-  }, [transactions, settings.recurringPayments, month, filterCat, filterType, search, paydayOfMonth, sortDir]);
+  }, [transactions, settings.recurringPayments, settings.currency, month, filterCat, filterType, search, paydayOfMonth, sortDir]);
 
   // Totals of visible transactions, ignoring excluded ones. The headline figure
   // adapts to the type filter: spent, received, or net when showing all.

@@ -40,8 +40,8 @@ export default function ReportsPage() {
   }, [paydayOfMonth]);
 
   const recurringTxs = useMemo(
-    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth),
-    [settings.recurringPayments, month, paydayOfMonth]
+    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR"),
+    [settings.recurringPayments, month, paydayOfMonth, settings.currency]
   );
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
