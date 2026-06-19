@@ -21,6 +21,7 @@ export function useBudget(
   const monthBudget = settings.monthlyBudgets[month];
   const budgetRule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
   const configuredIncome = monthBudget?.income ?? 0;
+  const defaultIncome = settings.defaultIncome ?? 0;
   const salaryKeywords = settings.salaryKeywords ?? [];
 
   // Total income actually received this period (self-transfers already removed
@@ -28,10 +29,13 @@ export function useBudget(
   // of €0 when the user hasn't entered a planned figure.
   const detectedIncome = roundMoney(monthIncomeTxs.reduce((s, t) => s + t.amount, 0));
 
-  // A configured planned income (explicit intent) wins; otherwise reconcile with
-  // what the statement shows.
-  const income = roundMoney(configuredIncome > 0 ? configuredIncome : detectedIncome);
-  const incomeIsDetected = configuredIncome <= 0 && detectedIncome > 0;
+  // Income precedence: a per-period configured income (explicit intent for this
+  // month) wins; then the standing default salary set in onboarding/settings;
+  // finally fall back to what the statement shows.
+  const income = roundMoney(
+    configuredIncome > 0 ? configuredIncome : defaultIncome > 0 ? defaultIncome : detectedIncome
+  );
+  const incomeIsDetected = configuredIncome <= 0 && defaultIncome <= 0 && detectedIncome > 0;
 
   // Individual transfers = CSV income excluding anything matching salary keywords
   const individualTransfers = roundMoney(

@@ -33,10 +33,14 @@ export function Onboarding() {
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [uploadMsg, setUploadMsg] = useState("");
   const [payday, setPayday] = useState(String(settings.paydayOfMonth ?? 1));
+  const [salary, setSalary] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
+  const [split, setSplit] = useState(settings.defaultBudgetRule ?? { needs: 30, wants: 60, savings: 10 });
   const [finishing, setFinishing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const uploaded = uploadState === "done" || transactions.length > 0;
+  const splitTotal = split.needs + split.wants + split.savings;
+  const splitValid = splitTotal === 100;
 
   const handleFile = async (file?: File | null) => {
     if (!file || !accessToken || !structure) return;
@@ -56,11 +60,20 @@ export function Onboarding() {
   };
 
   const finish = async () => {
+    if (!splitValid) return;
     setFinishing(true);
     const day = Math.min(28, Math.max(1, parseInt(payday) || 1));
+    const income = Math.max(0, parseFloat(salary) || 0);
     try {
-      // Persist the payday and mark onboarding complete in one write.
-      await updateSettings({ ...settings, paydayOfMonth: day, onboarded: true });
+      // Persist payday, standing salary, budget split, and mark onboarding
+      // complete in one write.
+      await updateSettings({
+        ...settings,
+        paydayOfMonth: day,
+        defaultIncome: income,
+        defaultBudgetRule: split,
+        onboarded: true,
+      });
     } finally {
       setFinishing(false);
     }
@@ -70,7 +83,7 @@ export function Onboarding() {
     <div className="p-4 max-w-md mx-auto flex flex-col gap-6 pt-10">
       <div className="text-center">
         <h1 className="text-3xl font-serif text-foreground">Welcome to Monera</h1>
-        <p className="text-sm text-muted-foreground mt-1">Two quick steps and you&apos;re set up.</p>
+        <p className="text-sm text-muted-foreground mt-1">A few quick steps and you&apos;re set up.</p>
       </div>
 
       <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -142,10 +155,60 @@ export function Onboarding() {
               />
             </div>
           </div>
+
+          {/* Step 4 — Salary */}
+          <div className="flex items-start gap-3">
+            <StepBadge done={false} n={4} />
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="ob-salary" className="text-sm font-medium text-foreground">What&apos;s your monthly salary?</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Used as your income each period. You can override it for a specific month later, or leave it blank to use the figure detected from your statement.</p>
+              <Input
+                id="ob-salary"
+                type="number"
+                min={0}
+                inputMode="decimal"
+                placeholder="e.g. 2000"
+                value={salary}
+                onChange={(e) => setSalary(e.target.value)}
+                className="mt-2 h-11 w-40"
+              />
+            </div>
+          </div>
+
+          {/* Step 5 — Budget split */}
+          <div className="flex items-start gap-3">
+            <StepBadge done={splitValid} n={5} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">How do you want to split your budget?</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Percent of income for Needs, Wants and Savings. Must add up to 100%.</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(["needs", "wants", "savings"] as const).map((k) => (
+                  <div key={k} className="flex flex-col gap-1">
+                    <Label htmlFor={`ob-${k}`} className="text-xs capitalize text-muted-foreground">{k}</Label>
+                    <div className="relative">
+                      <Input
+                        id={`ob-${k}`}
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={String(split[k])}
+                        onChange={(e) => setSplit((s) => ({ ...s, [k]: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) }))}
+                        className="h-11 pr-6"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className={cn("text-xs mt-1.5", splitValid ? "text-muted-foreground" : "text-destructive")}>
+                {splitValid ? "Adds up to 100%." : `Currently ${splitTotal}% — adjust to total 100%.`}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Button onClick={finish} disabled={finishing} className="w-full h-12" size="lg">
+      <Button onClick={finish} disabled={finishing || !splitValid} className="w-full h-12" size="lg">
         {finishing ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : null}
         Go to my dashboard
         {!finishing && <ArrowRight size={16} className="ml-1.5" />}

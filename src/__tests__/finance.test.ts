@@ -171,6 +171,26 @@ describe("useBudget income reconciliation (H2)", () => {
     expect(summary.income).toBe(0);
     expect(incomeIsDetected).toBe(false);
   });
+
+  it("uses the standing defaultIncome when no per-period income is configured", () => {
+    const settings: Settings = { ...baseSettings, defaultIncome: 2000 };
+    const txs = [tx({ amount: 500, type: "income", category: "Uncategorized" })];
+    const { summary, incomeIsDetected } = useBudget(txs, settings, "2024-06");
+    expect(summary.income).toBe(2000);
+    expect(incomeIsDetected).toBe(false);
+  });
+
+  it("per-period configured income overrides the standing defaultIncome", () => {
+    const settings: Settings = {
+      ...baseSettings,
+      defaultIncome: 2000,
+      monthlyBudgets: {
+        "2024-06": { month: "2024-06", income: 3000, budgetRule: { needs: 30, wants: 60, savings: 10 } },
+      },
+    };
+    const { summary } = useBudget([], settings, "2024-06");
+    expect(summary.income).toBe(3000);
+  });
 });
 
 describe("dashboard / reports consistency (C1)", () => {

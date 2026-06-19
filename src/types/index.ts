@@ -38,6 +38,8 @@ export interface RecurringPayment {
 export interface Settings {
   currency: string;
   paydayOfMonth: number;
+  /** Standing monthly salary, used as income for every period unless that period has its own configured income. 0 = fall back to statement-detected income. */
+  defaultIncome?: number;
   defaultBudgetRule: { needs: number; wants: number; savings: number };
   monthlyBudgets: Record<string, MonthlyBudget>;
   /** Descriptions identifying your salary — excluded from "received from others". */

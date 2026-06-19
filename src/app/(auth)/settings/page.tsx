@@ -629,6 +629,7 @@ function IncomeForm({ settings, updateSettings }: {
   settings: ReturnType<typeof useAppData>["settings"];
   updateSettings: ReturnType<typeof useAppData>["updateSettings"];
 }) {
+  const [defaultIncome, setDefaultIncome] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
   const [salary, setSalary] = useState<string[]>(settings.salaryKeywords ?? []);
   const [selfTransfer, setSelfTransfer] = useState<string[]>(settings.selfTransferKeywords ?? []);
   const [savingsVault, setSavingsVault] = useState<string[]>(settings.savingsVaultKeywords ?? []);
@@ -639,12 +640,14 @@ function IncomeForm({ settings, updateSettings }: {
   // Intentional sync from externally-loaded settings.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDefaultIncome(settings.defaultIncome ? String(settings.defaultIncome) : "");
     setSalary(settings.salaryKeywords ?? []);
     setSelfTransfer(settings.selfTransferKeywords ?? []);
     setSavingsVault(settings.savingsVaultKeywords ?? []);
   }, [settings]);
 
   const dirty =
+    (parseFloat(defaultIncome) || 0) !== (settings.defaultIncome ?? 0) ||
     JSON.stringify(salary) !== JSON.stringify(settings.salaryKeywords ?? []) ||
     JSON.stringify(selfTransfer) !== JSON.stringify(settings.selfTransferKeywords ?? []) ||
     JSON.stringify(savingsVault) !== JSON.stringify(settings.savingsVaultKeywords ?? []);
@@ -655,6 +658,7 @@ function IncomeForm({ settings, updateSettings }: {
     try {
       await updateSettings({
         ...settings,
+        defaultIncome: Math.max(0, parseFloat(defaultIncome) || 0),
         salaryKeywords: salary,
         selfTransferKeywords: selfTransfer,
         savingsVaultKeywords: savingsVault,
@@ -674,6 +678,23 @@ function IncomeForm({ settings, updateSettings }: {
         <h2 className="text-base font-semibold text-foreground">Income & Transfers</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Teach Monera which deposits are your salary, which move between your own accounts, and which are savings.
+        </p>
+      </div>
+
+      <div>
+        <Label htmlFor="default-income">Default monthly salary (€)</Label>
+        <Input
+          id="default-income"
+          type="number"
+          min={0}
+          inputMode="decimal"
+          value={defaultIncome}
+          onChange={(e) => setDefaultIncome(e.target.value)}
+          placeholder="e.g. 2000"
+          className="h-11 mt-1"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Used as your income for every period unless a specific month has its own planned income (set in the Budget tab). Leave blank to use the income detected from your statement.
         </p>
       </div>
 
