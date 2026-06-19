@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPeriodSpend } from "@/lib/finance";
+import { getPeriodSpend, netExpenseByCategory, netExpenseTotal } from "@/lib/finance";
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport } from "@/lib/reports";
 import { Transaction, Category, Settings } from "@/types";
@@ -38,6 +38,14 @@ describe("getPeriodSpend", () => {
     const spend = getPeriodSpend(txs, "2024-06", 1);
     expect(spend.byCategory.Wants).toBe(70);
     expect(spend.total).toBe(70);
+  });
+
+  it("delegates to the same netting as netExpenseByCategory (period-filtered)", () => {
+    const txs = [
+      tx({ amount: 100, type: "expense", category: "Wants" }),
+      tx({ amount: 30, type: "income", category: "Wants" }),
+    ];
+    expect(getPeriodSpend(txs, "2024-06", 1).byCategory).toEqual(netExpenseByCategory(txs));
   });
 
   it("clamps a category at zero when refunds exceed spending", () => {
@@ -94,6 +102,42 @@ describe("getPeriodSpend", () => {
     const cats: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
     expect(spend.total).toBe(cats.reduce((s, c) => s + spend.byCategory[c], 0));
     expect(spend.total).toBe(190);
+  });
+});
+
+describe("netExpenseByCategory / netExpenseTotal (period-agnostic)", () => {
+  it("nets income-typed refunds against same-category expenses", () => {
+    const txs = [
+      tx({ amount: 100, type: "expense", category: "Wants" }),
+      tx({ amount: 30, type: "income", category: "Wants" }), // refund
+    ];
+    expect(netExpenseTotal(txs)).toBe(70);
+    expect(netExpenseByCategory(txs).Wants).toBe(70);
+  });
+
+  it("ignores excluded transactions", () => {
+    const txs = [
+      tx({ amount: 50, type: "expense", category: "Needs" }),
+      tx({ amount: 50, type: "expense", category: "Needs", excluded: true }),
+    ];
+    expect(netExpenseTotal(txs)).toBe(50);
+  });
+
+  it("never subtracts income from Uncategorized (salary is Uncategorized)", () => {
+    const txs = [
+      tx({ amount: 25, type: "expense", category: "Uncategorized" }),
+      tx({ amount: 2000, type: "income", category: "Uncategorized" }),
+    ];
+    expect(netExpenseByCategory(txs).Uncategorized).toBe(25);
+    expect(netExpenseTotal(txs)).toBe(25);
+  });
+
+  it("does not apply any period filter (sums whatever it is given)", () => {
+    const txs = [
+      tx({ amount: 80, type: "expense", category: "Wants", date: "2024-01-01" }),
+      tx({ amount: 20, type: "expense", category: "Wants", date: "2024-12-31" }),
+    ];
+    expect(netExpenseTotal(txs)).toBe(100);
   });
 });
 
