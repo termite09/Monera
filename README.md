@@ -140,3 +140,8 @@ npm test
 ```
 
 The suite covers the financial logic that matters most: refund-netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, duplicate handling, categorization, income reconciliation, subscription detection, and the insights engine.
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0.
+See the LICENSE file for details.
