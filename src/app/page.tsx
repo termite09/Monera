@@ -27,11 +27,11 @@ export default async function Home() {
       {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center max-w-2xl mx-auto w-full gap-6">
         <h1 className="text-5xl font-serif text-foreground tracking-tight leading-tight">
-          Your finances,<br />your Drive.
+          Finally know where<br />your money goes.
         </h1>
         <p className="text-base text-muted-foreground max-w-md leading-relaxed">
-          Monera turns your Revolut exports into a clear monthly picture of where your money goes.
-          Every byte is stored in a private folder in <strong className="text-foreground font-medium">your own Google Drive</strong> — not on our servers.
+          Import your Revolut statement and get a clear breakdown of your spending — budgets, categories, and insights, all in one place.
+          Your data is stored privately in <strong className="text-foreground font-medium">your own Google Drive</strong>. We never see it.
         </p>
 
         <Link
@@ -45,16 +45,16 @@ export default async function Home() {
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left w-full">
           {[
             {
-              title: "No server database",
-              body: "All your data lives in a Monera/ folder in your Google Drive. We never store your financial data.",
+              title: "Your data stays yours",
+              body: "Nothing is stored on our servers. Your finances live in a private folder in your own Google Drive.",
             },
             {
-              title: "Payday-aware budgets",
+              title: "Budgets that match real life",
               body: "Periods run payday-to-payday, not calendar months. Set your payday once and budgets just work.",
             },
             {
-              title: "Smart categorisation",
-              body: "Keyword rules auto-categorise transactions. Override any transaction and the app remembers.",
+              title: "Spending that makes sense",
+              body: "Transactions are categorised automatically. Override any one and the app remembers your preference.",
             },
           ].map((f) => (
             <div
