@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -14,12 +14,11 @@ import { AddTransactionForm } from "@/components/transactions/AddTransactionForm
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getCurrentMonth, getPeriodBounds, formatCurrency, cn } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, cn } from "@/lib/utils";
 import { Category, TransactionType } from "@/types";
 
 export default function TransactionsPage() {
-  const { transactions, settings, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, refetch } = useAppData();
-  const [month, setMonth] = useState(getCurrentMonth());
+  const { month, setMonth, transactions, settings, isLoading, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, refetch } = useAppData();
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
   const [filterType, setFilterType] = useState<TransactionType | "all">("expense");
@@ -28,12 +27,6 @@ export default function TransactionsPage() {
   const [showAdd, setShowAdd] = useState(false);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
-
-  // Snap to the current period on mount and when the payday loads/changes.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
 
   const searching = search.trim().length > 0;
 

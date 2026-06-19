@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAppData } from "@/contexts/AppDataContext";
-import { getCurrentMonth, getMonthLabel, generateId, formatCurrency, cn } from "@/lib/utils";
+import { getMonthLabel, generateId, formatCurrency, cn } from "@/lib/utils";
 import { Category, RecurringPayment, CategoryRule } from "@/types";
 import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
 import { Trash2, Plus, Search, X } from "lucide-react";
@@ -709,16 +709,9 @@ function IncomeForm({ settings, updateSettings }: {
 type Tab = "budget" | "income" | "recurring" | "rules";
 
 export default function SettingsPage() {
-  const { settings, rules, isLoading, updateSettings, updateRules } = useAppData();
+  const { month, setMonth, settings, rules, isLoading, updateSettings, updateRules } = useAppData();
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
-  const [month, setMonth] = useState(getCurrentMonth());
   const [tab, setTab] = useState<Tab>("budget");
-
-  // Snap to the current period on mount and when the payday loads/changes.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "budget", label: "Budget" },

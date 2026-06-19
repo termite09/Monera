@@ -24,12 +24,11 @@ import { Onboarding } from "@/components/onboarding/Onboarding";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getCurrentMonth, formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 
 
 export default function DashboardPage() {
-  const { transactions, settings, isLoading, ready, txError, addManualTransaction, refetch } = useAppData();
-  const [month, setMonth] = useState(getCurrentMonth());
+  const { month, setMonth, transactions, settings, isLoading, ready, txError, addManualTransaction, refetch } = useAppData();
   const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("week");
   const [showAdd, setShowAdd] = useState(false);
 
@@ -40,21 +39,11 @@ export default function DashboardPage() {
   // have data) never see it. Stays shown until the user finishes (onboarded = true).
   const [wasNewAtLoad, setWasNewAtLoad] = useState<boolean | null>(null);
   useEffect(() => {
-    // Wait for everything to actually load (ready) before deciding — otherwise an
-    // existing user briefly looks "new" while data is still loading.
     if (wasNewAtLoad !== null || !ready) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWasNewAtLoad(!settings.onboarded && transactions.length === 0);
   }, [wasNewAtLoad, ready, settings.onboarded, transactions.length]);
   const showOnboarding = !settings.onboarded && wasNewAtLoad === true;
-
-  // Snap to the current period on every mount and whenever the payday loads/changes
-  // (its boundaries depend on the payday). Must run on mount so client-side
-  // navigation lands on the correct current period, not a calendar month.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
 
   // Recurring bills (paid outside Revolut) injected as synthetic expenses
   const recurringTxs = useMemo(

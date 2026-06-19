@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useEffect, ReactNode } from "react";
+import { createContext, useContext, useMemo, useEffect, useState, ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import { Transaction, Settings, Category, CategoryRule } from "@/types";
 import { DriveStructure } from "@/lib/google/folders";
@@ -10,8 +10,11 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { useSettings } from "@/hooks/useSettings";
 import { useRules } from "@/hooks/useRules";
 import { SetupScreen } from "@/components/layout/SetupScreen";
+import { getCurrentMonth } from "@/lib/utils";
 
 interface AppDataContextValue {
+  month: string;
+  setMonth: (m: string) => void;
   structure: DriveStructure | null;
   transactions: Transaction[];
   settings: Settings;
@@ -34,6 +37,7 @@ interface AppDataContextValue {
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
+  const [month, setMonth] = useState(getCurrentMonth());
   const { accessToken, session } = useAuth();
   const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken, session?.user?.email ?? undefined);
   const { settings, updateSettings, settingsLoaded } = useSettings(accessToken, structure);
@@ -54,6 +58,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const isLoading = isDriveLoading || isTxLoading;
   const ready = !!structure && settingsLoaded && txLoaded;
 
+  const paydayOfMonth = settings.paydayOfMonth ?? 1;
+  useEffect(() => {
+    setMonth(getCurrentMonth(paydayOfMonth));
+  }, [paydayOfMonth]);
+
   // If either hook detected an expired token, sign the user out immediately.
   useEffect(() => {
     if (driveNeedsReauth || txNeedsReauth) {
@@ -63,6 +72,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      month,
+      setMonth,
       structure,
       transactions,
       settings,
@@ -78,7 +89,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateRules,
       refetch,
     }),
-    [structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
+    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
   );
 
   // Only show SetupScreen when we have a token (Drive initialization is actually

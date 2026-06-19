@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, Lightbulb } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -11,7 +11,7 @@ import { useBudget } from "@/hooks/useBudget";
 import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { buildInsights } from "@/lib/insights";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getCurrentMonth, formatCurrency, formatDate, getCategoryColor, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, getCategoryColor, cn } from "@/lib/utils";
 
 type ReportTab = "overview" | "merchants" | "subscriptions";
 
@@ -28,16 +28,9 @@ const TONE_DOT: Record<string, string> = {
 };
 
 export default function ReportsPage() {
-  const { transactions, settings, isLoading } = useAppData();
-  const [month, setMonth] = useState(getCurrentMonth());
+  const { month, setMonth, transactions, settings, isLoading } = useAppData();
   const [tab, setTab] = useState<ReportTab>("overview");
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
-
-  // Snap to the current period on mount and when the payday loads/changes.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
 
   const recurringTxs = useMemo(
     () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR"),
