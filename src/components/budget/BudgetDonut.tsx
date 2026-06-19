@@ -1,6 +1,5 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface BudgetDonutProps {
@@ -9,6 +8,11 @@ interface BudgetDonutProps {
   allocated: number;
   color: string;
   labelClass: string;
+}
+
+function compactAmount(n: number): string {
+  if (n >= 1000) return `€${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return `€${Math.round(n)}`;
 }
 
 // Internal SVG coordinate space; the <svg> scales to its container via viewBox.
@@ -63,7 +67,7 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass }: Budg
               over ? "text-destructive" : allocated > 0 ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            {allocated > 0 ? formatCurrency(over ? spent - allocated : remaining) : "—"}
+            {allocated > 0 ? compactAmount(over ? spent - allocated : remaining) : "—"}
           </span>
           {allocated > 0 && (
             <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground leading-none mt-1.5">
