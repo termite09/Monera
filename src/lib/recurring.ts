@@ -26,6 +26,8 @@ export function getRecurringTransactions(
 
   for (const r of recurring) {
     if (!r.amount || r.amount <= 0) continue;
+    if (r.startMonth && monthKey < r.startMonth) continue;
+    if (r.endMonth && monthKey > r.endMonth) continue;
 
     // A budget period can span two calendar months; try the occurrence in each.
     const candidates = [

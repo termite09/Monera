@@ -33,6 +33,10 @@ export interface RecurringPayment {
   amount: number;
   dayOfMonth: number;
   category: Category;
+  /** YYYY-MM period key from which this payment applies (inclusive). Undefined = all past periods too. */
+  startMonth?: string;
+  /** YYYY-MM period key until which this payment applies (inclusive). Undefined = no end date. */
+  endMonth?: string;
 }
 
 export interface Settings {
