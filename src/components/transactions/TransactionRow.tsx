@@ -67,13 +67,13 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className={cn("flex items-start gap-1.5 text-sm text-foreground", excluded && "line-through")}>
           {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.75" />}
-          <span className="truncate min-w-0">{tx.description}</span>
+          <span className="wrap-break-word min-w-0">{tx.description}</span>
         </span>
         {tx.notes && <span className="text-xs text-muted-foreground truncate">{tx.notes}</span>}
       </div>
 
       {/* Category — fixed width so header and rows stay aligned */}
-      <div className="w-16 sm:w-24 shrink-0 pt-0.5">
+      <div className="w-14 sm:w-22 shrink-0 pt-0.5">
         {editing && !excluded ? (
           <select
             value={tx.category}
@@ -108,7 +108,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
       {/* Amount */}
       <span
         className={cn(
-          "shrink-0 w-18 pt-0.5 text-sm tabular-nums text-right font-mono",
+          "shrink-0 w-16 pt-0.5 text-sm tabular-nums text-right font-mono",
           excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
       >
