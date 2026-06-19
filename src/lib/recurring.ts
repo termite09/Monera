@@ -1,5 +1,5 @@
 import { Transaction, RecurringPayment } from "@/types";
-import { getPeriodBounds, generateId } from "@/lib/utils";
+import { getPeriodBounds, generateId, periodKeysBetween } from "@/lib/utils";
 
 function clampDay(year: number, monthIndex: number, day: number): Date {
   const lastDay = new Date(year, monthIndex + 1, 0).getDate();
@@ -49,4 +49,35 @@ export function getRecurringTransactions(
   }
 
   return txs;
+}
+
+/**
+ * Recurring occurrences across an arbitrary date span — generated per payday
+ * period the span overlaps, then clamped to `[from, to]` (inclusive, date-only)
+ * and de-duped by id. Used by the transactions page (custom range + cross-period
+ * search) and the year overview, so recurring bills appear consistently
+ * wherever spending is shown over more than one period.
+ */
+export function getRecurringInRange(
+  recurring: RecurringPayment[],
+  from: Date,
+  to: Date,
+  paydayOfMonth = 1,
+  currency = "EUR"
+): Transaction[] {
+  const fromStr = toDateStr(from);
+  const toStr = toDateStr(to);
+  const seen = new Set<string>();
+  const out: Transaction[] = [];
+
+  for (const key of periodKeysBetween(from, to, paydayOfMonth)) {
+    for (const t of getRecurringTransactions(recurring, key, paydayOfMonth, currency)) {
+      if (t.date < fromStr || t.date > toStr) continue;
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      out.push(t);
+    }
+  }
+
+  return out;
 }

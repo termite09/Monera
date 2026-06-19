@@ -50,6 +50,29 @@ export function getCurrentMonth(paydayOfMonth = 1): string {
   return getMonthKey(new Date(), paydayOfMonth);
 }
 
+/**
+ * Every payday-period key (`YYYY-MM`) overlapping the date span `[from, to]`,
+ * in chronological order. Used to generate recurring bills across an arbitrary
+ * range. Returns [] when `from` is after `to`.
+ */
+export function periodKeysBetween(from: Date, to: Date, paydayOfMonth = 1): string[] {
+  const startKey = getMonthKey(from, paydayOfMonth);
+  const endKey = getMonthKey(to, paydayOfMonth);
+  if (startKey > endKey) return [];
+
+  const keys: string[] = [];
+  let [y, m] = startKey.split("-").map(Number); // m is 1-based
+  // Cap defensively so a bad range can never spin forever.
+  for (let i = 0; i < 1200; i++) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    keys.push(key);
+    if (key === endKey) break;
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return keys;
+}
+
 export function generateId(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
