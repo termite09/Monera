@@ -12,7 +12,14 @@ interface BudgetDonutProps {
 
 function compactAmount(n: number): string {
   if (n >= 1000) return `€${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return `€${Math.round(n)}`;
+  if (n >= 100) return `€${n.toFixed(1)}`;
+  return `€${n.toFixed(2)}`;
+}
+
+function amountFontSize(s: string): string {
+  if (s.length <= 5) return "text-base";
+  if (s.length <= 7) return "text-sm";
+  return "text-xs";
 }
 
 // Internal SVG coordinate space; the <svg> scales to its container via viewBox.
@@ -61,14 +68,14 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass }: Budg
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
-          <span
-            className={cn(
-              "text-base sm:text-lg font-bold tabular-nums leading-none text-center font-mono",
-              over ? "text-destructive" : allocated > 0 ? "text-foreground" : "text-muted-foreground"
-            )}
-          >
-            {allocated > 0 ? compactAmount(over ? spent - allocated : remaining) : "—"}
-          </span>
+          {(() => {
+            const display = allocated > 0 ? compactAmount(over ? spent - allocated : remaining) : "—";
+            return (
+              <span className={cn("font-bold tabular-nums leading-none text-center font-mono", amountFontSize(display), over ? "text-destructive" : allocated > 0 ? "text-foreground" : "text-muted-foreground")}>
+                {display}
+              </span>
+            );
+          })()}
           {allocated > 0 && (
             <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground leading-none mt-1.5">
               {over ? "over" : "left"}

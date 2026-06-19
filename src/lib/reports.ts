@@ -50,6 +50,7 @@ export interface ReportData {
   daysElapsed: number;
   projectedTotal: number;
   prevTotal: number;
+  prevByCategory: Record<Category, number>;
   changePct: number | null;
   topMerchants: MerchantStat[];
   frequentMerchants: MerchantStat[];
@@ -216,6 +217,7 @@ export function buildReport(
     daysElapsed,
     projectedTotal,
     prevTotal,
+    prevByCategory: prevSpend.byCategory,
     changePct,
     topMerchants,
     frequentMerchants,
