@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { netExpenseTotal } from "@/lib/finance";
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport, monthlyCategoryTotals } from "@/lib/reports";
-import { getRecurringTransactions } from "@/lib/recurring";
+import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { getPeriodBounds } from "@/lib/utils";
 import { Transaction, Settings, RecurringPayment } from "@/types";
 
@@ -101,5 +101,34 @@ describe("cross-page spending consistency", () => {
     const allTxs = buildFixture();
     expect(useBudget(allTxs, settings, MONTH).summary.wants).toBe(110);
     expect(monthlyCategoryTotals(allTxs, 2024, PAYDAY)[5].wants).toBe(110);
+  });
+});
+
+// A period's spend must be identical whether it is the *current* period or the
+// "vs last period" comparison — recurring bills must be present in both. This is
+// how the reports page must build its transaction set (recurring across both the
+// current and previous period).
+describe("vs-last-period includes the previous period's recurring bills", () => {
+  const rentBill = [{ id: "rent", name: "Rent", amount: 189, dayOfMonth: 10, category: "Savings" as const }];
+  const real = [
+    tx({ amount: 50, type: "expense", category: "Savings", date: "2024-05-12" }), // May real savings
+    tx({ amount: 80, type: "expense", category: "Wants", date: "2024-06-15" }), // June real spend
+  ];
+
+  it("a period's Savings total is the same as current and as previous", () => {
+    // As CURRENT May: real 50 + recurring 189 = 239
+    const mayCurrent = [...real, ...getRecurringTransactions(rentBill, "2024-05", PAYDAY, "EUR")];
+    const mayAsCurrent = buildReport(mayCurrent, "2024-05", PAYDAY).byCategory.find((c) => c.category === "Savings")!.total;
+    expect(mayAsCurrent).toBe(239);
+
+    // Viewed from June: the page spans recurring across [prev, current] periods.
+    const { start: curStart, end: curEnd } = getPeriodBounds("2024-06", PAYDAY);
+    const prevStart = new Date(curStart.getFullYear(), curStart.getMonth() - 1, curStart.getDate());
+    const juneAllTxs = [...real, ...getRecurringInRange(rentBill, prevStart, curEnd, PAYDAY, "EUR")];
+    const report = buildReport(juneAllTxs, "2024-06", PAYDAY);
+
+    // Previous period (May) Savings must match its current-period value.
+    expect(report.prevByCategory.Savings).toBe(239);
+    expect(report.prevByCategory.Savings).toBe(mayAsCurrent);
   });
 });

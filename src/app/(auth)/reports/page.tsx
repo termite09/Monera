@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, Lightbulb } from "lucide-react";
+import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, Lightbulb, ArrowRight } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +10,8 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { buildInsights } from "@/lib/insights";
-import { getRecurringTransactions } from "@/lib/recurring";
-import { formatCurrency, formatDate, getCategoryColor, cn } from "@/lib/utils";
+import { getRecurringInRange } from "@/lib/recurring";
+import { formatCurrency, formatDate, getCategoryColor, getPeriodBounds, cn } from "@/lib/utils";
 
 type ReportTab = "overview" | "merchants" | "subscriptions";
 
@@ -32,11 +32,22 @@ export default function ReportsPage() {
   const [tab, setTab] = useState<ReportTab>("overview");
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
-  const recurringTxs = useMemo(
-    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR"),
-    [settings.recurringPayments, month, paydayOfMonth, settings.currency]
-  );
-  const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
+  // Include recurring bills for BOTH the current and the previous period, so
+  // buildReport's "vs last period" comparison sees the previous period's
+  // recurring bills too. Generating only the current period's recurring would
+  // make the previous-period totals understate by the recurring amount.
+  const allTxs = useMemo(() => {
+    const { start: curStart, end: curEnd } = getPeriodBounds(month, paydayOfMonth);
+    const prevStart = new Date(curStart.getFullYear(), curStart.getMonth() - 1, curStart.getDate());
+    const recurringTxs = getRecurringInRange(
+      settings.recurringPayments ?? [],
+      prevStart,
+      curEnd,
+      paydayOfMonth,
+      settings.currency ?? "EUR"
+    );
+    return [...transactions, ...recurringTxs];
+  }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth]);
 
   const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
   const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
@@ -140,32 +151,53 @@ export default function ReportsPage() {
                     <StatTile label="Projected" value={formatCurrency(report.projectedTotal)} sub="at current pace" icon={<CalendarClock size={14} className="text-muted-foreground" />} />
                   </div>
 
-                  {/* Budget vs. Actual */}
-                  {summary.income > 0 && (
+                  {/* vs Last Period — category breakdown */}
+                  {report.prevTotal > 0 && (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                       <CardHeader className="pb-2 pt-4 px-4">
-                        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget vs. Actual</CardTitle>
+                        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">vs Last Period</CardTitle>
                       </CardHeader>
-                      <CardContent className="px-4 pb-4 flex flex-col gap-3">
-                        {(["Needs", "Wants", "Savings"] as const).map((cat) => {
-                          const spent = summary[cat.toLowerCase() as "needs" | "wants" | "savings"];
-                          const allocated = budgetAllocations[cat.toLowerCase() as "needs" | "wants" | "savings"];
-                          const pct = allocated > 0 ? Math.min((spent / allocated) * 100, 150) : 0;
-                          const over = spent > allocated;
+                      <CardContent className="px-4 pb-4 flex flex-col gap-0">
+                        {/* Total row */}
+                        {(() => {
+                          const diff = report.totalSpent - report.prevTotal;
+                          const better = diff <= 0;
                           return (
-                            <div key={cat} className="flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-foreground">{cat}</span>
-                                <span className={`font-medium tabular-nums font-mono ${over ? "text-destructive" : "text-foreground"}`}>
-                                  {formatCurrency(spent)}
-                                  <span className="text-muted-foreground font-normal"> / {formatCurrency(allocated)}</span>
+                            <div className="flex items-center justify-between py-2.5 border-b border-border/60">
+                              <span className="text-sm font-medium text-foreground">Total</span>
+                              <div className="flex items-center gap-2 text-sm tabular-nums font-mono">
+                                <span className="text-muted-foreground">{formatCurrency(report.prevTotal)}</span>
+                                <ArrowRight size={12} className="text-muted-foreground/50 shrink-0" />
+                                <span className="font-semibold text-foreground">{formatCurrency(report.totalSpent)}</span>
+                                <span className={cn("text-xs font-medium ml-1", better ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                                  {better ? "↓" : "↑"}{formatCurrency(Math.abs(diff))}
                                 </span>
                               </div>
-                              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${over ? "bg-destructive" : "bg-primary"}`}
-                                  style={{ width: `${pct}%` }}
-                                />
+                            </div>
+                          );
+                        })()}
+                        {/* Per-category rows */}
+                        {(["Needs", "Wants", "Savings", "Uncategorized"] as const).map((cat) => {
+                          const curr = report.byCategory.find(c => c.category === cat)?.total ?? 0;
+                          const prev = report.prevByCategory[cat] ?? 0;
+                          if (curr === 0 && prev === 0) return null;
+                          const diff = curr - prev;
+                          const better = diff <= 0;
+                          return (
+                            <div key={cat} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+                              <span className="flex items-center gap-2 text-sm text-foreground">
+                                <span className="size-2 rounded-full shrink-0" style={{ background: getCategoryColor(cat) }} />
+                                {cat}
+                              </span>
+                              <div className="flex items-center gap-2 text-sm tabular-nums font-mono">
+                                <span className="text-muted-foreground">{formatCurrency(prev)}</span>
+                                <ArrowRight size={12} className="text-muted-foreground/50 shrink-0" />
+                                <span className="text-foreground">{formatCurrency(curr)}</span>
+                                {diff !== 0 && (
+                                  <span className={cn("text-xs font-medium ml-1", better ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                                    {better ? "↓" : "↑"}{formatCurrency(Math.abs(diff))}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );
@@ -173,32 +205,6 @@ export default function ReportsPage() {
                       </CardContent>
                     </Card>
                   )}
-
-                  {/* Category breakdown */}
-                  <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-                    <CardHeader className="pb-2 pt-4 px-4">
-                      <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Category Split</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 flex flex-col gap-3">
-                      <div className="flex h-3 rounded-full overflow-hidden">
-                        {report.byCategory.map((c) => (
-                          <div key={c.category} style={{ width: `${c.pct}%`, background: getCategoryColor(c.category) }} title={`${c.category} ${c.pct.toFixed(0)}%`} />
-                        ))}
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {report.byCategory.map((c) => (
-                          <div key={c.category} className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-2 text-foreground">
-                              <span className="size-2.5 rounded-full" style={{ background: getCategoryColor(c.category) }} />
-                              {c.category}
-                              <span className="text-muted-foreground text-xs">{c.pct.toFixed(0)}%</span>
-                            </span>
-                            <span className="font-medium tabular-nums text-foreground font-mono">{formatCurrency(c.total)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
 
                 </>
               ))}
