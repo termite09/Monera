@@ -196,11 +196,10 @@ export default function TransactionsPage() {
             ) : (
               <>
                 <div className="flex items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <span className="w-20 shrink-0">Date</span>
-                  <span className="flex-1 min-w-0">Description</span>
-                  <span className="shrink-0">Category</span>
-                  <span className="shrink-0 w-24 text-right">Amount</span>
-                  {/* spacer aligns with the exclude action in each row */}
+                  <span className="w-16 shrink-0">Date</span>
+                  <span className="flex-1 min-w-0 truncate">Description</span>
+                  <span className="w-18 sm:w-27 shrink-0">Category</span>
+                  <span className="shrink-0 w-20 text-right">Amount</span>
                   <span className="w-6 shrink-0" />
                 </div>
                 <div className="divide-y divide-border">

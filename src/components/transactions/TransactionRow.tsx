@@ -54,12 +54,12 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
   return (
     <div
       className={cn(
-        "flex w-full items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
+        "flex w-full items-start gap-2 sm:gap-3 py-3 px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
       )}
     >
       {/* Date */}
-      <span className="shrink-0 w-20 pt-0.5 text-xs text-muted-foreground tabular-nums font-mono">
+      <span className="shrink-0 w-16 pt-0.5 text-xs text-muted-foreground tabular-nums font-mono">
         {shortDate(tx.date)}
       </span>
 
@@ -72,8 +72,8 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         {tx.notes && <span className="text-xs text-muted-foreground truncate">{tx.notes}</span>}
       </div>
 
-      {/* Category */}
-      <div className="shrink-0 pt-0.5">
+      {/* Category — fixed width so header and rows stay aligned */}
+      <div className="w-18 sm:w-27 shrink-0 pt-0.5">
         {editing && !excluded ? (
           <select
             value={tx.category}
@@ -83,7 +83,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
             }}
             onBlur={() => setEditing(false)}
             autoFocus
-            className="text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
+            className="w-full text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -108,7 +108,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
       {/* Amount */}
       <span
         className={cn(
-          "shrink-0 w-24 pt-0.5 text-sm tabular-nums text-right font-mono",
+          "shrink-0 w-20 pt-0.5 text-sm tabular-nums text-right font-mono",
           excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
       >
