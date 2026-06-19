@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Recharts is heavy; load the charts after the shell paints to cut initial JS.
-const DailyTrend = dynamic(
-  () => import("@/components/charts/DailyTrend").then((m) => m.DailyTrend),
-  { ssr: false, loading: () => <Skeleton className="h-[200px] w-full" /> }
+const WeekdayChart = dynamic(
+  () => import("@/components/charts/WeekdayChart").then((m) => m.WeekdayChart),
+  { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> }
 );
 import { Button } from "@/components/ui/button";
 import { FAB } from "@/components/ui/FAB";
@@ -24,7 +24,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { buildInsights } from "@/lib/insights";
-import { getCurrentMonth, getPeriodBounds, formatCurrency, cn } from "@/lib/utils";
+import { getCurrentMonth, formatCurrency, cn } from "@/lib/utils";
 
 
 export default function DashboardPage() {
@@ -64,13 +64,6 @@ export default function DashboardPage() {
 
   const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
   const insights = buildInsights(allTxs, settings, month, summary, budgetAllocations);
-
-  const { start, end } = getPeriodBounds(month, paydayOfMonth);
-  const monthTxs = allTxs.filter((t) => {
-    if (t.excluded) return false;
-    const d = new Date(t.date + "T00:00:00");
-    return d >= start && d <= end;
-  });
 
   // Money received from others = CSV income excluding salary (one source of
   // truth: useBudget, driven by salaryKeywords). Self-transfers are already
@@ -148,10 +141,10 @@ export default function DashboardPage() {
 
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Spending</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Spending by Day</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <DailyTrend transactions={monthTxs} />
+            <WeekdayChart transactions={allTxs} monthKey={month} paydayOfMonth={paydayOfMonth} />
           </CardContent>
         </Card>
 
