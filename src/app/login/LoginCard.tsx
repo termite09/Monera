@@ -2,6 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function LoginCard() {
@@ -50,6 +51,13 @@ export function LoginCard() {
 
           <p className="text-xs text-center text-muted-foreground">
             Only accesses files it creates in your Drive
+          </p>
+
+          <p className="text-xs text-center text-muted-foreground/60">
+            By continuing you agree to our{" "}
+            <Link href="/terms" className="underline underline-offset-2 hover:text-muted-foreground">Terms</Link>
+            {" "}and{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-muted-foreground">Privacy Policy</Link>
           </p>
         </div>
       </motion.div>
