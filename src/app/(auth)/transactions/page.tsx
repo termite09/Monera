@@ -14,7 +14,7 @@ import { AddTransactionForm } from "@/components/transactions/AddTransactionForm
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getCurrentMonth, getPeriodBounds, formatCurrency } from "@/lib/utils";
+import { getCurrentMonth, getPeriodBounds, formatCurrency, cn } from "@/lib/utils";
 import { Category, TransactionType } from "@/types";
 
 export default function TransactionsPage() {
@@ -23,6 +23,7 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "All">("All");
   const [filterType, setFilterType] = useState<TransactionType | "all">("expense");
+  const [timeRange, setTimeRange] = useState<"current" | "3m" | "6m" | "all">("current");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [showAdd, setShowAdd] = useState(false);
 
@@ -37,18 +38,26 @@ export default function TransactionsPage() {
   const searching = search.trim().length > 0;
 
   const filtered = useMemo(() => {
-    const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    // When a search term is active, scan all history (recurring are synthetic
-    // per-period and not included in cross-period search).
-    const recurringTxs = searching
-      ? []
-      : getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR");
+    // Recurring transactions are synthetic for a specific period — exclude them
+    // whenever the user is searching across history or viewing a multi-period range.
+    const recurringTxs = !searching && timeRange === "current"
+      ? getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR")
+      : [];
+
     return [...transactions, ...recurringTxs]
       .filter((t) => filterType === "all" || t.type === filterType)
       .filter((t) => {
         if (searching) return true;
         const d = new Date(t.date + "T00:00:00");
-        return d >= start && d <= end;
+        if (timeRange === "current") {
+          const { start, end } = getPeriodBounds(month, paydayOfMonth);
+          return d >= start && d <= end;
+        }
+        if (timeRange === "all") return true;
+        const months = timeRange === "3m" ? 3 : 6;
+        const now = new Date();
+        const cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+        return d >= cutoff;
       })
       .filter((t) => filterCat === "All" || t.category === filterCat)
       .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
@@ -56,7 +65,7 @@ export default function TransactionsPage() {
         const cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
         return sortDir === "desc" ? -cmp : cmp;
       });
-  }, [transactions, settings.recurringPayments, settings.currency, month, filterCat, filterType, search, searching, paydayOfMonth, sortDir]);
+  }, [transactions, settings.recurringPayments, settings.currency, month, filterCat, filterType, search, searching, timeRange, paydayOfMonth, sortDir]);
 
   // Totals of visible transactions, ignoring excluded ones. The headline figure
   // adapts to the type filter: spent, received, or net when showing all.
@@ -74,7 +83,13 @@ export default function TransactionsPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+      <Header
+        month={month}
+        onMonthChange={setMonth}
+        paydayOfMonth={paydayOfMonth}
+        isLoading={isLoading}
+        navLabel={timeRange === "3m" ? "Last 3 months" : timeRange === "6m" ? "Last 6 months" : timeRange === "all" ? "All time" : undefined}
+      />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
         {txError && (
@@ -86,6 +101,22 @@ export default function TransactionsPage() {
             </button>
           </div>
         )}
+        {/* Time range selector */}
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
+          {(["current", "3m", "6m", "all"] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setTimeRange(r)}
+              className={cn(
+                "h-8 rounded-md text-xs font-medium transition-colors",
+                timeRange === r ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {r === "current" ? "This period" : r === "3m" ? "3 months" : r === "6m" ? "6 months" : "All time"}
+            </button>
+          ))}
+        </div>
+
         {/* Search on its own row on phones; the two filters share a row beneath it.
             Everything sits inline from the sm breakpoint up. */}
         <div className="flex flex-col sm:flex-row gap-2">
@@ -126,7 +157,8 @@ export default function TransactionsPage() {
 
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {filtered.length} transaction{filtered.length === 1 ? "" : "s"}{searching ? " · all periods" : ""} ·{" "}
+            {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+            {searching ? " · all periods" : timeRange === "3m" ? " · 3 months" : timeRange === "6m" ? " · 6 months" : timeRange === "all" ? " · all time" : ""}{" "}·{" "}
             <span className="font-medium text-foreground tabular-nums font-mono">
               {formatCurrency(summaryTotal)}
             </span>
@@ -164,7 +196,7 @@ export default function TransactionsPage() {
             ) : (
               <>
                 <div className="flex items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <span className="w-11 shrink-0">Date</span>
+                  <span className="w-20 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Description</span>
                   <span className="shrink-0">Category</span>
                   <span className="shrink-0 w-24 text-right">Amount</span>

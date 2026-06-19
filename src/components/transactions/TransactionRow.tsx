@@ -38,7 +38,7 @@ const catShort: Record<Category, string> = {
 };
 
 function shortDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
 }
 
 export function TransactionRow({ transaction, onCategoryChange, onToggleExclude, onDelete }: TransactionRowProps) {
@@ -59,7 +59,7 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
       )}
     >
       {/* Date */}
-      <span className="shrink-0 w-11 pt-0.5 text-xs text-muted-foreground tabular-nums font-mono">
+      <span className="shrink-0 w-20 pt-0.5 text-xs text-muted-foreground tabular-nums font-mono">
         {shortDate(tx.date)}
       </span>
 

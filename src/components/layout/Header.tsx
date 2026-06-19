@@ -10,9 +10,11 @@ interface HeaderProps {
   onMonthChange: (month: string) => void;
   paydayOfMonth?: number;
   isLoading?: boolean;
+  /** When set, replaces the prev/next month arrows with a plain label. */
+  navLabel?: string;
 }
 
-export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false }: HeaderProps) {
+export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
   const monthLabel = getMonthLabel(month, paydayOfMonth);
 
@@ -51,15 +53,21 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
         </span>
 
         <div className="flex items-center gap-1 ml-auto md:ml-0">
-          <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous month">
-            <ChevronLeft size={16} />
-          </Button>
-          <span className="text-sm font-medium text-foreground min-w-[140px] text-center">
-            {monthLabel}
-          </span>
-          <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next month">
-            <ChevronRight size={16} />
-          </Button>
+          {navLabel ? (
+            <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
+          ) : (
+            <>
+              <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous month">
+                <ChevronLeft size={16} />
+              </Button>
+              <span className="text-sm font-medium text-foreground min-w-35 text-center">
+                {monthLabel}
+              </span>
+              <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next month">
+                <ChevronRight size={16} />
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
