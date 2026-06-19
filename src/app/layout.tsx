@@ -3,6 +3,9 @@ import { DM_Sans, DM_Serif_Display, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { auth } from "@/auth";
+
+export const dynamic = "force-dynamic";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -50,11 +53,12 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
   return (
     <html
       lang="en"
@@ -62,7 +66,9 @@ export default function RootLayout({
       className={`${dmSans.variable} ${dmSerifDisplay.variable} ${dmMono.variable}`}
     >
       <body>
-        <Providers>{children}</Providers>
+        <Providers session={session}>
+          {children}
+        </Providers>
         <ServiceWorkerRegistrar />
       </body>
     </html>

@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds, getMonthKey } from "@/lib/utils";
+import { getPeriodBounds } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 export interface MonthlyTotals {
@@ -19,24 +19,15 @@ export function monthlyCategoryTotals(
   year: number,
   paydayOfMonth = 1
 ): MonthlyTotals[] {
-  const totals: MonthlyTotals[] = Array.from({ length: 12 }, () => ({
-    needs: 0,
-    wants: 0,
-    savings: 0,
-  }));
-
-  for (const t of transactions) {
-    if (t.excluded || t.type !== "expense") continue;
-    const key = getMonthKey(t.date, paydayOfMonth);
-    const [ky, km] = key.split("-").map(Number);
-    if (ky !== year) continue;
-    const bucket = totals[km - 1];
-    if (t.category === "Needs") bucket.needs += t.amount;
-    else if (t.category === "Wants") bucket.wants += t.amount;
-    else if (t.category === "Savings") bucket.savings += t.amount;
-  }
-
-  return totals;
+  return Array.from({ length: 12 }, (_, i) => {
+    const monthKey = `${year}-${String(i + 1).padStart(2, "0")}`;
+    const { byCategory } = getPeriodSpend(transactions, monthKey, paydayOfMonth);
+    return {
+      needs: byCategory.Needs,
+      wants: byCategory.Wants,
+      savings: byCategory.Savings,
+    };
+  });
 }
 
 export interface MerchantStat {

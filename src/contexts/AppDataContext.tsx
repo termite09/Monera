@@ -81,7 +81,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
   );
 
-  if (!structure) {
+  // Only show SetupScreen when we have a token (Drive initialization is actually
+  // in progress). Without this guard, the "loading" flash during the
+  // session-loading race after OAuth redirect would show SetupScreen prematurely
+  // and then complete without Drive ever having fired.
+  if (!structure && !!accessToken) {
     return <SetupScreen error={driveError} onRetry={refetchDrive} />;
   }
 

@@ -18,7 +18,8 @@ function toDateStr(d: Date): string {
 export function getRecurringTransactions(
   recurring: RecurringPayment[],
   monthKey: string,
-  paydayOfMonth = 1
+  paydayOfMonth = 1,
+  currency = "EUR"
 ): Transaction[] {
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const txs: Transaction[] = [];
@@ -40,7 +41,7 @@ export function getRecurringTransactions(
       description: r.name,
       amount: r.amount,
       type: "expense",
-      currency: "€",
+      currency: currency,
       category: r.category,
       source: "recurring",
       categorySource: "manual",

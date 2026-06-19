@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomBar } from "@/components/layout/BottomBar";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 
+export const dynamic = "force-dynamic";
+
 export default async function AuthLayout({
   children,
 }: {

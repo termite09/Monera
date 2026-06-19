@@ -33,11 +33,11 @@ export default function YearOverviewPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-foreground">Year Overview</h1>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setYear((y) => y - 1)} className="size-9">
+            <Button variant="ghost" size="icon" onClick={() => setYear((y) => y - 1)} className="size-9" aria-label="Previous year">
               <ChevronLeft size={16} />
             </Button>
             <span className="text-sm font-medium text-foreground w-12 text-center tabular-nums">{year}</span>
-            <Button variant="ghost" size="icon" onClick={() => setYear((y) => y + 1)} className="size-9">
+            <Button variant="ghost" size="icon" onClick={() => setYear((y) => y + 1)} className="size-9" aria-label="Next year">
               <ChevronRight size={16} />
             </Button>
           </div>

@@ -51,13 +51,13 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
         </span>
 
         <div className="flex items-center gap-1 ml-auto md:ml-0">
-          <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground">
+          <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous month">
             <ChevronLeft size={16} />
           </Button>
           <span className="text-sm font-medium text-foreground min-w-[140px] text-center">
             {monthLabel}
           </span>
-          <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground">
+          <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next month">
             <ChevronRight size={16} />
           </Button>
         </div>

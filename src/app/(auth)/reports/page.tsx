@@ -40,13 +40,13 @@ export default function ReportsPage() {
   }, [paydayOfMonth]);
 
   const recurringTxs = useMemo(
-    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth),
-    [settings.recurringPayments, month, paydayOfMonth]
+    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR"),
+    [settings.recurringPayments, month, paydayOfMonth, settings.currency]
   );
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
-  const { summary, budgetAllocations } = useBudget(allTxs, settings, month);
+  const { summary, budgetAllocations, incomeIsDetected } = useBudget(allTxs, settings, month);
   const insights = buildInsights(allTxs, settings, month, summary, budgetAllocations);
 
   // Subscriptions span all history, not just the selected period.
@@ -102,6 +102,19 @@ export default function ReportsPage() {
                 emptyPeriod
               ) : (
                 <>
+                  {/* Income + savings summary */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatTile compact label="Income" value={formatCurrency(summary.income)} sub={incomeIsDetected ? "from statement" : "planned"} />
+                    <StatTile compact label="Saved" value={formatCurrency(summary.savings)} sub="this period" />
+                    <StatTile
+                      compact
+                      label="Savings Rate"
+                      value={summary.income > 0 ? `${Math.round((summary.savings / summary.income) * 100)}%` : "—"}
+                      sub={summary.income > 0 ? (summary.savings / summary.income >= 0.2 ? "on track" : "below 20%") : undefined}
+                      trend={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "good" : undefined}
+                    />
+                  </div>
+
                   {/* Insights */}
                   {insights.length > 0 && (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -159,6 +172,40 @@ export default function ReportsPage() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Budget vs. Actual */}
+                  {summary.income > 0 && (
+                    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                      <CardHeader className="pb-2 pt-4 px-4">
+                        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget vs. Actual</CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-4 flex flex-col gap-3">
+                        {(["Needs", "Wants", "Savings"] as const).map((cat) => {
+                          const spent = summary[cat.toLowerCase() as "needs" | "wants" | "savings"];
+                          const allocated = budgetAllocations[cat.toLowerCase() as "needs" | "wants" | "savings"];
+                          const pct = allocated > 0 ? Math.min((spent / allocated) * 100, 150) : 0;
+                          const over = spent > allocated;
+                          return (
+                            <div key={cat} className="flex flex-col gap-1.5">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-foreground">{cat}</span>
+                                <span className={`font-medium tabular-nums font-mono ${over ? "text-destructive" : "text-foreground"}`}>
+                                  {formatCurrency(spent)}
+                                  <span className="text-muted-foreground font-normal"> / {formatCurrency(allocated)}</span>
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${over ? "bg-destructive" : "bg-primary"}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  )}
                 </>
               ))}
 
@@ -281,22 +328,24 @@ function StatTile({
   sub,
   trend,
   icon,
+  compact,
 }: {
   label: string;
   value: string;
   sub?: string;
   trend?: "good" | "bad";
   icon?: React.ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <CardContent className="p-4">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] min-w-0">
+      <CardContent className={compact ? "p-3" : "p-4"}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em] truncate">
           {icon}
           {label}
         </p>
         <p
-          className={`mt-2 text-xl leading-none font-medium tabular-nums font-mono ${
+          className={`leading-none font-medium tabular-nums font-mono ${compact ? "mt-1.5 text-sm" : "mt-2 text-xl"} ${
             trend === "good" ? "text-emerald-600 dark:text-emerald-400" : trend === "bad" ? "text-destructive" : "text-foreground"
           }`}
         >
@@ -304,7 +353,7 @@ function StatTile({
           {trend === "bad" && <TrendingUp size={15} className="inline mr-1 -mt-0.5" />}
           {value}
         </p>
-        {sub && <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>}
+        {sub && <p className="mt-1 text-xs text-muted-foreground truncate">{sub}</p>}
       </CardContent>
     </Card>
   );
