@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { formatCurrency } from "@/lib/utils";
 import { monthlyCategoryTotals } from "@/lib/reports";
+import { getRecurringInRange } from "@/lib/recurring";
 
 const YearBar = dynamic(
   () => import("@/components/charts/YearBar").then((m) => m.YearBar),
@@ -21,9 +22,25 @@ export default function YearOverviewPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
+  // Include recurring bills (paid outside Revolut) so yearly figures match the
+  // dashboard/reports, which inject them per period.
+  const allTxs = useMemo(
+    () => [
+      ...transactions,
+      ...getRecurringInRange(
+        settings.recurringPayments ?? [],
+        new Date(year, 0, 1),
+        new Date(year, 11, 31),
+        paydayOfMonth,
+        settings.currency ?? "EUR"
+      ),
+    ],
+    [transactions, settings.recurringPayments, settings.currency, year, paydayOfMonth]
+  );
+
   // Derive the cards from the same payday-aware monthly totals the chart uses, so
   // the headline figures always match the bars below (and honor the pay cycle).
-  const totals = monthlyCategoryTotals(transactions, year, paydayOfMonth);
+  const totals = monthlyCategoryTotals(allTxs, year, paydayOfMonth);
   const totalExpenses = totals.reduce((s, m) => s + m.needs + m.wants + m.savings, 0);
   const totalSavings = totals.reduce((s, m) => s + m.savings, 0);
 
@@ -72,7 +89,7 @@ export default function YearOverviewPage() {
             {isLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <YearBar transactions={transactions} year={year} paydayOfMonth={paydayOfMonth} />
+              <YearBar transactions={allTxs} year={year} paydayOfMonth={paydayOfMonth} />
             )}
           </CardContent>
         </Card>
