@@ -88,7 +88,7 @@ export function TransactionRow({
 
       {/* Category — always rendered to keep column layout stable; hidden via
           visibility when showCategory is false so width is preserved. */}
-      <div className={cn("shrink-0 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
+      <div className={cn("shrink-0 w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (editing && !excluded && !selectMode ? (
           <select
             value={tx.category}
