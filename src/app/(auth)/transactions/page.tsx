@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown, Loader2 } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +12,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
-import { Toast } from "@/components/ui/Toast";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -117,9 +115,6 @@ export default function TransactionsPage() {
   const selectMode = selected.size > 0;
   const [selectCatSheet, setSelectCatSheet] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
-
-  // Toast state
-  const [toast, setToast] = useState<{ message: string; onUndo: () => void } | null>(null);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
@@ -264,13 +259,6 @@ export default function TransactionsPage() {
         )
       : [];
 
-    // Capture originals for undo before any updates
-    const origUpdates = [
-      { txId, category: tx.category },
-      ...similar.map((t) => ({ txId: t.id, category: t.category })),
-    ];
-    const origRules = rules;
-
     await bulkUpdateCategory([
       { txId, category: newCategory },
       ...similar.map((t) => ({ txId: t.id, category: newCategory })),
@@ -286,15 +274,6 @@ export default function TransactionsPage() {
       }
     }
 
-    if (similar.length > 0) {
-      setToast({
-        message: `"${keyword}" → ${newCategory} applied to ${similar.length + 1} transactions`,
-        onUndo: async () => {
-          await bulkUpdateCategory(origUpdates);
-          await updateRules(origRules);
-        },
-      });
-    }
   };
 
   return (
@@ -616,18 +595,6 @@ export default function TransactionsPage() {
           onCancel={() => setShowAdd(false)}
         />
       </Modal>
-
-      {/* Auto-categorisation undo toast */}
-      <AnimatePresence>
-        {toast && (
-          <Toast
-            key="auto-cat-toast"
-            message={toast.message}
-            onUndo={toast.onUndo}
-            onDismiss={() => setToast(null)}
-          />
-        )}
-      </AnimatePresence>
 
       <AppTour pageKey="transactions" slides={TRANSACTIONS_SLIDES} />
     </PageShell>
