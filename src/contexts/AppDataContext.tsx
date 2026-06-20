@@ -29,7 +29,9 @@ interface AppDataContextValue {
   deleteManualTransaction: (txId: string) => Promise<void>;
   updateCategory: (txId: string, category: Category) => Promise<void>;
   bulkUpdateCategory: (updates: { txId: string; category: Category }[]) => Promise<void>;
-  revertCategory: (txId: string) => Promise<void>;
+  bulkExclude: (ids: string[], shouldExclude: boolean) => Promise<void>;
+  resetToDefault: (txId: string) => Promise<void>;
+  bulkResetToDefault: (ids: string[]) => Promise<void>;
   toggleExclude: (txId: string) => Promise<void>;
   updateSettings: (s: Settings) => Promise<void>;
   updateRules: (r: CategoryRule[]) => Promise<void>;
@@ -54,7 +56,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     deleteManualTransaction,
     updateCategory,
     bulkUpdateCategory,
-    revertCategory,
+    bulkExclude,
+    resetToDefault,
+    bulkResetToDefault,
     toggleExclude,
     refetch,
   } = useTransactions(accessToken, structure, rules, settings);
@@ -93,13 +97,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteManualTransaction,
       updateCategory,
       bulkUpdateCategory,
-      revertCategory,
+      bulkExclude,
+      resetToDefault,
+      bulkResetToDefault,
       toggleExclude,
       updateSettings,
       updateRules,
       refetch,
     }),
-    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory, revertCategory, toggleExclude, updateSettings, updateRules, refetch]
+    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory, bulkExclude, resetToDefault, bulkResetToDefault, toggleExclude, updateSettings, updateRules, refetch]
   );
 
   // Only show SetupScreen when we have a token (Drive initialization is actually

@@ -8,7 +8,7 @@ import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
 interface TransactionRowProps {
   transaction: Transaction;
   onCategoryChange: (id: string, category: Category) => void | Promise<void>;
-  onRevertCategory?: (id: string) => void | Promise<void>;
+  onResetToDefault?: (id: string) => void | Promise<void>;
   onToggleExclude?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
   selectMode?: boolean;
@@ -45,7 +45,7 @@ function parseDateParts(dateStr: string): { dayMonth: string; year: string } {
 export function TransactionRow({
   transaction,
   onCategoryChange,
-  onRevertCategory,
+  onResetToDefault,
   onToggleExclude,
   onDelete,
   selectMode = false,
@@ -96,7 +96,7 @@ export function TransactionRow({
             value={tx.category}
             onChange={(e) => {
               if (e.target.value === "__reset__") {
-                onRevertCategory?.(tx.id);
+                onResetToDefault?.(tx.id);
               } else {
                 onCategoryChange(tx.id, e.target.value as Category);
               }
@@ -106,8 +106,8 @@ export function TransactionRow({
             autoFocus
             className="w-28 text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
           >
-            {tx.categorySource === "override" && onRevertCategory && (
-              <option value="__reset__">↺ Rule default</option>
+            {(tx.categorySource === "override" || tx.excluded) && onResetToDefault && (
+              <option value="__reset__">↺ Default</option>
             )}
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>

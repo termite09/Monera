@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -74,7 +74,7 @@ export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
     addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory,
-    revertCategory, toggleExclude, rules, updateRules, refetch,
+    bulkExclude, resetToDefault, bulkResetToDefault, toggleExclude, rules, updateRules, refetch,
   } = useAppData();
 
   const searchParams = useSearchParams();
@@ -116,6 +116,7 @@ export default function TransactionsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const selectMode = selected.size > 0;
   const [selectCatSheet, setSelectCatSheet] = useState(false);
+  const [isBulkLoading, setIsBulkLoading] = useState(false);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; onUndo: () => void } | null>(null);
@@ -213,8 +214,16 @@ export default function TransactionsPage() {
 
   const handleBulkExclude = async () => {
     const ids = [...selected];
-    exitSelect();
-    await Promise.all(ids.map((id) => toggleExclude(id)));
+    setIsBulkLoading(true);
+    try { await bulkExclude(ids, true); exitSelect(); }
+    finally { setIsBulkLoading(false); }
+  };
+
+  const handleBulkInclude = async () => {
+    const ids = [...selected];
+    setIsBulkLoading(true);
+    try { await bulkExclude(ids, false); exitSelect(); }
+    finally { setIsBulkLoading(false); }
   };
 
   const handleBulkCategoryChange = async (category: Category) => {
@@ -224,13 +233,16 @@ export default function TransactionsPage() {
     if (ids.length > 0) await bulkUpdateCategory(ids.map((txId) => ({ txId, category })));
   };
 
-  const handleBulkRevert = async () => {
-    const ids = [...selected].filter((id) => transactions.find((t) => t.id === id)?.categorySource === "override");
-    exitSelect();
-    await Promise.all(ids.map((id) => revertCategory(id)));
+  const handleBulkDefault = async () => {
+    const ids = [...selected];
+    setIsBulkLoading(true);
+    try { await bulkResetToDefault(ids); exitSelect(); }
+    finally { setIsBulkLoading(false); }
   };
 
-  const hasRevertable = selectedTxs.some((t) => t.categorySource === "override");
+  const hasExcluded = selectedTxs.some((t) => t.excluded);
+  const hasIncluded = selectedTxs.some((t) => !t.excluded);
+  const hasDefaultable = selectedTxs.some((t) => t.categorySource === "override" || t.excluded);
 
   // Category change with auto-apply to similar transactions + rule creation
   const handleCategoryChange = async (txId: string, newCategory: Category) => {
@@ -506,7 +518,7 @@ export default function TransactionsPage() {
                       key={tx.id}
                       transaction={tx}
                       onCategoryChange={handleCategoryChange}
-                      onRevertCategory={revertCategory}
+                      onResetToDefault={resetToDefault}
                       onToggleExclude={selectMode ? undefined : toggleExclude}
                       onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
                       selectMode={selectMode}
@@ -522,37 +534,57 @@ export default function TransactionsPage() {
         </Card>
       </div>
 
-      {/* Selection action bar */}
+      {/* Selection action bar — 2-row layout */}
       {selected.size > 0 && (
         <div className="fixed bottom-20 md:bottom-4 left-0 right-0 md:left-56 z-40 px-4">
-          <div className="max-w-2xl mx-auto bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                {selected.size} transaction{selected.size === 1 ? "" : "s"}
-              </p>
-              <p className="text-xs text-muted-foreground tabular-nums font-mono">
-                {formatCurrency(selectedTotal)}
-              </p>
+          <div className="max-w-2xl mx-auto bg-card border border-border rounded-xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-2.5">
+            {/* Row 1: count + total + clear */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {selected.size} transaction{selected.size === 1 ? "" : "s"}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums font-mono">
+                  {formatCurrency(selectedTotal)}
+                </span>
+              </div>
+              <button
+                onClick={exitSelect}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
             </div>
-            <Button variant="outline" size="sm" onClick={handleBulkExclude}>
-              Exclude
-            </Button>
-            {selectedTxs.some((t) => t.type !== "income") && (
-              <Button size="sm" onClick={() => setSelectCatSheet(true)}>
-                Category
-              </Button>
+            {/* Row 2: action buttons or loading indicator */}
+            {isBulkLoading ? (
+              <div className="flex items-center gap-2 py-0.5">
+                <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Processing transactions…</span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                {hasIncluded && (
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handleBulkExclude}>
+                    Exclude
+                  </Button>
+                )}
+                {hasExcluded && (
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handleBulkInclude}>
+                    Include
+                  </Button>
+                )}
+                {selectedTxs.some((t) => t.type !== "income") && (
+                  <Button size="sm" className="flex-1" onClick={() => setSelectCatSheet(true)}>
+                    Category
+                  </Button>
+                )}
+                {hasDefaultable && (
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handleBulkDefault}>
+                    Default
+                  </Button>
+                )}
+              </div>
             )}
-            {hasRevertable && (
-              <Button variant="outline" size="sm" onClick={handleBulkRevert}>
-                Revert
-              </Button>
-            )}
-            <button
-              onClick={() => setSelected(new Set())}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
           </div>
         </div>
       )}

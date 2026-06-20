@@ -213,20 +213,86 @@ export function useTransactions(
     [accessToken, structure, patch, qc, appDataId]
   );
 
-  const revertCategory = useCallback(
+  // Atomic batch exclude/include — one Drive read-write, no race between IDs.
+  const bulkExclude = useCallback(
+    async (ids: string[], shouldExclude: boolean) => {
+      if (!accessToken || !structure || ids.length === 0) return;
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      const idSet = new Set(ids);
+      patch((d) => {
+        const cleaned = d.excludedIds.filter((id) => !idSet.has(id));
+        return { ...d, excludedIds: shouldExclude ? [...cleaned, ...ids] : cleaned };
+      });
+      try {
+        const existing = await readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions);
+        const cleaned = existing.filter((id) => !idSet.has(id));
+        const next = shouldExclude ? [...cleaned, ...ids] : cleaned;
+        await writeAppFile(accessToken, structure.fileIds.excludedTransactions, next);
+        patch((d) => ({ ...d, excludedIds: next }));
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
+    },
+    [accessToken, structure, patch, qc, appDataId]
+  );
+
+  // Reset a single transaction to its original imported state:
+  // removes the category override AND re-includes it if excluded.
+  const resetToDefault = useCallback(
     async (txId: string) => {
       if (!accessToken || !structure) return;
       const key = ["transactions", appDataId ?? "none"];
       const prev = qc.getQueryData<TxData>(key);
       patch((d) => {
-        const { [txId]: _, ...rest } = d.overrides;
-        return { ...d, overrides: rest };
+        const { [txId]: _, ...overrides } = d.overrides;
+        return { ...d, overrides, excludedIds: d.excludedIds.filter((id) => id !== txId) };
       });
       try {
-        const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-        const { [txId]: _, ...updated } = existing;
-        await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
-        patch((d) => ({ ...d, overrides: updated }));
+        const [existingOverrides, existingExcluded] = await Promise.all([
+          readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
+          readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
+        ]);
+        const { [txId]: _, ...updatedOverrides } = existingOverrides;
+        const updatedExcluded = existingExcluded.filter((id) => id !== txId);
+        await Promise.all([
+          writeAppFile(accessToken, structure.fileIds.categoryOverrides, updatedOverrides),
+          writeAppFile(accessToken, structure.fileIds.excludedTransactions, updatedExcluded),
+        ]);
+        patch((d) => ({ ...d, overrides: updatedOverrides, excludedIds: updatedExcluded }));
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
+    },
+    [accessToken, structure, patch, qc, appDataId]
+  );
+
+  // Batch version of resetToDefault — one read pair, one write pair for all IDs.
+  const bulkResetToDefault = useCallback(
+    async (ids: string[]) => {
+      if (!accessToken || !structure || ids.length === 0) return;
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      const idSet = new Set(ids);
+      patch((d) => ({
+        ...d,
+        overrides: Object.fromEntries(Object.entries(d.overrides).filter(([id]) => !idSet.has(id))),
+        excludedIds: d.excludedIds.filter((id) => !idSet.has(id)),
+      }));
+      try {
+        const [existingOverrides, existingExcluded] = await Promise.all([
+          readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
+          readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
+        ]);
+        const updatedOverrides = Object.fromEntries(Object.entries(existingOverrides).filter(([id]) => !idSet.has(id)));
+        const updatedExcluded = existingExcluded.filter((id) => !idSet.has(id));
+        await Promise.all([
+          writeAppFile(accessToken, structure.fileIds.categoryOverrides, updatedOverrides),
+          writeAppFile(accessToken, structure.fileIds.excludedTransactions, updatedExcluded),
+        ]);
+        patch((d) => ({ ...d, overrides: updatedOverrides, excludedIds: updatedExcluded }));
       } catch (err) {
         if (prev) qc.setQueryData(key, prev);
         throw err;
@@ -270,7 +336,9 @@ export function useTransactions(
     deleteManualTransaction,
     updateCategory,
     bulkUpdateCategory,
-    revertCategory,
+    bulkExclude,
+    resetToDefault,
+    bulkResetToDefault,
     toggleExclude,
   };
 }

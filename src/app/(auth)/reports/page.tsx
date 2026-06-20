@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, ArrowRight, ChevronDown, EyeOff } from "lucide-react";
+import { Repeat, Trophy, Receipt, CalendarClock, CreditCard, ArrowRight, ChevronDown, EyeOff } from "lucide-react";
+import { InfoIcon } from "@/components/ui/InfoIcon";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,6 @@ const REPORTS_SLIDES = [
     body: "The Merchants tab shows where your money actually went. Tap any merchant to expand and see the individual transactions behind the total.",
   },
 ];
-import { useBudget } from "@/hooks/useBudget";
 import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
 import { formatCurrency, formatDate, getCategoryColor, getPeriodBounds, cleanDescription, cn } from "@/lib/utils";
@@ -89,7 +89,6 @@ export default function ReportsPage() {
   }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth]);
 
   const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
-  const { summary } = useBudget(allTxs, settings, month);
 
   // Subscriptions span all history, not just the selected period.
   const subscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
@@ -165,36 +164,17 @@ export default function ReportsPage() {
                 emptyPeriod
               ) : (
                 <>
-                  {/* Pace & health — report-only metrics the dashboard doesn't show.
-                      (Income, Saved, Total Spent live on the dashboard, so they're
-                      intentionally not duplicated here.) */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatTile
-                      compact
-                      label="Avg / Day"
-                      value={formatCurrency(report.avgPerDay)}
-                      sub={`over ${report.daysElapsed} day${report.daysElapsed === 1 ? "" : "s"}`}
-                    />
-                    <StatTile
-                      compact
-                      label="Projected"
-                      value={report.daysElapsed < 3 ? "—" : formatCurrency(report.projectedTotal)}
-                      sub={report.daysElapsed < 3 ? "need more data" : "at this pace"}
-                    />
-                    <StatTile
-                      compact
-                      label="Savings Rate"
-                      value={summary.income > 0 ? `${Math.round((summary.savings / summary.income) * 100)}%` : "—"}
-                      sub={summary.income > 0 ? (summary.savings / summary.income >= 0.2 ? "on track" : "below 20%") : "set income"}
-                      trend={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "good" : undefined}
-                    />
-                  </div>
-
                   {/* vs Last Period — the headline comparison (category by category) */}
                   {report.prevTotal > 0 ? (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                       <CardHeader className="pb-2 pt-4 px-4">
-                        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">vs Last Period</CardTitle>
+                        <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          vs Last Period
+                          <InfoIcon
+                            side="bottom"
+                            content="Compares how much you spent per category this period vs the one before. Green ↓ = spent less this period (good). Red ↑ = spent more (worth reviewing). The Change column shows the exact difference."
+                          />
+                        </CardTitle>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {fmtPeriodKey(prevMonthKey)} compared to {fmtPeriodKey(month)} — by category.
                         </p>
@@ -530,45 +510,5 @@ export default function ReportsPage() {
 
       <AppTour pageKey="reports" slides={REPORTS_SLIDES} />
     </PageShell>
-  );
-}
-
-function StatTile({
-  label,
-  value,
-  sub,
-  trend,
-  icon,
-  compact,
-  purpose,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  trend?: "good" | "bad";
-  icon?: React.ReactNode;
-  compact?: boolean;
-  purpose?: string;
-}) {
-  return (
-    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] min-w-0">
-      <CardContent className={compact ? "p-3" : "p-4"}>
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em] truncate">
-          {icon}
-          {label}
-        </p>
-        {purpose && <p className="text-[10px] text-muted-foreground/70 mt-0.5 leading-tight">{purpose}</p>}
-        <p
-          className={`leading-none font-medium tabular-nums font-mono ${compact ? "mt-1.5 text-sm" : "mt-2 text-xl"} ${
-            trend === "good" ? "text-emerald-600 dark:text-emerald-400" : trend === "bad" ? "text-destructive" : "text-foreground"
-          }`}
-        >
-          {trend === "good" && <TrendingDown size={15} className="inline mr-1 -mt-0.5" />}
-          {trend === "bad" && <TrendingUp size={15} className="inline mr-1 -mt-0.5" />}
-          {value}
-        </p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground truncate">{sub}</p>}
-      </CardContent>
-    </Card>
   );
 }
