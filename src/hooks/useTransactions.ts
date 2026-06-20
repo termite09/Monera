@@ -213,6 +213,28 @@ export function useTransactions(
     [accessToken, structure, patch, qc, appDataId]
   );
 
+  const revertCategory = useCallback(
+    async (txId: string) => {
+      if (!accessToken || !structure) return;
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      patch((d) => {
+        const { [txId]: _, ...rest } = d.overrides;
+        return { ...d, overrides: rest };
+      });
+      try {
+        const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+        const { [txId]: _, ...updated } = existing;
+        await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
+        patch((d) => ({ ...d, overrides: updated }));
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
+    },
+    [accessToken, structure, patch, qc, appDataId]
+  );
+
   const toggleExclude = useCallback(
     async (txId: string) => {
       if (!accessToken || !structure) return;
@@ -248,6 +270,7 @@ export function useTransactions(
     deleteManualTransaction,
     updateCategory,
     bulkUpdateCategory,
+    revertCategory,
     toggleExclude,
   };
 }

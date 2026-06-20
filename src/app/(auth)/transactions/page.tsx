@@ -74,7 +74,7 @@ export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
     addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory,
-    toggleExclude, rules, updateRules, refetch,
+    revertCategory, toggleExclude, rules, updateRules, refetch,
   } = useAppData();
 
   const searchParams = useSearchParams();
@@ -498,6 +498,7 @@ export default function TransactionsPage() {
                       key={tx.id}
                       transaction={tx}
                       onCategoryChange={handleCategoryChange}
+                      onRevertCategory={revertCategory}
                       onToggleExclude={selectMode ? undefined : toggleExclude}
                       onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
                       selectMode={selectMode}

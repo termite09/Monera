@@ -8,6 +8,7 @@ import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
 interface TransactionRowProps {
   transaction: Transaction;
   onCategoryChange: (id: string, category: Category) => void | Promise<void>;
+  onRevertCategory?: (id: string) => void | Promise<void>;
   onToggleExclude?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
   selectMode?: boolean;
@@ -44,6 +45,7 @@ function parseDateParts(dateStr: string): { dayMonth: string; year: string } {
 export function TransactionRow({
   transaction,
   onCategoryChange,
+  onRevertCategory,
   onToggleExclude,
   onDelete,
   selectMode = false,
@@ -93,13 +95,20 @@ export function TransactionRow({
           <select
             value={tx.category}
             onChange={(e) => {
-              onCategoryChange(tx.id, e.target.value as Category);
+              if (e.target.value === "__reset__") {
+                onRevertCategory?.(tx.id);
+              } else {
+                onCategoryChange(tx.id, e.target.value as Category);
+              }
               setEditing(false);
             }}
             onBlur={() => setEditing(false)}
             autoFocus
-            className="w-24 text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
+            className="w-28 text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
           >
+            {tx.categorySource === "override" && onRevertCategory && (
+              <option value="__reset__">↺ Rule default</option>
+            )}
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
