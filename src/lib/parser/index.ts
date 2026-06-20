@@ -9,8 +9,10 @@ function splitLine(line: string): string[] {
   let q = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
-    if (ch === '"') q = !q;
-    else if (ch === "," && !q) {
+    if (ch === '"') {
+      if (q && line[i + 1] === '"') { cur += '"'; i++; } // RFC 4180 escaped quote
+      else q = !q;
+    } else if (ch === "," && !q) {
       out.push(cur.trim());
       cur = "";
     } else cur += ch;
@@ -93,6 +95,7 @@ export function parseGenericCSV(content: string): ParsedCSV {
       category: "Uncategorized",
       source: "revolut",
       categorySource: "auto",
+      excluded: false,
     });
   }
 

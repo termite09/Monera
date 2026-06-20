@@ -17,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { netExpenseTotal } from "@/lib/finance";
-import { extractMerchantKeyword } from "@/lib/categorizer";
 import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn } from "@/lib/utils";
 import { Category, Transaction, TransactionType } from "@/types";
 
@@ -71,8 +70,8 @@ const CAT_DOT: Record<Category, string> = {
 export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
-    addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory,
-    bulkExclude, resetToDefault, bulkResetToDefault, toggleExclude, rules, updateRules, refetch,
+    addManualTransaction, deleteManualTransaction, bulkUpdateCategory,
+    bulkExclude, bulkResetToDefault, toggleExclude, refetch,
   } = useAppData();
 
   const searchParams = useSearchParams();
@@ -238,43 +237,6 @@ export default function TransactionsPage() {
   const hasExcluded = selectedTxs.some((t) => t.excluded);
   const hasIncluded = selectedTxs.some((t) => !t.excluded);
   const hasDefaultable = selectedTxs.some((t) => t.categorySource === "override" || t.excluded);
-
-  // Category change with auto-apply to similar transactions + rule creation
-  const handleCategoryChange = async (txId: string, newCategory: Category) => {
-    const tx = transactions.find((t) => t.id === txId);
-    if (!tx) {
-      await updateCategory(txId, newCategory);
-      return;
-    }
-
-    const keyword = extractMerchantKeyword(tx.description);
-    const similar = keyword
-      ? transactions.filter(
-          (t) =>
-            t.id !== txId &&
-            t.description.toLowerCase().includes(keyword) &&
-            t.category !== newCategory &&
-            t.type === tx.type &&
-            !t.excluded
-        )
-      : [];
-
-    await bulkUpdateCategory([
-      { txId, category: newCategory },
-      ...similar.map((t) => ({ txId: t.id, category: newCategory })),
-    ]);
-
-    // Update or create mapping rule
-    if (keyword) {
-      const existingIdx = rules.findIndex((r) => r.keyword.toLowerCase() === keyword);
-      if (existingIdx >= 0) {
-        await updateRules(rules.map((r, i) => (i === existingIdx ? { ...r, category: newCategory } : r)));
-      } else {
-        await updateRules([{ keyword, category: newCategory }, ...rules]);
-      }
-    }
-
-  };
 
   return (
     <PageShell>
@@ -496,8 +458,6 @@ export default function TransactionsPage() {
                     <TransactionRow
                       key={tx.id}
                       transaction={tx}
-                      onCategoryChange={handleCategoryChange}
-                      onResetToDefault={resetToDefault}
                       onToggleExclude={selectMode ? undefined : toggleExclude}
                       onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
                       selectMode={selectMode}

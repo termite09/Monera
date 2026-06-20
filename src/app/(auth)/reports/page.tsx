@@ -278,7 +278,7 @@ export default function ReportsPage() {
                                   className="w-full flex flex-col gap-1.5 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
                                 >
                                   <div className="flex items-center gap-2">
-                                    <span className="flex-1 min-w-0 text-sm text-foreground wrap-break-word">{m.name}</span>
+                                    <span className="flex-1 min-w-0 text-sm text-foreground break-words">{m.name}</span>
                                     {m.count > 1 && (
                                       <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
                                         {m.count}×
@@ -306,7 +306,7 @@ export default function ReportsPage() {
                                         <div key={tx.id} className="flex items-center gap-2 px-3 py-2.5">
                                           <div className="flex-1 min-w-0">
                                             <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
-                                            <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                                            <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
                                           </div>
                                           <span className="text-sm tabular-nums font-mono text-foreground shrink-0 w-20 text-right">
                                             {formatCurrency(tx.amount)}
@@ -356,7 +356,7 @@ export default function ReportsPage() {
                             <div key={m.name} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                               <div className="flex items-center gap-3 min-w-0">
                                 <span className="flex items-center justify-center size-9 rounded-full bg-secondary text-xs font-semibold tabular-nums text-foreground shrink-0">{m.count}×</span>
-                                <span className="text-sm text-foreground wrap-break-word min-w-0">{m.name}</span>
+                                <span className="text-sm text-foreground break-words min-w-0">{m.name}</span>
                               </div>
                               <span className="text-sm font-medium tabular-nums text-foreground shrink-0 pl-2 font-mono">{formatCurrency(m.total)}</span>
                             </div>
@@ -379,7 +379,7 @@ export default function ReportsPage() {
                         {report.biggest.map((t) => (
                           <div key={t.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                             <div className="min-w-0 pr-2">
-                              <p className="text-sm text-foreground wrap-break-word">{cleanDescription(t.description)}</p>
+                              <p className="text-sm text-foreground break-words">{cleanDescription(t.description)}</p>
                               <p className="text-xs text-muted-foreground">{formatDate(t.date)} · {t.category}</p>
                             </div>
                             <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(t.amount)}</span>
@@ -416,7 +416,7 @@ export default function ReportsPage() {
                             <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-sm text-foreground wrap-break-word min-w-0">{p.name}</p>
+                                  <p className="text-sm text-foreground break-words min-w-0">{p.name}</p>
                                   <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
                                     {p.category}
                                   </span>
@@ -464,7 +464,7 @@ export default function ReportsPage() {
                                 className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-foreground wrap-break-word">{s.name}</p>
+                                  <p className="text-sm text-foreground break-words">{s.name}</p>
                                   <p className="text-xs text-muted-foreground">
                                     {s.months} month{s.months === 1 ? "" : "s"} · last {formatDate(s.lastDate)}
                                   </p>
@@ -486,7 +486,7 @@ export default function ReportsPage() {
                                     ) : subTxs.map((tx) => (
                                       <div key={tx.id} className="flex items-start gap-3 px-3 py-2.5">
                                         <div className="flex-1 min-w-0">
-                                          <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                                          <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
                                           <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                                         </div>
                                         <span className="text-sm tabular-nums font-mono text-foreground shrink-0 w-20 text-right">{formatCurrency(tx.amount)}</span>

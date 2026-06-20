@@ -10,7 +10,13 @@ export function parseRevolutDate(dateStr: string): string | null {
   // Try European format: DD/MM/YYYY or DD-MM-YYYY
   const euMatch = dateStr.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
   if (euMatch) {
-    return `${euMatch[3]}-${euMatch[2]}-${euMatch[1]}`;
+    const day = parseInt(euMatch[1]);
+    const month = parseInt(euMatch[2]);
+    const year = parseInt(euMatch[3]);
+    const d = new Date(year, month - 1, day);
+    if (d.getFullYear() === year && d.getMonth() + 1 === month && d.getDate() === day) {
+      return `${euMatch[3]}-${euMatch[2]}-${euMatch[1]}`;
+    }
   }
 
   // Try US format: MM/DD/YYYY
@@ -18,8 +24,12 @@ export function parseRevolutDate(dateStr: string): string | null {
   if (usMatch) {
     const month = parseInt(usMatch[1]);
     const day = parseInt(usMatch[2]);
+    const year = parseInt(usMatch[3]);
     if (month <= 12 && day <= 31) {
-      return `${usMatch[3]}-${usMatch[1]}-${usMatch[2]}`;
+      const d = new Date(year, month - 1, day);
+      if (d.getFullYear() === year && d.getMonth() + 1 === month && d.getDate() === day) {
+        return `${usMatch[3]}-${usMatch[1]}-${usMatch[2]}`;
+      }
     }
   }
 

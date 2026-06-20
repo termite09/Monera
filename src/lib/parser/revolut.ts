@@ -38,7 +38,8 @@ function parseCSVLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') {
-      inQuotes = !inQuotes;
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } // RFC 4180 escaped quote
+      else inQuotes = !inQuotes;
     } else if (char === "," && !inQuotes) {
       result.push(current.trim());
       current = "";
@@ -112,6 +113,7 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
       category: "Uncategorized",
       source: "revolut",
       categorySource: "auto",
+      excluded: false,
     });
   }
 

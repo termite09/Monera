@@ -94,9 +94,17 @@ async function ensureFile(
   return createFile(accessToken, name, parentId, defaultContent);
 }
 
-export async function readAppFile<T>(accessToken: string, fileId: string): Promise<T> {
+export async function readAppFile<T>(accessToken: string, fileId: string, fallback?: T): Promise<T> {
   const content = await readFile(accessToken, fileId);
-  return JSON.parse(content) as T;
+  try {
+    return JSON.parse(content) as T;
+  } catch {
+    if (fallback !== undefined) {
+      console.error(`readAppFile: malformed JSON in file ${fileId} — using fallback`);
+      return fallback;
+    }
+    throw new Error(`readAppFile: malformed JSON in file ${fileId}`);
+  }
 }
 
 export async function writeAppFile(

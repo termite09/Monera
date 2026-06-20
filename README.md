@@ -18,7 +18,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 |---|---|
 | **Your data, your Drive** | All data lives in a `Monera/` folder you own. The app uses the minimal `drive.file` scope — it can only see files it created. |
 | **Payday-aware budgets** | Periods run payday-to-payday (e.g. the 24th), not calendar months. Override income and the needs / wants / savings split per period. |
-| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export. Excel files are converted in the browser — nothing leaves your machine until it hits Drive. |
+| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. |
 | **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
 | **Powerful transaction list** | Multi-column sort (date, description, category, amount), category and type filters, custom date ranges, and full-text search — all persisted across navigation. Descriptions always wrap, never truncate. |
 | **Bulk editing** | Inline checkboxes let you multi-select transactions to exclude or re-categorize many at once. |
@@ -28,7 +28,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Guidance built in** | Every number carries a plain-English info tooltip, and a replayable guided tour explains each page on first visit. |
 | **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
-| **Instant & offline-ready** | Data is cached locally (TanStack Query) and revalidated in the background. Edits like re-categorizing a transaction apply optimistically. Installable PWA. |
+| **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits like re-categorizing a transaction apply immediately and roll back automatically on failure. Installable PWA. |
 
 ---
 
@@ -39,7 +39,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 | Framework | [Next.js 16](https://nextjs.org) (App Router) + React 19 |
 | Auth | [NextAuth v5](https://authjs.dev) — Google OAuth, JWT sessions |
 | Storage | Google Drive REST API (`drive.file` scope) |
-| Data layer | [TanStack Query v5](https://tanstack.com/query) — persisted, offline-friendly cache |
+| Data layer | [TanStack Query v5](https://tanstack.com/query) — in-memory cache with optimistic updates |
 | Styling | Tailwind CSS v4, shadcn/ui (Radix), Framer Motion |
 | Charts | Recharts |
 | Spreadsheets | SheetJS (lazy-loaded for `.xlsx` uploads) |
@@ -137,6 +137,7 @@ Monera/
 ## Privacy & Security
 
 - **No server-side storage.** Data never leaves your Google Drive. Monera has no backend database or analytics pipeline.
+- **No browser storage of financial data.** Transaction data is kept only in memory during the session — nothing is written to localStorage or IndexedDB.
 - **Minimal OAuth scope.** `drive.file` grants access only to the files Monera creates — it cannot read the rest of your Drive.
 - **HttpOnly session cookies.** Access tokens are stored in a server-side httpOnly cookie and are never exposed to JavaScript or logged.
 - **Zero third-party data sharing.** Authentication is handled entirely by Google. No personal data is sent to any third party.

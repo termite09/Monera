@@ -37,17 +37,19 @@ export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !amount || !date) return;
+    const parsedAmount = parseFloat(amount);
+    if (!description || isNaN(parsedAmount) || parsedAmount <= 0 || !date) return;
     setLoading(true);
     try {
       await onSubmit({
         date,
         description,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         type,
         currency: "EUR",
         category,
         notes: notes || undefined,
+        excluded: false,
       });
     } finally {
       setLoading(false);

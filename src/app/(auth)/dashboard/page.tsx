@@ -93,7 +93,6 @@ export default function DashboardPage() {
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const { summary, budgetAllocations, incomeIsDetected, salaryBasis, additionalIncome } = useBudget(allTxs, settings, month);
-  const uncategorizedExpense = roundMoney(summary.totalExpenses - summary.needs - summary.wants - summary.savings);
   const salaryKeywords = settings.salaryKeywords ?? [];
   const configuredIncome = settings.monthlyBudgets[month]?.income ?? 0;
 
@@ -108,6 +107,10 @@ export default function DashboardPage() {
       })
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [allTxs, month, paydayOfMonth]);
+
+  const uncategorizedExpense = roundMoney(
+    periodExpenseTxs.filter((t) => t.category === "Uncategorized").reduce((s, t) => s + t.amount, 0)
+  );
 
   const periodIncomeTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
@@ -335,7 +338,7 @@ export default function DashboardPage() {
               </SheetHeader>
               <div className="flex-1 overflow-y-auto min-h-0">
                 {salaryBasis > 0 && (
-                  <div className="flex items-center gap-3 py-3 border-b border-border mb-1">
+                  <div className="flex items-center gap-3 py-1.5 border-b border-border mb-0.5">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">
                         {configuredIncome > 0 ? "Planned income (this period)" : "Planned monthly income"}
@@ -348,17 +351,17 @@ export default function DashboardPage() {
                   </div>
                 )}
                 {periodIncomeTxs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No additional income transactions this period.</p>
+                  <p className="text-sm text-muted-foreground py-2 text-center">No additional income transactions this period.</p>
                 ) : (
                   <div className="divide-y divide-border">
                     {periodIncomeTxs.map((tx) => {
                       const isSalary = salaryKeywords.length > 0 &&
                         salaryKeywords.some((k) => tx.description.toLowerCase().includes(k.toLowerCase()));
                       return (
-                        <div key={tx.id} className="flex items-center gap-3 py-3">
+                        <div key={tx.id} className="flex items-center gap-3 py-1.5">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+                            <div className="flex items-center gap-1.5">
                               <span className="text-xs text-muted-foreground">{formatDate(tx.date)}</span>
                               {isSalary && (
                                 <span className="text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
@@ -376,13 +379,13 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
-              <div className="shrink-0 mt-4 pt-3 border-t border-border flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">Excluded transactions don&apos;t appear here.</p>
+              <div className="shrink-0 mt-1.5 pt-1.5 border-t border-border flex items-center gap-3">
+                <p className="text-xs text-muted-foreground flex-1">Excluded transactions don&apos;t appear here.</p>
                 <button
                   onClick={() => { closeSheet(); router.push("/transactions"); }}
-                  className="text-left text-xs text-primary hover:underline"
+                  className="text-xs text-primary hover:underline shrink-0"
                 >
-                  Manage transactions →
+                  Manage →
                 </button>
               </div>
             </>
@@ -390,10 +393,10 @@ export default function DashboardPage() {
 
           {sheet === "expenses" && (
             <>
-              <SheetHeader className="shrink-0 mb-1">
+              <SheetHeader className="shrink-0 mb-0.5">
                 <SheetTitle>Expenses this period</SheetTitle>
               </SheetHeader>
-              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-1 pb-2">
+              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-0.5 pb-1">
                 {[
                   { label: "Needs", amount: summary.needs, dot: "bg-blue-500", key: "Needs" as const },
                   { label: "Wants", amount: summary.wants, dot: "bg-amber-500", key: "Wants" as const },
@@ -407,7 +410,7 @@ export default function DashboardPage() {
                     <div key={cat.key}>
                       <button
                         onClick={() => setExpandedCat(isOpen ? null : cat.key)}
-                        className="flex items-center gap-3 px-3 py-3.5 rounded-xl hover:bg-secondary transition-colors text-left w-full"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors text-left w-full"
                       >
                         <span className={cn("size-2.5 rounded-full shrink-0", cat.dot)} />
                         <span className="flex-1 text-sm font-medium">{cat.label}</span>
@@ -415,15 +418,15 @@ export default function DashboardPage() {
                         <ChevronRight size={14} className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-90")} />
                       </button>
                       {isOpen && (
-                        <div className="mx-3 mb-2 rounded-xl border border-border overflow-hidden">
+                        <div className="mx-3 mb-1 rounded-xl border border-border overflow-hidden">
                           {catTxs.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-3 px-4">No transactions</p>
+                            <p className="text-sm text-muted-foreground py-2 px-4">No transactions</p>
                           ) : (
                             <div className="divide-y divide-border">
                               {catTxs.map((tx) => (
-                                <div key={tx.id} className="flex items-center gap-3 px-4 py-2.5">
+                                <div key={tx.id} className="flex items-center gap-3 px-4 py-2">
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                                    <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
                                     <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                                   </div>
                                   <span className="text-sm tabular-nums font-mono text-foreground shrink-0">
@@ -439,7 +442,7 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
-              <p className="shrink-0 text-xs text-muted-foreground pt-3 border-t border-border">
+              <p className="shrink-0 text-xs text-muted-foreground pt-2 border-t border-border">
                 Tap a category to expand its transactions. Savings are shown separately.
               </p>
             </>
@@ -447,19 +450,19 @@ export default function DashboardPage() {
 
           {sheet === "savings" && (
             <>
-              <SheetHeader className="shrink-0 mb-1">
+              <SheetHeader className="shrink-0 mb-0.5">
                 <SheetTitle>Savings this period</SheetTitle>
               </SheetHeader>
-              <p className="shrink-0 text-sm text-muted-foreground mb-4">
-                This total includes transactions categorised as Savings — savings account transfers, insurance premiums, or any recurring bill marked Savings. It&apos;s real money you set aside, not a target.
+              <p className="shrink-0 text-xs text-muted-foreground mb-2">
+                Transactions categorised as Savings — transfers, insurance, or any recurring bill marked Savings.
               </p>
               <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border">
                 {periodSavingsTxs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">No savings transactions this period.</p>
+                  <p className="text-sm text-muted-foreground py-3 text-center">No savings transactions this period.</p>
                 ) : periodSavingsTxs.map((tx) => (
-                  <div key={tx.id} className="flex items-center gap-3 py-3">
+                  <div key={tx.id} className="flex items-center gap-3 py-1.5">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                      <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                     </div>
                     <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono shrink-0">
@@ -470,7 +473,7 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={() => { closeSheet(); router.push("/settings"); }}
-                className="shrink-0 mt-4 pt-3 border-t border-border text-left text-xs text-primary hover:underline"
+                className="shrink-0 mt-1.5 pt-1.5 border-t border-border text-left text-xs text-primary hover:underline"
               >
                 Change your Savings budget in Settings →
               </button>
@@ -479,11 +482,11 @@ export default function DashboardPage() {
 
           {sheet === "remaining" && (
             <>
-              <SheetHeader className="shrink-0 mb-1">
+              <SheetHeader className="shrink-0 mb-0.5">
                 <SheetTitle>Remaining budget</SheetTitle>
               </SheetHeader>
-              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-4">
-                <div className="bg-secondary/50 rounded-xl px-4 py-4 flex flex-col gap-3 font-mono text-sm">
+              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2">
+                <div className="bg-secondary/50 rounded-xl px-3 py-3 flex flex-col gap-2 font-mono text-sm">
                   {salaryBasis > 0 && incomeIsDetected ? (
                     <>
                       <div className="flex items-center justify-between">
@@ -509,30 +512,32 @@ export default function DashboardPage() {
                     <span className="text-muted-foreground">Savings</span>
                     <span className="text-foreground">− {formatCurrency(summary.savings)}</span>
                   </div>
-                  <div className="border-t border-border pt-3 flex items-center justify-between font-semibold">
+                  <div className="border-t border-border pt-2 flex items-center justify-between font-semibold">
                     <span>Remaining</span>
                     <span className={summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
                       {formatCurrency(summary.remaining)}
                     </span>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Remaining = income minus all spending (Needs, Wants, Savings, and any Uncategorised transactions) for this period.{" "}
-                  {summary.remaining >= 0 ? "You're within budget." : "You've overspent this period."}
-                </p>
-                <button
-                  onClick={() => { closeSheet(); router.push("/transactions"); }}
-                  className="text-left text-xs text-primary hover:underline"
-                >
-                  Review all transactions →
-                </button>
+                <div className="flex items-start gap-3">
+                  <p className="text-xs text-muted-foreground flex-1">
+                    Income minus all spending (Needs, Wants, Savings, Uncategorised) for this period.{" "}
+                    {summary.remaining >= 0 ? "You're within budget." : "You've overspent this period."}
+                  </p>
+                  <button
+                    onClick={() => { closeSheet(); router.push("/transactions"); }}
+                    className="text-xs text-primary hover:underline shrink-0"
+                  >
+                    Review →
+                  </button>
+                </div>
               </div>
             </>
           )}
 
           {sheet === "weekday" && weekdayFilter && (
             <>
-              <SheetHeader className="shrink-0 mb-1">
+              <SheetHeader className="shrink-0 mb-0.5">
                 <SheetTitle>
                   {weekdayMode === "week" && weekdayFilter.dateStr && weekdayFilter.dateStr.length === 10
                     ? `${weekdayFilter.label} · ${formatDate(weekdayFilter.dateStr)}`
@@ -544,14 +549,14 @@ export default function DashboardPage() {
                     : `${weekdayFilter.label} spending`}
                 </SheetTitle>
               </SheetHeader>
-              <p className="shrink-0 text-xs text-muted-foreground mb-3">{chartDateRange}</p>
+              <p className="shrink-0 text-xs text-muted-foreground mb-1.5">{chartDateRange}</p>
               <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border">
                 {weekdayTxs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">No transactions for this selection.</p>
+                  <p className="text-sm text-muted-foreground py-3 text-center">No transactions for this selection.</p>
                 ) : weekdayTxs.map((tx) => (
-                  <div key={tx.id} className="flex items-center gap-3 py-2.5">
+                  <div key={tx.id} className="flex items-center gap-3 py-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                      <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                     </div>
                     <span className={cn(

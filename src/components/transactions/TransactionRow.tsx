@@ -7,8 +7,6 @@ import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
-  onCategoryChange: (id: string, category: Category) => void | Promise<void>;
-  onResetToDefault?: (id: string) => void | Promise<void>;
   onToggleExclude?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
   selectMode?: boolean;
@@ -17,9 +15,7 @@ interface TransactionRowProps {
   showCategory?: boolean;
 }
 
-const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
-
-const catText: Record<Category, string> = {
+const catText: Record<string, string> = {
   Needs: "text-blue-600 dark:text-blue-400",
   Wants: "text-amber-600 dark:text-amber-400",
   Savings: "text-emerald-600 dark:text-emerald-400",
@@ -44,8 +40,6 @@ function parseDateParts(dateStr: string): { dayMonth: string; year: string } {
 
 export function TransactionRow({
   transaction,
-  onCategoryChange,
-  onResetToDefault,
   onToggleExclude,
   onDelete,
   selectMode = false,
@@ -53,7 +47,6 @@ export function TransactionRow({
   onCheck,
   showCategory = true,
 }: TransactionRowProps) {
-  const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -83,49 +76,20 @@ export function TransactionRow({
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 pt-0.5">
         <span className={cn("flex items-start gap-1.5 text-sm text-foreground min-w-0", excluded && "line-through")}>
           {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.5" />}
-          <span className="min-w-0 wrap-break-word">{cleanDescription(tx.description)}</span>
+          <span className="min-w-0 break-words">{cleanDescription(tx.description)}</span>
         </span>
-        {tx.notes && <span className="text-xs text-muted-foreground wrap-break-word">{tx.notes}</span>}
+        {tx.notes && <span className="text-xs text-muted-foreground break-words">{tx.notes}</span>}
       </div>
 
       {/* Category — always rendered to keep column layout stable; hidden via
           visibility when showCategory is false so width is preserved. */}
       <div className={cn("shrink-0 w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
-        {!isIncome && (editing && !excluded && !selectMode ? (
-          <select
-            value={tx.category}
-            onChange={(e) => {
-              if (e.target.value === "__reset__") {
-                onResetToDefault?.(tx.id);
-              } else {
-                onCategoryChange(tx.id, e.target.value as Category);
-              }
-              setEditing(false);
-            }}
-            onBlur={() => setEditing(false)}
-            autoFocus
-            className="w-28 text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
-          >
-            {(tx.categorySource === "override" || tx.excluded) && onResetToDefault && (
-              <option value="__reset__">↺ Default</option>
-            )}
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        ) : !isIncome ? (
-          <button
-            onClick={selectMode ? undefined : () => !excluded && setEditing(true)}
-            disabled={excluded || selectMode}
-            className="text-right focus:outline-none disabled:cursor-default whitespace-nowrap"
-            aria-label={`Category: ${tx.category}`}
-          >
-            <span className={cn("text-xs font-medium", catText[tx.category])}>
-              <span className="sm:hidden">{catShort[tx.category]}</span>
-              <span className="hidden sm:inline">{tx.category}</span>
-            </span>
-          </button>
-        ) : null)}
+        {!isIncome && (
+          <span className={cn("text-xs font-medium whitespace-nowrap", catText[tx.category])}>
+            <span className="sm:hidden">{catShort[tx.category]}</span>
+            <span className="hidden sm:inline">{tx.category}</span>
+          </span>
+        )}
       </div>
 
       {/* Amount — hugs content (min floor for short amounts) so it sits tight

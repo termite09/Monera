@@ -25,6 +25,7 @@ function tx(partial: Partial<Transaction> & { amount: number; type: Transaction[
     category: "Wants",
     source: "revolut",
     categorySource: "auto",
+    excluded: false,
     ...partial,
   };
 }

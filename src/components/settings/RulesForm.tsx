@@ -266,7 +266,7 @@ export function RulesForm({ rules, updateRules }: {
           disabled={isSaving || !dirty}
           className={cn("flex-1", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
         >
-          {error ? "Save failed" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Rules"}
+          {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Rules"}
         </Button>
       </div>
     </div>

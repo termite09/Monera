@@ -48,6 +48,13 @@ export default function UploadPage() {
   const handleFile = useCallback(async (file: File) => {
     if (!accessToken || !structure) return;
 
+    const MAX_BYTES = 25 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      setStatus("error");
+      setMessage(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB) — maximum is 25 MB`);
+      return;
+    }
+
     setStatus("uploading");
     setMessage("Uploading...");
 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
-import { generateId, formatCurrency } from "@/lib/utils";
+import { generateId, formatCurrency, ordinal } from "@/lib/utils";
 import { Category, RecurringPayment } from "@/types";
 import { Trash2, Plus, Search, Pencil } from "lucide-react";
 
@@ -100,6 +100,7 @@ export function RecurringForm({ settings, updateSettings }: {
     const amt = parseFloat(amount);
     const d = parseInt(day);
     if (!name.trim() || !amt || amt <= 0 || !d || d < 1 || d > 31) return;
+    if (startMonth && endMonth && startMonth > endMonth) return;
     const next: RecurringPayment = {
       id: generateId(`rec-${name}-${Date.now()}`),
       name: name.trim(),
@@ -118,6 +119,12 @@ export function RecurringForm({ settings, updateSettings }: {
   const cancelEdit = () => { setEditingId(null); setEditDraft(null); };
   const saveEdit = () => {
     if (!editDraft) return;
+    if (
+      !editDraft.name.trim() ||
+      !editDraft.amount ||
+      editDraft.amount <= 0 ||
+      (editDraft.startMonth && editDraft.endMonth && editDraft.startMonth > editDraft.endMonth)
+    ) return;
     setItems((prev) => prev.map((i) => (i.id === editDraft.id ? editDraft : i)));
     setEditingId(null); setEditDraft(null);
   };
@@ -133,13 +140,6 @@ export function RecurringForm({ settings, updateSettings }: {
       setSaved(true); setTimeout(() => setSaved(false), 2000);
     } catch { setError(true); }
     finally { setIsSaving(false); }
-  };
-
-  const ordinal = (n: number) => {
-    if (n % 10 === 1 && n !== 11) return `${n}st`;
-    if (n % 10 === 2 && n !== 12) return `${n}nd`;
-    if (n % 10 === 3 && n !== 13) return `${n}rd`;
-    return `${n}th`;
   };
 
   return (
@@ -184,7 +184,7 @@ export function RecurringForm({ settings, updateSettings }: {
                           <Input value={draft.name} onChange={(e) => setEditDraft((d) => d && { ...d, name: e.target.value })} className="h-9" />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Amount (€)</Label>
+                          <Label className="text-xs">Amount ({settings.currency ?? "€"})</Label>
                           <Input type="number" value={String(draft.amount)} onChange={(e) => setEditDraft((d) => d && { ...d, amount: parseFloat(e.target.value) || 0 })} className="h-9" />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -223,7 +223,7 @@ export function RecurringForm({ settings, updateSettings }: {
                 return (
                   <div key={item.id} className="flex items-center gap-3 py-2.5 px-1">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground wrap-break-word">{item.name}</p>
+                      <p className="text-sm font-medium text-foreground break-words">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {ordinal(item.dayOfMonth)} · {item.category}
                         {rangeLabel && <span className="ml-1 text-muted-foreground/70">· {rangeLabel}</span>}
@@ -277,7 +277,7 @@ export function RecurringForm({ settings, updateSettings }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="r-amount">Amount (€)</Label>
+              <Label htmlFor="r-amount">Amount ({settings.currency ?? "€"})</Label>
               <Input id="r-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="45" className="h-11" />
             </div>
             <div className="flex flex-col gap-1.5">

@@ -41,6 +41,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   }, [month, settings]);
 
   const handleSave = async () => {
+    if (total !== 100) return;
     setIsSaving(true);
     setError(false);
     try {
@@ -131,13 +132,13 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
           </div>
           <p className="text-xs text-muted-foreground">Override the budget percentages for just this month. Other months still use your defaults.</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Total: <span className={total !== 100 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
-            {total !== 100 && <span className="ml-1">— should equal 100%</span>}
+            Total: <span className={total !== 100 ? "text-destructive font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
+            {total !== 100 && <span className="ml-1 text-destructive">— must equal 100%</span>}
           </p>
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+      <Button onClick={handleSave} disabled={isSaving || total !== 100} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
         {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : `Save for ${label}`}
       </Button>
     </div>

@@ -19,6 +19,7 @@ function makeTx(id: string, description: string, type: "expense" | "income" = "e
     category: "Uncategorized",
     source: "revolut",
     categorySource: "auto",
+    excluded: false,
   };
 }
 

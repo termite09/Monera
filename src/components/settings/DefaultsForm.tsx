@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAppData } from "@/contexts/AppDataContext";
+import { ordinal } from "@/lib/utils";
 
 export function DefaultsForm({ settings, updateSettings }: {
   settings: ReturnType<typeof useAppData>["settings"];
@@ -32,6 +33,7 @@ export function DefaultsForm({ settings, updateSettings }: {
   }, [settings]);
 
   const handleSave = async () => {
+    if (total !== 100) return;
     setIsSaving(true);
     setError(false);
     const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
@@ -56,8 +58,13 @@ export function DefaultsForm({ settings, updateSettings }: {
   };
 
   const paydayNum = parseInt(payday) || 1;
-  const ordSuffix = paydayNum === 1 ? "st" : paydayNum === 2 ? "nd" : paydayNum === 3 ? "rd" : "th";
   const total = (parseFloat(needs) || 0) + (parseFloat(wants) || 0) + (parseFloat(saving) || 0);
+  const dirty =
+    payday !== String(settings.paydayOfMonth ?? 1) ||
+    needs !== String(settings.defaultBudgetRule.needs) ||
+    wants !== String(settings.defaultBudgetRule.wants) ||
+    saving !== String(settings.defaultBudgetRule.savings) ||
+    defaultIncome !== (settings.defaultIncome ? String(settings.defaultIncome) : "");
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,7 +81,7 @@ export function DefaultsForm({ settings, updateSettings }: {
           <Label htmlFor="payday">Payday (day of month)</Label>
           <Input id="payday" type="number" min={1} max={28} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11" />
           <p className="text-xs text-muted-foreground">
-            Period starts on the {paydayNum}{ordSuffix}. Capped at 28 for shorter months.
+            Period starts on the {ordinal(paydayNum)}. Capped at 28 for shorter months.
           </p>
         </CardContent>
       </Card>
@@ -124,13 +131,13 @@ export function DefaultsForm({ settings, updateSettings }: {
             These percentages set your spending targets. Needs covers essentials, Wants covers lifestyle, Savings covers the future.
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Total: <span className={total !== 100 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
-            {total !== 100 && <span className="ml-1">— should equal 100%</span>}
+            Total: <span className={total !== 100 ? "text-destructive font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
+            {total !== 100 && <span className="ml-1 text-destructive">— must equal 100%</span>}
           </p>
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
         {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Defaults"}
       </Button>
     </div>

@@ -7,8 +7,12 @@ export interface TransferKeywords {
   savingsVaultKeywords?: string[];
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function matchesAny(desc: string, keywords: string[]): boolean {
-  return keywords.some((k) => desc.includes(k));
+  return keywords.some((k) => new RegExp(`\\b${escapeRegex(k)}\\b`, "i").test(desc));
 }
 
 /**
@@ -25,12 +29,12 @@ export function filterInternalTransfers(
   transactions: Transaction[],
   { selfTransferKeywords = [], savingsVaultKeywords = [] }: TransferKeywords
 ): Transaction[] {
-  const self = selfTransferKeywords.map((k) => k.trim().toLowerCase()).filter(Boolean);
-  const vault = savingsVaultKeywords.map((k) => k.trim().toLowerCase()).filter(Boolean);
+  const self = selfTransferKeywords.map((k) => k.trim()).filter(Boolean);
+  const vault = savingsVaultKeywords.map((k) => k.trim()).filter(Boolean);
   if (self.length === 0 && vault.length === 0) return transactions;
 
   return transactions.filter((tx) => {
-    const desc = tx.description.toLowerCase();
+    const desc = tx.description;
     if (self.length && matchesAny(desc, self)) return false;
     if (vault.length && tx.type === "income" && matchesAny(desc, vault)) return false;
     return true;

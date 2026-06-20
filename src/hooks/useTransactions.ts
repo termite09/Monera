@@ -34,9 +34,9 @@ function cacheKey(f: { id: string; size?: string }): string {
 // set. Throws on failure so the query surfaces the error (incl. DriveAuthError).
 async function loadTxData(accessToken: string, structure: DriveStructure): Promise<TxData> {
   const [manualTxs, ov, ex] = await Promise.all([
-    readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions),
-    readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
-    readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
+    readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions, []),
+    readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides, {}),
+    readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions, []),
   ]);
 
   const csvFiles = await listFiles(
@@ -80,7 +80,7 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
   const merged = { ...cache, ...cacheUpdates };
   const pruned = Object.entries(merged).filter(([k]) => liveKeys.has(k));
   const prunedCache = Object.fromEntries(
-    pruned.length > MAX_CACHE_ENTRIES ? pruned.slice(-MAX_CACHE_ENTRIES) : pruned
+    pruned.length > MAX_CACHE_ENTRIES ? pruned.slice(0, MAX_CACHE_ENTRIES) : pruned
   );
   const cacheChanged = missResults.length > 0 || Object.keys(merged).some((k) => !liveKeys.has(k));
   if (cacheChanged) {
@@ -164,10 +164,26 @@ export function useTransactions(
   const deleteManualTransaction = useCallback(
     async (txId: string) => {
       if (!accessToken || !structure) return;
-      const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
-      const updated = existing.filter((t) => t.id !== txId);
-      await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
-      patch((d) => ({ ...d, rawTxs: d.rawTxs.filter((t) => t.id !== txId) }));
+      const [existing, overrides, excludedIds] = await Promise.all([
+        readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions),
+        readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
+        readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
+      ]);
+      const { [txId]: _removed, ...cleanedOverrides } = overrides;
+      await Promise.all([
+        writeAppFile(accessToken, structure.fileIds.manualTransactions, existing.filter((t) => t.id !== txId)),
+        writeAppFile(accessToken, structure.fileIds.categoryOverrides, cleanedOverrides),
+        writeAppFile(accessToken, structure.fileIds.excludedTransactions, excludedIds.filter((id) => id !== txId)),
+      ]);
+      patch((d) => {
+        const { [txId]: _ov, ...nextOverrides } = d.overrides;
+        return {
+          ...d,
+          rawTxs: d.rawTxs.filter((t) => t.id !== txId),
+          overrides: nextOverrides,
+          excludedIds: d.excludedIds.filter((id) => id !== txId),
+        };
+      });
     },
     [accessToken, structure, patch]
   );

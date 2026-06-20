@@ -12,6 +12,7 @@ function tx(partial: Partial<Transaction> & { amount: number; type: Transaction[
     category: "Wants",
     source: "revolut",
     categorySource: "auto",
+    excluded: false,
     ...partial,
   };
 }
@@ -55,8 +56,8 @@ describe("monthlyCategoryTotals", () => {
 
   it("monthlyCategoryTotals nets refunds the same way getPeriodSpend does", () => {
     const txs: Transaction[] = [
-      { id: "1", date: "2024-03-15", description: "Shop", amount: 100, type: "expense", currency: "EUR", category: "Wants", source: "revolut", categorySource: "auto" },
-      { id: "2", date: "2024-03-16", description: "Refund", amount: 30, type: "income", currency: "EUR", category: "Wants", source: "revolut", categorySource: "auto" },
+      { id: "1", date: "2024-03-15", description: "Shop", amount: 100, type: "expense", currency: "EUR", category: "Wants", source: "revolut", categorySource: "auto", excluded: false },
+      { id: "2", date: "2024-03-16", description: "Refund", amount: 30, type: "income", currency: "EUR", category: "Wants", source: "revolut", categorySource: "auto", excluded: false },
     ];
     const totals = monthlyCategoryTotals(txs, 2024, 1);
     expect(totals[2].wants).toBe(70); // index 2 = March; net = max(0, 100 - 30)

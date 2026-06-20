@@ -3,9 +3,7 @@
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { ReactNode, useState } from "react";
-import { QueryClient } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface ProvidersProps {
@@ -19,8 +17,8 @@ export function Providers({ children, session }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // treat data as fresh for 5 min before a background refetch
-            gcTime: 24 * 60 * 60 * 1000, // keep (and persist) cached data for a day
+            staleTime: 5 * 60 * 1000,
+            gcTime: 10 * 60 * 1000,
             retry: 1,
             refetchOnWindowFocus: false,
           },
@@ -28,28 +26,15 @@ export function Providers({ children, session }: ProvidersProps) {
       })
   );
 
-  // Persist the query cache to localStorage so reloads hydrate instantly, then
-  // revalidate in the background. Storage is undefined during SSR (a noop
-  // persister), so the provider tree is identical on server and client.
-  const [persister] = useState(() =>
-    createSyncStoragePersister({
-      storage: typeof window !== "undefined" ? window.localStorage : undefined,
-      key: "monera-query-cache",
-    })
-  );
-
   // Refetch the NextAuth session every 4 minutes (and on focus) so the access
   // token stays fresh — the server refreshes it before it expires.
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister, maxAge: 24 * 60 * 60 * 1000, buster: "v1" }}
-    >
+    <QueryClientProvider client={queryClient}>
       <SessionProvider session={session} refetchInterval={4 * 60} refetchOnWindowFocus>
         <TooltipProvider delayDuration={300}>
           {children}
         </TooltipProvider>
       </SessionProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 }

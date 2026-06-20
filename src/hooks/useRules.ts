@@ -33,10 +33,16 @@ export function useRules(
   const updateRules = useCallback(
     async (next: CategoryRule[]) => {
       if (!accessToken || !fileId) return;
-      await writeAppFile(accessToken, fileId, next);
-      qc.setQueryData(["rules", fileId], next);
+      const prev = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, next);
+      try {
+        await writeAppFile(accessToken, fileId, next);
+      } catch (err) {
+        qc.setQueryData(queryKey, prev);
+        throw err;
+      }
     },
-    [accessToken, fileId, qc]
+    [accessToken, fileId, qc, queryKey]
   );
 
   return { rules: query.data ?? DEFAULT_CATEGORY_RULES, updateRules };

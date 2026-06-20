@@ -26,10 +26,16 @@ export function useSettings(
   const updateSettings = useCallback(
     async (newSettings: Settings) => {
       if (!accessToken || !fileId) return;
-      await writeAppFile(accessToken, fileId, newSettings);
-      qc.setQueryData(["settings", fileId], newSettings);
+      const prev = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, newSettings);
+      try {
+        await writeAppFile(accessToken, fileId, newSettings);
+      } catch (err) {
+        qc.setQueryData(queryKey, prev);
+        throw err;
+      }
     },
-    [accessToken, fileId, qc]
+    [accessToken, fileId, qc, queryKey]
   );
 
   return {

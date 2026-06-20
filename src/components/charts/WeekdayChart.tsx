@@ -195,9 +195,9 @@ export function WeekdayChart({
             onDayClick(p.day, p.dateStr);
           } : undefined}
         >
-          {data.map((entry, i) => (
+          {data.map((entry) => (
             <Cell
-              key={i}
+              key={entry.day}
               fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
             />
           ))}
