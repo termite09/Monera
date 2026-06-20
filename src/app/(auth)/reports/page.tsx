@@ -65,6 +65,11 @@ export default function ReportsPage() {
   const [showAllFor, setShowAllFor] = useState<Set<string>>(new Set());
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
+  const prevMonthKey = (() => {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })();
 
   // Include recurring bills for BOTH the current and the previous period, so
   // buildReport's "vs last period" comparison sees the previous period's
@@ -190,9 +195,21 @@ export default function ReportsPage() {
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                       <CardHeader className="pb-2 pt-4 px-4">
                         <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">vs Last Period</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-0.5">How this period compares to the one before — category by category.</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {fmtPeriodKey(prevMonthKey)} compared to {fmtPeriodKey(month)} — by category.
+                        </p>
                       </CardHeader>
                       <CardContent className="px-4 pb-4 flex flex-col gap-0">
+                        {/* Column labels */}
+                        <div className="flex items-center justify-between pb-1.5 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                          <span />
+                          <div className="flex items-center gap-2">
+                            <span>Last</span>
+                            <span className="opacity-0 pointer-events-none"><ArrowRight size={12} /></span>
+                            <span>This period</span>
+                            <span className="ml-1 min-w-14 text-right">Change</span>
+                          </div>
+                        </div>
                         {/* Total row */}
                         {(() => {
                           const diff = report.totalSpent - report.prevTotal;
@@ -204,7 +221,7 @@ export default function ReportsPage() {
                                 <span className="text-muted-foreground">{formatCurrency(report.prevTotal)}</span>
                                 <ArrowRight size={12} className="text-muted-foreground/50 shrink-0" />
                                 <span className="font-semibold text-foreground">{formatCurrency(report.totalSpent)}</span>
-                                <span className={cn("text-xs font-medium ml-1", better ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                                <span className={cn("text-xs font-medium ml-1 min-w-14 text-right", better ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
                                   {better ? "↓" : "↑"}{formatCurrency(Math.abs(diff))}
                                 </span>
                               </div>
@@ -228,11 +245,9 @@ export default function ReportsPage() {
                                 <span className="text-muted-foreground">{formatCurrency(prev)}</span>
                                 <ArrowRight size={12} className="text-muted-foreground/50 shrink-0" />
                                 <span className="text-foreground">{formatCurrency(curr)}</span>
-                                {diff !== 0 && (
-                                  <span className={cn("text-xs font-medium ml-1", better ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
-                                    {better ? "↓" : "↑"}{formatCurrency(Math.abs(diff))}
-                                  </span>
-                                )}
+                                <span className={cn("text-xs font-medium ml-1 min-w-14 text-right", diff === 0 ? "invisible" : better ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                                  {diff !== 0 && (better ? "↓" : "↑")}{diff !== 0 ? formatCurrency(Math.abs(diff)) : ""}
+                                </span>
                               </div>
                             </div>
                           );

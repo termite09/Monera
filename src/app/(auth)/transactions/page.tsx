@@ -224,6 +224,14 @@ export default function TransactionsPage() {
     if (ids.length > 0) await bulkUpdateCategory(ids.map((txId) => ({ txId, category })));
   };
 
+  const handleBulkRevert = async () => {
+    const ids = [...selected].filter((id) => transactions.find((t) => t.id === id)?.categorySource === "override");
+    exitSelect();
+    await Promise.all(ids.map((id) => revertCategory(id)));
+  };
+
+  const hasRevertable = selectedTxs.some((t) => t.categorySource === "override");
+
   // Category change with auto-apply to similar transactions + rule creation
   const handleCategoryChange = async (txId: string, newCategory: Category) => {
     const tx = transactions.find((t) => t.id === txId);
@@ -532,6 +540,11 @@ export default function TransactionsPage() {
             {selectedTxs.some((t) => t.type !== "income") && (
               <Button size="sm" onClick={() => setSelectCatSheet(true)}>
                 Category
+              </Button>
+            )}
+            {hasRevertable && (
+              <Button variant="outline" size="sm" onClick={handleBulkRevert}>
+                Revert
               </Button>
             )}
             <button
