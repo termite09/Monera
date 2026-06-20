@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { WeekdayChartMode } from "@/components/charts/WeekdayChart";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCw, ChevronRight } from "lucide-react";
+import { AlertCircle, RefreshCw, ChevronRight, ChevronLeft } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { SummaryCard } from "@/components/budget/SummaryCard";
@@ -23,7 +23,9 @@ import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
-import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatDate, roundMoney, cleanDescription, cn } from "@/lib/utils";
+import { getChartDateRange } from "@/components/charts/WeekdayChart";
+import { WEEKDAY_LABELS } from "@/config/constants";
 
 const DASHBOARD_SLIDES = [
   {
@@ -32,15 +34,15 @@ const DASHBOARD_SLIDES = [
   },
   {
     title: "Budget circles",
-    body: "Each circle shows how much of your budget you've used for Needs, Wants, and Savings. The targets are based on your income and the percentages you set in Settings → Setup.",
+    body: "Each circle shows how much of your budget you've used for Needs, Wants, and Savings. Tap a circle to drill into the transactions behind it.",
   },
   {
     title: "Spending by weekday",
-    body: "The chart shows which days you spend most. Switch between Week, This Month, and Period to compare different time ranges.",
+    body: "The chart shows which days you spend most. Switch between Week, Month, Period, and Year to compare different time ranges. Tap a bar to see that day's transactions.",
   },
 ];
 
-type SheetKind = "income" | "expenses" | "savings" | "remaining";
+type SheetKind = "income" | "expenses" | "savings" | "remaining" | "weekday";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -49,7 +51,32 @@ export default function DashboardPage() {
   const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("week");
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
+  const [weekdayFilter, setWeekdayFilter] = useState<{ label: string; dateStr: string | null } | null>(null);
+  // The "Month" tab gets its own month selector, independent of the header period.
+  const [chartMonth, setChartMonth] = useState<string>(month);
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
+
+  // In Month mode the chart follows its own picker; every other mode follows the
+  // dashboard's selected period.
+  const chartKey = weekdayMode === "month" ? chartMonth : month;
+
+  // Pure-derived from the chart mode/period — no state or effect needed.
+  const chartDateRange = getChartDateRange(weekdayMode, chartKey, paydayOfMonth);
+
+  const stepChartMonth = useCallback((delta: number) => {
+    setChartMonth((prev) => {
+      const [y, m] = prev.split("-").map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    });
+  }, []);
+
+  const selectWeekdayMode = useCallback((m: WeekdayChartMode) => {
+    // Re-seed the Month picker to the current period each time the tab is chosen,
+    // so it always opens on a sensible month.
+    if (m === "month") setChartMonth(month);
+    setWeekdayMode(m);
+  }, [month]);
 
   const [wasNewAtLoad, setWasNewAtLoad] = useState<boolean | null>(null);
   useEffect(() => {
@@ -100,6 +127,65 @@ export default function DashboardPage() {
     }).sort((a, b) => b.date.localeCompare(a.date));
   }, [allTxs, month, paydayOfMonth]);
 
+  const handleDayClick = useCallback((label: string, dateStr: string | null) => {
+    setWeekdayFilter({ label, dateStr });
+    setSheet("weekday");
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    setSheet(null);
+    setExpandedCat(null);
+    setWeekdayFilter(null);
+  }, []);
+
+  // Weekday drill-down transactions. Every branch is bounded to the same date
+  // range the tapped bar represents, so the sheet's contents always reconcile
+  // with the bar — never the user's entire history.
+  const weekdayTxs = useMemo(() => {
+    if (!weekdayFilter) return [];
+    const { label, dateStr } = weekdayFilter;
+
+    // Week mode: one exact calendar date.
+    if (weekdayMode === "week" && dateStr && dateStr.length === 10) {
+      return allTxs
+        .filter((t) => !t.excluded && t.date === dateStr)
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    // Year mode: a full payday period (dateStr is its monthKey, e.g. "2025-06").
+    if (weekdayMode === "year" && dateStr) {
+      const { start, end } = getPeriodBounds(dateStr, paydayOfMonth);
+      return allTxs
+        .filter((t) => {
+          if (t.excluded || t.type !== "expense") return false;
+          const d = new Date(t.date + "T00:00:00");
+          return d >= start && d <= end;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    // Period / month: a single weekday within the visible range only.
+    const dayIdx = WEEKDAY_LABELS.indexOf(label);
+    if (dayIdx === -1) return [];
+    let start: Date, end: Date;
+    if (weekdayMode === "month") {
+      const [y, m] = chartMonth.split("-").map(Number);
+      start = new Date(y, m - 1, 1);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(y, m, 0);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      ({ start, end } = getPeriodBounds(month, paydayOfMonth));
+    }
+    return allTxs
+      .filter((t) => {
+        if (t.excluded) return false;
+        const d = new Date(t.date + "T00:00:00");
+        if (d < start || d > end) return false;
+        return (d.getDay() + 6) % 7 === dayIdx;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [weekdayFilter, weekdayMode, allTxs, month, chartMonth, paydayOfMonth]);
 
   const summaryCards = [
     { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", info: "Your total income this period — planned salary plus any income transactions received.", onClick: () => setSheet("income") },
@@ -151,25 +237,50 @@ export default function DashboardPage() {
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Budget Progress
             </CardTitle>
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Tap a circle to see the transactions behind it.</p>
           </CardHeader>
           <CardContent className="px-4 pb-5">
             <div className="grid grid-cols-3 gap-3">
-              <BudgetDonut label="Needs" spent={summary.needs} allocated={budgetAllocations.needs} color="#1C3557" labelClass="text-primary" info="Essential expenses — rent, groceries, utilities, transport. Aim to stay under your Needs budget." />
-              <BudgetDonut label="Wants" spent={summary.wants} allocated={budgetAllocations.wants} color="#d97706" labelClass="text-amber-600 dark:text-amber-400" info="Discretionary spending — dining, entertainment, shopping. Your Wants budget is your spending allowance." />
-              <BudgetDonut label="Savings" spent={summary.savings} allocated={budgetAllocations.savings} color="#10b981" labelClass="text-emerald-600 dark:text-emerald-400" info="Money set aside for the future — savings transfers, insurance, or any bill marked as Savings." />
+              <BudgetDonut
+                label="Needs"
+                spent={summary.needs}
+                allocated={budgetAllocations.needs}
+                color="#1C3557"
+                labelClass="text-primary"
+                info="Essential expenses — rent, groceries, utilities, transport. Aim to stay under your Needs budget."
+                onClick={() => { setSheet("expenses"); setExpandedCat("Needs"); }}
+              />
+              <BudgetDonut
+                label="Wants"
+                spent={summary.wants}
+                allocated={budgetAllocations.wants}
+                color="#d97706"
+                labelClass="text-amber-600 dark:text-amber-400"
+                info="Discretionary spending — dining, entertainment, shopping. Your Wants budget is your spending allowance."
+                onClick={() => { setSheet("expenses"); setExpandedCat("Wants"); }}
+              />
+              <BudgetDonut
+                label="Savings"
+                spent={summary.savings}
+                allocated={budgetAllocations.savings}
+                color="#10b981"
+                labelClass="text-emerald-600 dark:text-emerald-400"
+                info="Money set aside for the future — savings transfers, insurance, or any bill marked as Savings."
+                onClick={() => setSheet("savings")}
+              />
             </div>
           </CardContent>
         </Card>
 
         {/* Weekday spending chart */}
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
+          <CardHeader className="pb-1 pt-4 px-4 flex-row items-center justify-between">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Spending by Day</CardTitle>
             <div className="flex gap-0.5 p-0.5 rounded-md bg-secondary">
-              {(["week", "month", "period"] as const).map((m) => (
+              {(["week", "month", "period", "year"] as const).map((m) => (
                 <button
                   key={m}
-                  onClick={() => setWeekdayMode(m)}
+                  onClick={() => selectWeekdayMode(m)}
                   className={cn(
                     "px-2.5 py-1 rounded text-[11px] font-medium transition-colors capitalize",
                     weekdayMode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -180,19 +291,46 @@ export default function DashboardPage() {
               ))}
             </div>
           </CardHeader>
+          {weekdayMode === "month" ? (
+            <div className="px-4 pb-1 flex items-center gap-1">
+              <button
+                onClick={() => stepChartMonth(-1)}
+                className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                aria-label="Previous month"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <span className="text-[11px] font-medium text-foreground tabular-nums w-28 text-center">{chartDateRange}</span>
+              <button
+                onClick={() => stepChartMonth(1)}
+                className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                aria-label="Next month"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          ) : chartDateRange ? (
+            <p className="px-4 text-[11px] text-muted-foreground pb-1">{chartDateRange}</p>
+          ) : null}
           <CardContent className="px-4 pb-4">
-            <WeekdayChart transactions={allTxs} monthKey={month} paydayOfMonth={paydayOfMonth} mode={weekdayMode} />
+            <WeekdayChart
+              transactions={allTxs}
+              monthKey={chartKey}
+              paydayOfMonth={paydayOfMonth}
+              mode={weekdayMode}
+              onDayClick={handleDayClick}
+            />
           </CardContent>
         </Card>
 
       </div>
 
       {/* Drill-down sheet */}
-      <Sheet open={sheet !== null} onOpenChange={() => { setSheet(null); setExpandedCat(null); }}>
-        <SheetContent side="bottom" className="max-h-[85vh] flex flex-col overflow-hidden">
+      <Sheet open={sheet !== null} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="max-h-[60vh] flex flex-col overflow-hidden pt-3 pb-4 px-4">
           {sheet === "income" && (
             <>
-              <SheetHeader className="shrink-0 mb-4">
+              <SheetHeader className="shrink-0 mb-1">
                 <SheetTitle>Income this period</SheetTitle>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto min-h-0">
@@ -219,9 +357,9 @@ export default function DashboardPage() {
                       return (
                         <div key={tx.id} className="flex items-center gap-3 py-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm text-foreground truncate">{tx.description}</p>
+                            <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-xs text-muted-foreground">{formatShortDate(tx.date)}</span>
+                              <span className="text-xs text-muted-foreground">{formatDate(tx.date)}</span>
                               {isSalary && (
                                 <span className="text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
                                   Salary
@@ -238,15 +376,21 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
-              <p className="shrink-0 text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
-                Excluded transactions don't appear here. To remove a transfer from income, exclude it in the Transactions page.
-              </p>
+              <div className="shrink-0 mt-4 pt-3 border-t border-border flex flex-col gap-2">
+                <p className="text-xs text-muted-foreground">Excluded transactions don&apos;t appear here.</p>
+                <button
+                  onClick={() => { closeSheet(); router.push("/transactions"); }}
+                  className="text-left text-xs text-primary hover:underline"
+                >
+                  Manage transactions →
+                </button>
+              </div>
             </>
           )}
 
           {sheet === "expenses" && (
             <>
-              <SheetHeader className="shrink-0 mb-4">
+              <SheetHeader className="shrink-0 mb-1">
                 <SheetTitle>Expenses this period</SheetTitle>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-1 pb-2">
@@ -279,8 +423,8 @@ export default function DashboardPage() {
                               {catTxs.map((tx) => (
                                 <div key={tx.id} className="flex items-center gap-3 px-4 py-2.5">
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-foreground truncate">{tx.description}</p>
-                                    <p className="text-xs text-muted-foreground">{formatShortDate(tx.date)}</p>
+                                    <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                                    <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                                   </div>
                                   <span className="text-sm tabular-nums font-mono text-foreground shrink-0">
                                     {formatCurrency(tx.amount)}
@@ -303,11 +447,11 @@ export default function DashboardPage() {
 
           {sheet === "savings" && (
             <>
-              <SheetHeader className="shrink-0 mb-4">
+              <SheetHeader className="shrink-0 mb-1">
                 <SheetTitle>Savings this period</SheetTitle>
               </SheetHeader>
               <p className="shrink-0 text-sm text-muted-foreground mb-4">
-                This total includes transactions categorised as Savings — savings account transfers, insurance premiums, or any recurring bill marked Savings. It's real money you set aside, not a target.
+                This total includes transactions categorised as Savings — savings account transfers, insurance premiums, or any recurring bill marked Savings. It&apos;s real money you set aside, not a target.
               </p>
               <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border">
                 {periodSavingsTxs.length === 0 ? (
@@ -315,8 +459,8 @@ export default function DashboardPage() {
                 ) : periodSavingsTxs.map((tx) => (
                   <div key={tx.id} className="flex items-center gap-3 py-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground truncate">{tx.description}</p>
-                      <p className="text-xs text-muted-foreground">{formatShortDate(tx.date)}</p>
+                      <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                     </div>
                     <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono shrink-0">
                       {formatCurrency(tx.amount)}
@@ -325,7 +469,7 @@ export default function DashboardPage() {
                 ))}
               </div>
               <button
-                onClick={() => { setSheet(null); router.push("/settings"); }}
+                onClick={() => { closeSheet(); router.push("/settings"); }}
                 className="shrink-0 mt-4 pt-3 border-t border-border text-left text-xs text-primary hover:underline"
               >
                 Change your Savings budget in Settings →
@@ -335,7 +479,7 @@ export default function DashboardPage() {
 
           {sheet === "remaining" && (
             <>
-              <SheetHeader className="shrink-0 mb-4">
+              <SheetHeader className="shrink-0 mb-1">
                 <SheetTitle>Remaining budget</SheetTitle>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-4">
@@ -376,6 +520,48 @@ export default function DashboardPage() {
                   Remaining = income minus all spending (Needs, Wants, Savings, and any Uncategorised transactions) for this period.{" "}
                   {summary.remaining >= 0 ? "You're within budget." : "You've overspent this period."}
                 </p>
+                <button
+                  onClick={() => { closeSheet(); router.push("/transactions"); }}
+                  className="text-left text-xs text-primary hover:underline"
+                >
+                  Review all transactions →
+                </button>
+              </div>
+            </>
+          )}
+
+          {sheet === "weekday" && weekdayFilter && (
+            <>
+              <SheetHeader className="shrink-0 mb-1">
+                <SheetTitle>
+                  {weekdayMode === "week" && weekdayFilter.dateStr && weekdayFilter.dateStr.length === 10
+                    ? `${weekdayFilter.label} · ${formatDate(weekdayFilter.dateStr)}`
+                    : weekdayMode === "year" && weekdayFilter.dateStr
+                    ? (() => {
+                        const [y, m] = weekdayFilter.dateStr.split("-").map(Number);
+                        return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+                      })()
+                    : `${weekdayFilter.label} spending`}
+                </SheetTitle>
+              </SheetHeader>
+              <p className="shrink-0 text-xs text-muted-foreground mb-3">{chartDateRange}</p>
+              <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-border">
+                {weekdayTxs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">No transactions for this selection.</p>
+                ) : weekdayTxs.map((tx) => (
+                  <div key={tx.id} className="flex items-center gap-3 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
+                    </div>
+                    <span className={cn(
+                      "text-sm tabular-nums font-mono shrink-0",
+                      tx.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                    )}>
+                      {tx.type === "income" ? "+" : "−"}{formatCurrency(tx.amount)}
+                    </span>
+                  </div>
+                ))}
               </div>
             </>
           )}

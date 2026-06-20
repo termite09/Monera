@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Repeat, EyeOff, RotateCcw, Loader2, Trash2 } from "lucide-react";
 import { Transaction, Category } from "@/types";
-import { formatCurrency } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -56,7 +55,6 @@ export function TransactionRow({
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   const tx = transaction;
   const isIncome = tx.type === "income";
@@ -69,9 +67,9 @@ export function TransactionRow({
       className={cn(
         "flex w-full items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : selectMode ? "cursor-pointer hover:bg-secondary/30" : "hover:bg-secondary/50",
-        selectMode && checked && "bg-primary/5"
+        checked && "bg-primary/5"
       )}
-      onClick={selectMode ? () => onCheck?.(tx.id) : undefined}
+      onClick={selectMode && !excluded ? () => onCheck?.(tx.id) : undefined}
     >
       {/* Date — day+month on top, year below in muted smaller text */}
       <div className="shrink-0 w-14 pt-0.5 flex flex-col leading-tight">
@@ -79,21 +77,18 @@ export function TransactionRow({
         <span className="text-[10px] text-muted-foreground/50 tabular-nums font-mono">{year}</span>
       </div>
 
-      {/* Description + optional notes — tap to expand full text */}
-      <div
-        className={cn("flex-1 min-w-0 flex flex-col gap-0.5 pt-0.5", !selectMode && "cursor-pointer")}
-        onClick={!selectMode ? (e) => { e.stopPropagation(); setExpanded((p) => !p); } : undefined}
-      >
+      {/* Description + optional notes */}
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5 pt-0.5">
         <span className={cn("flex items-start gap-1.5 text-sm text-foreground min-w-0", excluded && "line-through")}>
           {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.5" />}
-          <span className={cn("min-w-0", expanded ? "wrap-break-word" : "truncate")}>{tx.description}</span>
+          <span className="min-w-0 wrap-break-word">{cleanDescription(tx.description)}</span>
         </span>
-        {tx.notes && <span className="text-xs text-muted-foreground truncate">{tx.notes}</span>}
+        {tx.notes && <span className="text-xs text-muted-foreground wrap-break-word">{tx.notes}</span>}
       </div>
 
-      {/* Category — content-width so it hugs the label and sits right before the
-          Amount column, leaving the rest of the row to the description. */}
-      {showCategory && <div className="shrink-0 pt-0.5 flex justify-end">
+      {/* Category — always rendered to keep column layout stable; hidden via
+          visibility when showCategory is false so width is preserved. */}
+      <div className={cn("shrink-0 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (editing && !excluded && !selectMode ? (
           <select
             value={tx.category}
@@ -122,7 +117,7 @@ export function TransactionRow({
             </span>
           </button>
         ) : null)}
-      </div>}
+      </div>
 
       {/* Amount — hugs content (min floor for short amounts) so it sits tight
           against the category instead of reserving a wide fixed column. */}
@@ -135,12 +130,15 @@ export function TransactionRow({
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
 
-      {/* Right action: checkbox (select mode), eye button, or delete */}
-      {selectMode ? (
-        <div className="shrink-0 w-6 flex items-center justify-center">
+      {/* Right action: checkbox when selection is available, otherwise eye/delete */}
+      {onCheck ? (
+        <div
+          className="shrink-0 w-6 flex items-center justify-center"
+          onClick={(e) => { e.stopPropagation(); onCheck(tx.id); }}
+        >
           <div className={cn(
             "size-4 rounded-full border-2 flex items-center justify-center transition-colors",
-            checked ? "border-primary bg-primary" : "border-input"
+            checked ? "border-primary bg-primary" : selectMode ? "border-input" : "border-input/30 hover:border-input"
           )}>
             {checked && <div className="size-2 rounded-full bg-white" />}
           </div>

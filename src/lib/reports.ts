@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds } from "@/lib/utils";
+import { getPeriodBounds, cleanDescription } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 export interface MonthlyTotals {
@@ -70,7 +70,7 @@ function merchantKey(description: string): string {
 }
 
 function displayName(description: string): string {
-  return description.replace(/\s+/g, " ").trim();
+  return cleanDescription(description);
 }
 
 function periodExpenses(
@@ -112,22 +112,24 @@ function median(values: number[]): number {
  * history, independent of the selected period.
  */
 export function detectSubscriptions(transactions: Transaction[]): Subscription[] {
-  const groups = new Map<string, { name: string; amounts: number[]; months: Set<string>; lastDate: string }>();
+  const groups = new Map<string, { name: string; amounts: number[]; months: Set<string>; dates: string[]; lastDate: string }>();
 
   for (const t of transactions) {
     if (t.excluded || t.type !== "expense") continue;
     const key = merchantKey(t.description) || "other";
     const g = groups.get(key);
-    const monthKey = t.date.slice(0, 7);
+    const mk = t.date.slice(0, 7);
     if (g) {
       g.amounts.push(t.amount);
-      g.months.add(monthKey);
+      g.months.add(mk);
+      g.dates.push(t.date);
       if (t.date > g.lastDate) g.lastDate = t.date;
     } else {
       groups.set(key, {
         name: displayName(t.description),
         amounts: [t.amount],
-        months: new Set([monthKey]),
+        months: new Set([mk]),
+        dates: [t.date],
         lastDate: t.date,
       });
     }
@@ -135,13 +137,30 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
 
   const subs: Subscription[] = [];
   for (const g of groups.values()) {
-    if (g.months.size < 2) continue;
+    // Require strong evidence: 3+ distinct months and 3+ charges
+    if (g.months.size < 3 || g.amounts.length < 3) continue;
+
     const mid = median(g.amounts);
     // Treat the charge as recurring only if every amount is close to the median
     // (small price changes are tolerated; variable spend is not).
     const tolerance = Math.max(1, mid * 0.15);
     const consistent = g.amounts.every((a) => Math.abs(a - mid) <= tolerance);
     if (!consistent) continue;
+
+    // Interval check: gaps between consecutive charges must be monthly or bi-monthly
+    const sortedDates = [...g.dates].sort();
+    const intervals: number[] = [];
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prev = new Date(sortedDates[i - 1] + "T00:00:00");
+      const curr = new Date(sortedDates[i] + "T00:00:00");
+      intervals.push(Math.round((curr.getTime() - prev.getTime()) / 86400000));
+    }
+    const medianInterval = median(intervals);
+    // Accept monthly (20–35 days) or bi-monthly (36–65 days)
+    if (medianInterval < 20 || medianInterval > 65) continue;
+    const intervalConsistent = intervals.every((iv) => Math.abs(iv - medianInterval) <= medianInterval * 0.5);
+    if (!intervalConsistent) continue;
+
     subs.push({ name: g.name, amount: mid, months: g.months.size, lastDate: g.lastDate });
   }
 

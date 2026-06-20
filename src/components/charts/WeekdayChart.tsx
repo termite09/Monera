@@ -2,17 +2,18 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Transaction } from "@/types";
-import { getPeriodBounds, formatCurrency } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatShortDate } from "@/lib/utils";
+import { getPeriodSpend } from "@/lib/finance";
+import { WEEKDAY_LABELS, MONTH_NAMES } from "@/config/constants";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-export type WeekdayChartMode = "period" | "week" | "month";
+export type WeekdayChartMode = "period" | "week" | "month" | "year";
 
 interface WeekdayChartProps {
   transactions: Transaction[];
   monthKey: string;
   paydayOfMonth?: number;
   mode?: WeekdayChartMode;
+  onDayClick?: (label: string, dateStr: string | null) => void;
 }
 
 function toDateStr(d: Date): string {
@@ -24,10 +25,6 @@ function toDateStr(d: Date): string {
 const isRefund = (t: Transaction) =>
   t.type === "income" && !t.excluded && t.category !== "Uncategorized";
 
-// Each bar nets refunds against spending so the chart can't show more outflow
-// than the dashboard's net Expenses figure. Netting is per-bucket (refunds are
-// small/rare, so the period sum reconciles with the dashboard to within the
-// per-bucket flooring at zero). This stays a per-day distribution view.
 function buildPeriodData(transactions: Transaction[], monthKey: string, paydayOfMonth: number) {
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const totals = [0, 0, 0, 0, 0, 0, 0];
@@ -43,11 +40,12 @@ function buildPeriodData(transactions: Transaction[], monthKey: string, paydayOf
 
   const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
   const max = Math.max(...netted);
-  return DAYS.map((day, i) => ({
+  return WEEKDAY_LABELS.map((day, i) => ({
     day,
     amount: netted[i],
     future: false,
     isMax: netted[i] > 0 && netted[i] === max,
+    dateStr: null as string | null,
   }));
 }
 
@@ -58,7 +56,7 @@ function buildWeekData(transactions: Transaction[]) {
   const monday = new Date(today);
   monday.setDate(today.getDate() - dayOfWeek);
 
-  const points = DAYS.map((day, i) => {
+  const points = WEEKDAY_LABELS.map((day, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const future = d > today;
@@ -73,7 +71,7 @@ function buildWeekData(transactions: Transaction[]) {
               sameDay.filter(isRefund).reduce((s, t) => s + t.amount, 0)) * 100
           ) / 100
         );
-    return { day, amount: net, future, isMax: false };
+    return { day, amount: net, future, isMax: false, dateStr: dayStr };
   });
 
   const max = Math.max(...points.map((p) => p.amount));
@@ -97,30 +95,88 @@ function buildMonthData(transactions: Transaction[], monthKey: string) {
   }
   const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
   const max = Math.max(...netted);
-  return DAYS.map((day, i) => ({ day, amount: netted[i], future: false, isMax: netted[i] > 0 && netted[i] === max }));
+  return WEEKDAY_LABELS.map((day, i) => ({
+    day,
+    amount: netted[i],
+    future: false,
+    isMax: netted[i] > 0 && netted[i] === max,
+    dateStr: null as string | null,
+  }));
 }
 
-export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1, mode = "period" }: WeekdayChartProps) {
+// Year mode aggregates by payday-aware period (not calendar month) and nets
+// refunds via the shared getPeriodSpend helper — the same source of truth the
+// Year Overview page uses — so the two never disagree.
+function buildYearData(transactions: Transaction[], monthKey: string, paydayOfMonth: number) {
+  const [y] = monthKey.split("-").map(Number);
+  const points = MONTH_NAMES.map((name, idx) => {
+    const mk = `${y}-${String(idx + 1).padStart(2, "0")}`;
+    const { total } = getPeriodSpend(transactions, mk, paydayOfMonth);
+    return { day: name.slice(0, 3), amount: total, future: false, isMax: false, dateStr: mk };
+  });
+  const max = Math.max(...points.map((p) => p.amount));
+  return points.map((p) => ({ ...p, isMax: p.amount > 0 && p.amount === max }));
+}
+
+export function getChartDateRange(
+  mode: WeekdayChartMode,
+  monthKey: string,
+  paydayOfMonth = 1
+): string {
+  if (mode === "week") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayOfWeek = (today.getDay() + 6) % 7;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - dayOfWeek);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return `${formatShortDate(toDateStr(monday))} – ${formatShortDate(toDateStr(sunday))}`;
+  }
+  if (mode === "month") {
+    const [y, m] = monthKey.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+  if (mode === "period") {
+    const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
+    return `${formatShortDate(toDateStr(start))} – ${formatShortDate(toDateStr(end))}`;
+  }
+  // year
+  const [y] = monthKey.split("-").map(Number);
+  return `Jan ${y} – Dec ${y}`;
+}
+
+export function WeekdayChart({
+  transactions,
+  monthKey,
+  paydayOfMonth = 1,
+  mode = "period",
+  onDayClick,
+}: WeekdayChartProps) {
   const data =
     mode === "week" ? buildWeekData(transactions) :
     mode === "month" ? buildMonthData(transactions, monthKey) :
+    mode === "year" ? buildYearData(transactions, monthKey, paydayOfMonth) :
     buildPeriodData(transactions, monthKey, paydayOfMonth);
 
   const isEmpty = data.every((d) => d.amount === 0);
+  const height = mode === "year" ? 200 : 160;
+
   if (isEmpty) {
     const emptyMsg =
       mode === "week" ? "No spending this week" :
       mode === "month" ? "No spending this calendar month" :
+      mode === "year" ? "No spending this year" :
       "No spending this period";
     return (
-      <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
+      <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
         {emptyMsg}
       </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={160}>
+    <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
@@ -129,7 +185,16 @@ export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1, mode =
           contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
           cursor={{ fill: "rgba(0,0,0,0.04)" }}
         />
-        <Bar dataKey="amount" radius={[3, 3, 0, 0]} animationDuration={600}>
+        <Bar
+          dataKey="amount"
+          radius={[3, 3, 0, 0]}
+          animationDuration={600}
+          style={onDayClick ? { cursor: "pointer" } : undefined}
+          onClick={onDayClick ? (barData) => {
+            const p = barData.payload as { day: string; dateStr: string | null };
+            onDayClick(p.day, p.dateStr);
+          } : undefined}
+        >
           {data.map((entry, i) => (
             <Cell
               key={i}

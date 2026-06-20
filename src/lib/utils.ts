@@ -11,7 +11,11 @@ export function formatCurrency(amount: number, currency = "€"): string {
 }
 
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  // Date-only strings ("YYYY-MM-DD") must be pinned to local midnight, otherwise
+  // they parse as UTC and render a day early in negative-offset timezones. Full
+  // ISO timestamps (e.g. Drive's createdTime) already carry a zone, so pass through.
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+  const date = new Date(isDateOnly ? dateStr + "T00:00:00" : dateStr);
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -122,4 +126,8 @@ export function clamp(value: number, min: number, max: number): number {
  */
 export function roundMoney(amount: number): number {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+export function cleanDescription(description: string): string {
+  return description.replace(/•/g, "").replace(/\s+/g, " ").trim();
 }

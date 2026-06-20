@@ -61,7 +61,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const ready = !!structure && settingsLoaded && txLoaded;
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
+  // Re-anchor the selected period once the user's real payday loads (it starts at
+  // the default of 1 before settings arrive). This is an intentional sync from an
+  // external source (Drive settings), not a render-driven cascade.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonth(getCurrentMonth(paydayOfMonth));
   }, [paydayOfMonth]);
 

@@ -11,6 +11,7 @@ interface BudgetDonutProps {
   color: string;
   labelClass: string;
   info?: string;
+  onClick?: () => void;
 }
 
 function compactAmount(n: number): string {
@@ -29,7 +30,7 @@ function amountFontSize(s: string): string {
 const VB = 116;
 const STROKE = 12;
 
-export function BudgetDonut({ label, spent, allocated, color, labelClass, info }: BudgetDonutProps) {
+export function BudgetDonut({ label, spent, allocated, color, labelClass, info, onClick }: BudgetDonutProps) {
   const router = useRouter();
   const over = spent > allocated;
   const remaining = Math.max(0, allocated - spent);
@@ -57,7 +58,13 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass, info }
         )}
       </div>
 
-      <div className="relative w-full aspect-square">
+      <div
+        className={cn("relative w-full aspect-square", onClick && "cursor-pointer")}
+        onClick={onClick}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
+      >
         <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-full block">
           <circle
             cx={VB / 2}

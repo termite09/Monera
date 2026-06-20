@@ -113,9 +113,11 @@ export function useTransactions(
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
   });
 
-  const rawTxs = query.data?.rawTxs ?? [];
-  const overrides = query.data?.overrides ?? {};
-  const excludedIds = query.data?.excludedIds ?? [];
+  // Memoized on query.data so the empty fallbacks don't produce a fresh []/{}
+  // reference each render (which would needlessly re-run the derivations below).
+  const rawTxs = useMemo(() => query.data?.rawTxs ?? [], [query.data]);
+  const overrides = useMemo(() => query.data?.overrides ?? {}, [query.data]);
+  const excludedIds = useMemo(() => query.data?.excludedIds ?? [], [query.data]);
 
   const needsReauth = query.error instanceof DriveAuthError;
   const error =

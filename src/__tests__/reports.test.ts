@@ -106,6 +106,7 @@ describe("detectSubscriptions", () => {
     const subs = detectSubscriptions([
       tx({ amount: 12.99, type: "expense", description: "Netflix", date: "2024-04-12" }),
       tx({ amount: 13.99, type: "expense", description: "Netflix", date: "2024-05-12" }),
+      tx({ amount: 12.99, type: "expense", description: "Netflix", date: "2024-06-12" }),
     ]);
     expect(subs).toHaveLength(1);
   });

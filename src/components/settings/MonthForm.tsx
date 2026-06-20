@@ -9,9 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAppData } from "@/contexts/AppDataContext";
 import { getMonthLabel } from "@/lib/utils";
-import { Category } from "@/types";
-
-const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
 
 export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   month: string;

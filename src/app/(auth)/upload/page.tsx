@@ -41,6 +41,8 @@ export default function UploadPage() {
     setExistingFiles(files.map((f) => ({ id: f.id, name: f.name, createdTime: f.createdTime })));
   }, [accessToken, structure]);
 
+  // Fetch the uploaded-file list on mount / when the loader identity changes.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadFiles(); }, [loadFiles]);
 
   const handleFile = useCallback(async (file: File) => {

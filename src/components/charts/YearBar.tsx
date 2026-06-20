@@ -10,18 +10,28 @@ interface YearBarProps {
   transactions: Transaction[];
   year: number;
   paydayOfMonth?: number;
+  onMonthClick?: (monthKey: string) => void;
 }
 
-export function YearBar({ transactions, year, paydayOfMonth = 1 }: YearBarProps) {
+export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick }: YearBarProps) {
   const totals = monthlyCategoryTotals(transactions, year, paydayOfMonth);
   const data = MONTH_NAMES.map((name, idx) => ({
     month: name.slice(0, 3),
+    monthKey: `${year}-${String(idx + 1).padStart(2, "0")}`,
     ...totals[idx],
   }));
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+      <BarChart
+        data={data}
+        margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+        style={onMonthClick ? { cursor: "pointer" } : undefined}
+        onClick={onMonthClick ? (chartData) => {
+          const idx = chartData?.activeTooltipIndex;
+          if (typeof idx === "number" && data[idx]?.monthKey) onMonthClick(data[idx].monthKey);
+        } : undefined}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={45} />

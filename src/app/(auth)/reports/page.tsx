@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, ArrowRight, ChevronDown } from "lucide-react";
+import { TrendingDown, TrendingUp, Repeat, Trophy, Receipt, CalendarClock, CreditCard, ArrowRight, ChevronDown, EyeOff } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,7 @@ const REPORTS_SLIDES = [
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
-import { formatCurrency, formatDate, getCategoryColor, getPeriodBounds, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, getCategoryColor, getPeriodBounds, cleanDescription, cn } from "@/lib/utils";
 import { Category } from "@/types";
 
 function ordinal(n: number): string {
@@ -59,10 +59,11 @@ const REPORT_TABS: { id: ReportTab; label: string }[] = [
 ];
 
 export default function ReportsPage() {
-  const { month, setMonth, transactions, settings, isLoading } = useAppData();
+  const { month, setMonth, transactions, settings, isLoading, toggleExclude } = useAppData();
   const [tab, setTab] = useState<ReportTab>("overview");
   const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
   const [showAllFor, setShowAllFor] = useState<Set<string>>(new Set());
+  const [expandedSub, setExpandedSub] = useState<string | null>(null);
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
   // Include recurring bills for BOTH the current and the previous period, so
@@ -83,7 +84,7 @@ export default function ReportsPage() {
   }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth]);
 
   const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
-  const { summary, incomeIsDetected, salaryBasis } = useBudget(allTxs, settings, month);
+  const { summary } = useBudget(allTxs, settings, month);
 
   // Subscriptions span all history, not just the selected period.
   const subscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
@@ -159,35 +160,33 @@ export default function ReportsPage() {
                 emptyPeriod
               ) : (
                 <>
-                  {/* Income + savings summary */}
+                  {/* Pace & health — report-only metrics the dashboard doesn't show.
+                      (Income, Saved, Total Spent live on the dashboard, so they're
+                      intentionally not duplicated here.) */}
                   <div className="grid grid-cols-3 gap-3">
-                    <StatTile compact label="Income" value={formatCurrency(summary.income)} sub={salaryBasis > 0 && incomeIsDetected ? "planned + received" : incomeIsDetected ? "from statement" : salaryBasis > 0 ? "planned" : undefined} />
-                    <StatTile compact label="Saved" value={formatCurrency(summary.savings)} sub="this period" />
+                    <StatTile
+                      compact
+                      label="Avg / Day"
+                      value={formatCurrency(report.avgPerDay)}
+                      sub={`over ${report.daysElapsed} day${report.daysElapsed === 1 ? "" : "s"}`}
+                    />
+                    <StatTile
+                      compact
+                      label="Projected"
+                      value={report.daysElapsed < 3 ? "—" : formatCurrency(report.projectedTotal)}
+                      sub={report.daysElapsed < 3 ? "need more data" : "at this pace"}
+                    />
                     <StatTile
                       compact
                       label="Savings Rate"
                       value={summary.income > 0 ? `${Math.round((summary.savings / summary.income) * 100)}%` : "—"}
-                      sub={summary.income > 0 ? (summary.savings / summary.income >= 0.2 ? "on track" : "below 20%") : undefined}
+                      sub={summary.income > 0 ? (summary.savings / summary.income >= 0.2 ? "on track" : "below 20%") : "set income"}
                       trend={summary.income > 0 && summary.savings / summary.income >= 0.2 ? "good" : undefined}
                     />
                   </div>
 
-                  {/* Headline stats */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatTile label="Total Spent" value={formatCurrency(report.totalSpent)} sub={`${report.txCount} transactions`} purpose="Everything you spent this period, refunds already subtracted." />
-                    <StatTile label="Avg / Day" value={formatCurrency(report.avgPerDay)} sub={`over ${report.daysElapsed} days`} purpose="Your daily spending rate — useful for spotting heavy weeks." />
-                    <StatTile
-                      label="vs Last Period"
-                      value={report.changePct === null ? "—" : `${report.changePct >= 0 ? "+" : ""}${report.changePct.toFixed(0)}%`}
-                      sub={report.prevTotal > 0 ? formatCurrency(report.prevTotal) + " before" : "no prior data"}
-                      trend={report.changePct === null ? undefined : report.changePct <= 0 ? "good" : "bad"}
-                      purpose="How this period compares to the one before — same categories, same calculation method."
-                    />
-                    <StatTile label="Projected" value={report.daysElapsed < 3 ? "—" : formatCurrency(report.projectedTotal)} sub={report.daysElapsed < 3 ? "need more data" : "at current pace"} icon={<CalendarClock size={14} className="text-muted-foreground" />} purpose="If you keep spending at today's rate, this is the estimated total by period end." />
-                  </div>
-
-                  {/* vs Last Period — category breakdown */}
-                  {report.prevTotal > 0 && (
+                  {/* vs Last Period — the headline comparison (category by category) */}
+                  {report.prevTotal > 0 ? (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
                       <CardHeader className="pb-2 pt-4 px-4">
                         <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">vs Last Period</CardTitle>
@@ -240,6 +239,15 @@ export default function ReportsPage() {
                         })}
                       </CardContent>
                     </Card>
+                  ) : (
+                    <Card className="rounded-2xl border-border/70">
+                      <CardContent className="py-10 text-center">
+                        <p className="text-sm text-muted-foreground">No previous period to compare yet</p>
+                        <p className="text-xs text-muted-foreground/60 mt-1 max-w-xs mx-auto">
+                          Once the period before this one has spending, you&apos;ll see a category-by-category comparison here.
+                        </p>
+                      </CardContent>
+                    </Card>
                   )}
 
                 </>
@@ -275,7 +283,7 @@ export default function ReportsPage() {
                                   className="w-full flex flex-col gap-1.5 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
                                 >
                                   <div className="flex items-center gap-2">
-                                    <span className="flex-1 text-sm text-foreground truncate">{m.name}</span>
+                                    <span className="flex-1 min-w-0 text-sm text-foreground wrap-break-word">{m.name}</span>
                                     {m.count > 1 && (
                                       <span className="text-[11px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
                                         {m.count}×
@@ -300,17 +308,21 @@ export default function ReportsPage() {
                                   <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
                                     <div className="divide-y divide-border">
                                       {displayTxs.map((tx) => (
-                                        <div key={tx.id} className="flex items-center gap-3 px-3 py-2.5">
+                                        <div key={tx.id} className="flex items-center gap-2 px-3 py-2.5">
                                           <div className="flex-1 min-w-0">
                                             <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
-                                            <p className="text-sm text-foreground truncate">{tx.description}</p>
+                                            <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
                                           </div>
-                                          <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[tx.category])}>
-                                            {tx.category}
-                                          </span>
-                                          <span className="text-sm tabular-nums font-mono text-foreground shrink-0">
+                                          <span className="text-sm tabular-nums font-mono text-foreground shrink-0 w-20 text-right">
                                             {formatCurrency(tx.amount)}
                                           </span>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); toggleExclude(tx.id); }}
+                                            className="shrink-0 flex items-center justify-center min-h-11 min-w-11 -mr-2 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-secondary transition-colors"
+                                            aria-label="Exclude from calculations"
+                                          >
+                                            <EyeOff size={14} />
+                                          </button>
                                         </div>
                                       ))}
                                     </div>
@@ -349,7 +361,7 @@ export default function ReportsPage() {
                             <div key={m.name} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                               <div className="flex items-center gap-3 min-w-0">
                                 <span className="flex items-center justify-center size-9 rounded-full bg-secondary text-xs font-semibold tabular-nums text-foreground shrink-0">{m.count}×</span>
-                                <span className="text-sm text-foreground truncate">{m.name}</span>
+                                <span className="text-sm text-foreground wrap-break-word min-w-0">{m.name}</span>
                               </div>
                               <span className="text-sm font-medium tabular-nums text-foreground shrink-0 pl-2 font-mono">{formatCurrency(m.total)}</span>
                             </div>
@@ -372,7 +384,7 @@ export default function ReportsPage() {
                         {report.biggest.map((t) => (
                           <div key={t.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                             <div className="min-w-0 pr-2">
-                              <p className="text-sm text-foreground truncate">{t.description}</p>
+                              <p className="text-sm text-foreground wrap-break-word">{cleanDescription(t.description)}</p>
                               <p className="text-xs text-muted-foreground">{formatDate(t.date)} · {t.category}</p>
                             </div>
                             <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(t.amount)}</span>
@@ -409,7 +421,7 @@ export default function ReportsPage() {
                             <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-sm text-foreground truncate">{p.name}</p>
+                                  <p className="text-sm text-foreground wrap-break-word min-w-0">{p.name}</p>
                                   <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
                                     {p.category}
                                   </span>
@@ -442,18 +454,55 @@ export default function ReportsPage() {
                     {subscriptions.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-2">No recurring subscriptions detected yet.</p>
                     ) : (
-                      <div className="flex flex-col divide-y divide-border">
-                        {subscriptions.map((s) => (
-                          <div key={s.name} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                            <div className="min-w-0 pr-2">
-                              <p className="text-sm text-foreground truncate">{s.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {s.months} month{s.months === 1 ? "" : "s"} · last {formatDate(s.lastDate)}
-                              </p>
+                      <div className="flex flex-col divide-y divide-border -mx-4">
+                        {subscriptions.map((s) => {
+                          const isOpen = expandedSub === s.name;
+                          const subTxs = isOpen
+                            ? transactions
+                                .filter((t) => !t.excluded && t.type === "expense" && t.description.toLowerCase().includes(s.name.toLowerCase().trim()))
+                                .sort((a, b) => b.date.localeCompare(a.date))
+                            : [];
+                          return (
+                            <div key={s.name} className="border-b border-border/50 last:border-0">
+                              <button
+                                onClick={() => setExpandedSub(isOpen ? null : s.name)}
+                                className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-foreground wrap-break-word">{s.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {s.months} month{s.months === 1 ? "" : "s"} · last {formatDate(s.lastDate)}
+                                  </p>
+                                </div>
+                                <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(s.amount)}</span>
+                                <ChevronDown
+                                  size={14}
+                                  className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+                                />
+                              </button>
+                              {isOpen && (
+                                <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
+                                  <p className="px-3 py-2 text-[11px] text-muted-foreground bg-secondary/50 border-b border-border">
+                                    {subTxs.length} charge{subTxs.length === 1 ? "" : "s"} across all history
+                                  </p>
+                                  <div className="divide-y divide-border">
+                                    {subTxs.length === 0 ? (
+                                      <p className="text-sm text-muted-foreground px-3 py-3">No transactions found.</p>
+                                    ) : subTxs.map((tx) => (
+                                      <div key={tx.id} className="flex items-start gap-3 px-3 py-2.5">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
+                                          <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
+                                        </div>
+                                        <span className="text-sm tabular-nums font-mono text-foreground shrink-0 w-20 text-right">{formatCurrency(tx.amount)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(s.amount)}</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp } from "lucide-react";
+import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -44,6 +44,25 @@ function toInputDate(d: Date): string {
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
 
+type SortField = "date" | "description" | "amount" | "category";
+
+const FILTER_KEY = "monera-tx-filters";
+type StoredFilters = {
+  search: string;
+  filterCat: Category | "All";
+  filterType: TransactionType | "all";
+  rangeMode: "period" | "custom";
+  customFrom: string;
+  customTo: string;
+  sortField: SortField;
+  sortDir: "asc" | "desc";
+};
+function loadFilters(): Partial<StoredFilters> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) ?? "{}"); }
+  catch { return {}; }
+}
+
 const CAT_DOT: Record<Category, string> = {
   Needs: "bg-blue-500",
   Wants: "bg-amber-500",
@@ -59,25 +78,43 @@ export default function TransactionsPage() {
   } = useAppData();
 
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => loadFilters().search ?? "");
   const [filterCat, setFilterCat] = useState<Category | "All">(() => {
     const cat = searchParams.get("category");
-    return cat && ["Needs", "Wants", "Savings", "Uncategorized"].includes(cat) ? (cat as Category) : "All";
+    if (cat && ["Needs", "Wants", "Savings", "Uncategorized"].includes(cat)) return cat as Category;
+    return loadFilters().filterCat ?? "All";
   });
-  const [filterType, setFilterType] = useState<TransactionType | "all">("expense");
+  const [filterType, setFilterType] = useState<TransactionType | "all">(() => loadFilters().filterType ?? "expense");
   const handleFilterTypeChange = useCallback((v: TransactionType | "all") => {
     setFilterType(v);
     if (v === "income") setFilterCat("All");
   }, []);
-  const [rangeMode, setRangeMode] = useState<"period" | "custom">("period");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [rangeMode, setRangeMode] = useState<"period" | "custom">(() => loadFilters().rangeMode ?? "period");
+  const [customFrom, setCustomFrom] = useState(() => loadFilters().customFrom ?? "");
+  const [customTo, setCustomTo] = useState(() => loadFilters().customTo ?? "");
+  const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField ?? "date");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">(() => loadFilters().sortDir ?? "desc");
   const [showAdd, setShowAdd] = useState(false);
 
-  // Multi-select state
-  const [selectMode, setSelectMode] = useState(false);
+  // Persist filters across page navigations (sessionStorage clears on tab close)
+  useEffect(() => {
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+      search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir,
+    } satisfies StoredFilters));
+  }, [search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir]);
+
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDir(field === "date" ? "desc" : "asc");
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    }
+  }, [sortField]);
+
+  // Multi-select state — no explicit mode toggle; checkboxes always visible
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selectMode = selected.size > 0;
   const [selectCatSheet, setSelectCatSheet] = useState(false);
 
   // Toast state
@@ -132,10 +169,14 @@ export default function TransactionsPage() {
       scopedTxs
         .filter((t) => filterType === "all" || t.type === filterType)
         .sort((a, b) => {
-          const cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
+          let cmp = 0;
+          if (sortField === "date") cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
+          else if (sortField === "description") cmp = a.description.localeCompare(b.description);
+          else if (sortField === "amount") cmp = a.amount - b.amount;
+          else if (sortField === "category") cmp = a.category.localeCompare(b.category);
           return sortDir === "desc" ? -cmp : cmp;
         }),
-    [scopedTxs, filterType, sortDir]
+    [scopedTxs, filterType, sortField, sortDir]
   );
 
   const { summaryTotal, grossExpense, refunded } = useMemo(() => {
@@ -165,10 +206,7 @@ export default function TransactionsPage() {
     });
   };
 
-  const exitSelect = () => {
-    setSelectMode(false);
-    setSelected(new Set());
-  };
+  const exitSelect = () => setSelected(new Set());
 
   const selectedTxs = useMemo(() => filtered.filter((t) => selected.has(t.id)), [filtered, selected]);
   const selectedTotal = useMemo(() => netExpenseTotal(selectedTxs), [selectedTxs]);
@@ -262,65 +300,51 @@ export default function TransactionsPage() {
 
         {/* Controls */}
         <div className="flex flex-col gap-2">
-          {/* Row 1: Search + Add — or select mode header */}
-          {selectMode ? (
-            <div className="flex items-center gap-2 h-11 px-3 rounded-lg border border-input bg-background">
+          {/* Row 1: Search + Add */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search transactions..."
+                className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <Button onClick={() => setShowAdd(true)} size="sm" className="h-11 shrink-0 px-4">
+              <Plus size={14} className="mr-1.5" />
+              Add
+            </Button>
+          </div>
+
+          {/* Row 2: Type filter — full-width segmented control */}
+          <div className="grid grid-cols-3 gap-0.5 p-0.5 rounded-lg bg-secondary">
+            {(
+              [
+                { value: "expense" as const, label: "Expenses" },
+                { value: "income" as const, label: "Income" },
+                { value: "all" as const, label: "All" },
+              ] as { value: TransactionType | "all"; label: string }[]
+            ).map(({ value, label }) => (
               <button
-                onClick={() => setSelected(new Set(filtered.map((t) => t.id)))}
-                className="text-primary text-xs font-medium hover:underline shrink-0"
+                key={value}
+                onClick={() => handleFilterTypeChange(value)}
+                className={cn(
+                  "py-1.5 rounded-md text-xs font-medium transition-colors",
+                  filterType === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                All
+                {label}
               </button>
-              <span className="text-muted-foreground/30 text-xs">·</span>
-              <span className="flex-1 text-xs text-muted-foreground">{selected.size} selected</span>
-              <button onClick={exitSelect} className="text-xs text-muted-foreground hover:text-foreground shrink-0">
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search transactions..."
-                  className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <Button onClick={() => setShowAdd(true)} size="sm" className="h-11 shrink-0 px-4">
-                <Plus size={14} className="mr-1.5" />
-                Add
-              </Button>
-            </div>
-          )}
+            ))}
+          </div>
 
-          {/* Row 2: Type chips + Category + Sort + Select */}
+          {/* Row 3: Category + Period/Custom + Select — secondary controls */}
           <div className="flex items-center gap-2">
-            <div className="flex gap-0.5 p-0.5 rounded-lg bg-secondary shrink-0">
-              {(
-                [
-                  { value: "expense" as const, label: "Expenses" },
-                  { value: "income" as const, label: "Income" },
-                  { value: "all" as const, label: "All" },
-                ] as { value: TransactionType | "all"; label: string }[]
-              ).map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => handleFilterTypeChange(value)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                    filterType === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {filterType !== "income" && (
+            {/* Always occupies space; invisible when income so layout stays stable */}
+            <div className={cn("flex-1 min-w-0", filterType === "income" && "invisible pointer-events-none")}>
               <Select value={filterCat} onValueChange={(v) => setFilterCat(v as Category | "All")}>
-                <SelectTrigger className="h-8 text-xs flex-1 sm:flex-none sm:w-36" aria-label="Filter by category">
+                <SelectTrigger className="h-8 text-xs w-full" aria-label="Filter by category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -331,25 +355,6 @@ export default function TransactionsPage() {
                   <SelectItem value="Uncategorized">Uncategorized</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-
-          </div>
-
-          {/* Row 3: Count/total + Period toggle + Select */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">
-                {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
-                {searching ? " · all periods" : ""}{" "}·{" "}
-                <span className="font-medium text-foreground tabular-nums font-mono text-sm">
-                  {formatCurrency(summaryTotal)}
-                </span>
-              </p>
-              {showRefund && (
-                <p className="text-xs text-muted-foreground/80 tabular-nums font-mono">
-                  {formatCurrency(grossExpense)} out · {formatCurrency(refunded)} refunded
-                </p>
-              )}
             </div>
             {!searching && (
               <div className="flex gap-0.5 p-0.5 rounded-lg bg-secondary shrink-0">
@@ -373,15 +378,21 @@ export default function TransactionsPage() {
                 </button>
               </div>
             )}
-            {!selectMode && (
-              <button
-                onClick={() => setSelectMode(true)}
-                className="shrink-0 text-xs font-medium text-muted-foreground border border-border rounded-md px-2 py-1 hover:text-foreground hover:border-border/80 transition-colors"
-              >
-                Select
-              </button>
-            )}
           </div>
+
+          {/* Row 4: Count / total — single stable line */}
+          <p className="text-xs text-muted-foreground">
+            {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+            {searching ? " · all periods" : ""}{" "}·{" "}
+            <span className="font-medium text-foreground tabular-nums font-mono text-sm">
+              {formatCurrency(summaryTotal)}
+            </span>
+            {showRefund && (
+              <span className="ml-1 text-muted-foreground/70 tabular-nums font-mono">
+                ({formatCurrency(grossExpense)} − {formatCurrency(refunded)} refunded)
+              </span>
+            )}
+          </p>
 
           {/* Custom date range inputs */}
           {rangeMode === "custom" && (
@@ -424,17 +435,62 @@ export default function TransactionsPage() {
               <>
                 <div className="flex items-center gap-2 sm:gap-3 px-2 py-2 border-b border-border bg-secondary/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <button
-                    onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-                    className="w-14 shrink-0 flex items-center gap-1 hover:text-foreground transition-colors"
-                    aria-label={`Sort ${sortDir === "desc" ? "oldest" : "newest"} first`}
+                    onClick={() => handleSort("date")}
+                    className={cn("w-14 shrink-0 flex items-center gap-1 transition-colors", sortField === "date" ? "text-foreground" : "hover:text-foreground")}
+                    aria-label={`Sort by date ${sortDir === "desc" ? "oldest" : "newest"} first`}
                   >
                     Date
-                    {sortDir === "desc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />}
+                    {sortField === "date"
+                      ? (sortDir === "desc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
+                      : <ArrowUpDown size={10} className="opacity-40" />}
                   </button>
-                  <span className="flex-1 min-w-0 truncate">Description</span>
-                  {filterType !== "income" && <span className="shrink-0 text-right whitespace-nowrap">Category</span>}
-                  <span className="shrink-0 min-w-14 text-right">Amount</span>
-                  <span className="w-6 shrink-0" />
+                  <button
+                    onClick={() => handleSort("description")}
+                    className={cn("flex-1 min-w-0 flex items-center gap-1 transition-colors text-left", sortField === "description" ? "text-foreground" : "hover:text-foreground")}
+                  >
+                    Description
+                    {sortField === "description"
+                      ? (sortDir === "asc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
+                      : <ArrowUpDown size={10} className="opacity-40" />}
+                  </button>
+                  <button
+                    onClick={() => handleSort("category")}
+                    className={cn("shrink-0 flex items-center gap-1 transition-colors", sortField === "category" ? "text-foreground" : "hover:text-foreground", filterType === "income" && "invisible pointer-events-none")}
+                  >
+                    Category
+                    {sortField === "category"
+                      ? (sortDir === "asc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
+                      : <ArrowUpDown size={10} className="opacity-40" />}
+                  </button>
+                  <button
+                    onClick={() => handleSort("amount")}
+                    className={cn("shrink-0 min-w-14 flex items-center justify-end gap-1 transition-colors", sortField === "amount" ? "text-foreground" : "hover:text-foreground")}
+                  >
+                    Amount
+                    {sortField === "amount"
+                      ? (sortDir === "asc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
+                      : <ArrowUpDown size={10} className="opacity-40" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const allIds = filtered.map((t) => t.id);
+                      const allSelected = allIds.every((id) => selected.has(id));
+                      setSelected(allSelected ? new Set() : new Set(allIds));
+                    }}
+                    className="w-6 shrink-0 flex items-center justify-center group"
+                    aria-label="Select all"
+                  >
+                    <div className={cn(
+                      "size-4 rounded-full border-2 flex items-center justify-center transition-colors",
+                      filtered.length > 0 && filtered.every((t) => selected.has(t.id))
+                        ? "border-primary bg-primary"
+                        : "border-input/30 group-hover:border-input"
+                    )}>
+                      {filtered.length > 0 && filtered.every((t) => selected.has(t.id)) && (
+                        <div className="size-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </button>
                 </div>
                 <div className="divide-y divide-border">
                   {filtered.map((tx) => (
@@ -442,8 +498,8 @@ export default function TransactionsPage() {
                       key={tx.id}
                       transaction={tx}
                       onCategoryChange={handleCategoryChange}
-                      onToggleExclude={toggleExclude}
-                      onDelete={tx.source === "manual" ? deleteManualTransaction : undefined}
+                      onToggleExclude={selectMode ? undefined : toggleExclude}
+                      onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
                       selectMode={selectMode}
                       checked={selected.has(tx.id)}
                       onCheck={toggleSelect}
@@ -458,7 +514,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Selection action bar */}
-      {selectMode && selected.size > 0 && (
+      {selected.size > 0 && (
         <div className="fixed bottom-20 md:bottom-4 left-0 right-0 md:left-56 z-40 px-4">
           <div className="max-w-2xl mx-auto bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">

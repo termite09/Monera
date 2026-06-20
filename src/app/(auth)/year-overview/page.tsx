@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +19,15 @@ const YearBar = dynamic(
 );
 
 export default function YearOverviewPage() {
-  const { transactions, settings, isLoading } = useAppData();
+  const router = useRouter();
+  const { transactions, settings, isLoading, setMonth } = useAppData();
   const [year, setYear] = useState(new Date().getFullYear());
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
+
+  const handleMonthClick = useCallback((monthKey: string) => {
+    setMonth(monthKey);
+    router.push("/dashboard");
+  }, [setMonth, router]);
 
   // Include recurring bills (paid outside Revolut) so yearly figures match the
   // dashboard/reports, which inject them per period.
@@ -84,12 +91,13 @@ export default function YearOverviewPage() {
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Monthly Breakdown
             </CardTitle>
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Tap a month to view its transactions on the dashboard.</p>
           </CardHeader>
           <CardContent className="px-4 pb-4">
             {isLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <YearBar transactions={allTxs} year={year} paydayOfMonth={paydayOfMonth} />
+              <YearBar transactions={allTxs} year={year} paydayOfMonth={paydayOfMonth} onMonthClick={handleMonthClick} />
             )}
           </CardContent>
         </Card>

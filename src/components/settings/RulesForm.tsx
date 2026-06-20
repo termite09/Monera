@@ -193,7 +193,8 @@ export function RulesForm({ rules, updateRules }: {
                     checked={selected.has(i)}
                     onChange={() => setSelected((prev) => {
                       const next = new Set(prev);
-                      next.has(i) ? next.delete(i) : next.add(i);
+                      if (next.has(i)) next.delete(i);
+                      else next.add(i);
                       return next;
                     })}
                     className="size-4 rounded accent-primary shrink-0 cursor-pointer"
