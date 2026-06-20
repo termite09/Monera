@@ -15,6 +15,10 @@ export function formatDate(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+export function formatShortDate(dateStr: string): string {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 export function getMonthKey(date: Date | string, paydayOfMonth = 1): string {
   const d = typeof date === "string" ? new Date(date + "T00:00:00") : date;
   if (paydayOfMonth <= 1) {

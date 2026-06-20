@@ -142,7 +142,7 @@ describe("netExpenseByCategory / netExpenseTotal (period-agnostic)", () => {
 });
 
 describe("useBudget income reconciliation (H2)", () => {
-  it("uses the configured monthly income when one is set", () => {
+  it("adds detected income on top of configured income (additive, not override)", () => {
     const settings: Settings = {
       ...baseSettings,
       monthlyBudgets: {
@@ -151,8 +151,8 @@ describe("useBudget income reconciliation (H2)", () => {
     };
     const txs = [tx({ amount: 500, type: "income", category: "Uncategorized" })];
     const { summary, incomeIsDetected } = useBudget(txs, settings, "2024-06");
-    expect(summary.income).toBe(2000);
-    expect(incomeIsDetected).toBe(false);
+    expect(summary.income).toBe(2500);
+    expect(incomeIsDetected).toBe(true);
   });
 
   it("falls back to income detected in the statement when none is configured", () => {
@@ -172,12 +172,12 @@ describe("useBudget income reconciliation (H2)", () => {
     expect(incomeIsDetected).toBe(false);
   });
 
-  it("uses the standing defaultIncome when no per-period income is configured", () => {
+  it("adds detected income on top of defaultIncome (additive, not override)", () => {
     const settings: Settings = { ...baseSettings, defaultIncome: 2000 };
     const txs = [tx({ amount: 500, type: "income", category: "Uncategorized" })];
     const { summary, incomeIsDetected } = useBudget(txs, settings, "2024-06");
-    expect(summary.income).toBe(2000);
-    expect(incomeIsDetected).toBe(false);
+    expect(summary.income).toBe(2500);
+    expect(incomeIsDetected).toBe(true);
   });
 
   it("per-period configured income overrides the standing defaultIncome", () => {

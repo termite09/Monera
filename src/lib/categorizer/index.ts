@@ -1,5 +1,21 @@
 import { Category, CategoryRule, Transaction } from "@/types";
 
+const STOP_WORDS = new Set([
+  "the", "a", "at", "ltd", "co", "plc", "inc", "for", "and", "to", "of", "from",
+]);
+
+export function extractMerchantKeyword(description: string): string | null {
+  const cleaned = description
+    .toLowerCase()
+    .replace(/\d/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const words = cleaned.split(" ").filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
+  if (!words.length) return null;
+  return words.reduce((a, b) => (a.length >= b.length ? a : b));
+}
+
 interface LoweredRule {
   kw: string;
   category: Category;

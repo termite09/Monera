@@ -191,6 +191,26 @@ export function useTransactions(
     [accessToken, structure, patch, qc, appDataId]
   );
 
+  const bulkUpdateCategory = useCallback(
+    async (updates: { txId: string; category: Category }[]) => {
+      if (!accessToken || !structure || updates.length === 0) return;
+      const patchEntries = Object.fromEntries(updates.map(({ txId, category }) => [txId, category]));
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      patch((d) => ({ ...d, overrides: { ...d.overrides, ...patchEntries } }));
+      try {
+        const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+        const updated = { ...existing, ...patchEntries };
+        await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
+        patch((d) => ({ ...d, overrides: updated }));
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
+    },
+    [accessToken, structure, patch, qc, appDataId]
+  );
+
   const toggleExclude = useCallback(
     async (txId: string) => {
       if (!accessToken || !structure) return;
@@ -225,6 +245,7 @@ export function useTransactions(
     addManualTransaction,
     deleteManualTransaction,
     updateCategory,
+    bulkUpdateCategory,
     toggleExclude,
   };
 }

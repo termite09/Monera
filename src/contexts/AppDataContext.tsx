@@ -28,6 +28,7 @@ interface AppDataContextValue {
   addManualTransaction: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
   deleteManualTransaction: (txId: string) => Promise<void>;
   updateCategory: (txId: string, category: Category) => Promise<void>;
+  bulkUpdateCategory: (updates: { txId: string; category: Category }[]) => Promise<void>;
   toggleExclude: (txId: string) => Promise<void>;
   updateSettings: (s: Settings) => Promise<void>;
   updateRules: (r: CategoryRule[]) => Promise<void>;
@@ -51,6 +52,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addManualTransaction,
     deleteManualTransaction,
     updateCategory,
+    bulkUpdateCategory,
     toggleExclude,
     refetch,
   } = useTransactions(accessToken, structure, rules, settings);
@@ -84,12 +86,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       addManualTransaction,
       deleteManualTransaction,
       updateCategory,
+      bulkUpdateCategory,
       toggleExclude,
       updateSettings,
       updateRules,
       refetch,
     }),
-    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, toggleExclude, updateSettings, updateRules, refetch]
+    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory, toggleExclude, updateSettings, updateRules, refetch]
   );
 
   // Only show SetupScreen when we have a token (Drive initialization is actually

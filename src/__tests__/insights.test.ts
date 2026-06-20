@@ -28,7 +28,7 @@ function tx(p: Partial<Transaction> & { amount: number; type: Transaction["type"
 }
 
 function summaryOf(p: Partial<MonthSummary>): MonthSummary {
-  return { income: 0, transfersReceived: 0, totalExpenses: 0, needs: 0, wants: 0, savings: 0, remaining: 0, ...p };
+  return { income: 0, totalExpenses: 0, needs: 0, wants: 0, savings: 0, remaining: 0, ...p };
 }
 
 const noAlloc = { needs: 0, wants: 0, savings: 0 };

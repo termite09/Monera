@@ -6,6 +6,7 @@ import { ReactNode, useState } from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -45,7 +46,9 @@ export function Providers({ children, session }: ProvidersProps) {
       persistOptions={{ persister, maxAge: 24 * 60 * 60 * 1000, buster: "v1" }}
     >
       <SessionProvider session={session} refetchInterval={4 * 60} refetchOnWindowFocus>
-        {children}
+        <TooltipProvider delayDuration={300}>
+          {children}
+        </TooltipProvider>
       </SessionProvider>
     </PersistQueryClientProvider>
   );

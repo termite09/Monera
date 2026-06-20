@@ -55,6 +55,8 @@ export interface Settings {
   recurringPayments: RecurringPayment[];
   /** True once the user has finished (or skipped) the first-run setup flow. */
   onboarded?: boolean;
+  /** Keys are page identifiers; true means the user has dismissed the tour for that page. */
+  tourPages?: Record<string, boolean>;
 }
 
 export interface CategoryRule {
@@ -77,7 +79,6 @@ export interface ParsedCSV {
 
 export interface MonthSummary {
   income: number;
-  transfersReceived: number;
   totalExpenses: number;
   needs: number;
   wants: number;

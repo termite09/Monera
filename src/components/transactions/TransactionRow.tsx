@@ -8,19 +8,16 @@ import { cn } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
-  onCategoryChange: (id: string, category: Category) => void;
+  onCategoryChange: (id: string, category: Category) => void | Promise<void>;
   onToggleExclude?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
+  selectMode?: boolean;
+  checked?: boolean;
+  onCheck?: (id: string) => void;
+  showCategory?: boolean;
 }
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
-
-const catDot: Record<Category, string> = {
-  Needs: "bg-blue-500",
-  Wants: "bg-amber-500",
-  Savings: "bg-emerald-500",
-  Uncategorized: "bg-muted-foreground/40",
-};
 
 const catText: Record<Category, string> = {
   Needs: "text-blue-600 dark:text-blue-400",
@@ -37,44 +34,67 @@ const catShort: Record<Category, string> = {
   Uncategorized: "Uncat.",
 };
 
-function shortDate(dateStr: string): string {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+function parseDateParts(dateStr: string): { dayMonth: string; year: string } {
+  const d = new Date(dateStr + "T00:00:00");
+  return {
+    dayMonth: d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+    year: String(d.getFullYear()),
+  };
 }
 
-export function TransactionRow({ transaction, onCategoryChange, onToggleExclude, onDelete }: TransactionRowProps) {
+export function TransactionRow({
+  transaction,
+  onCategoryChange,
+  onToggleExclude,
+  onDelete,
+  selectMode = false,
+  checked = false,
+  onCheck,
+  showCategory = true,
+}: TransactionRowProps) {
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
   const tx = transaction;
   const isIncome = tx.type === "income";
   const isRecurring = tx.source === "recurring";
   const excluded = !!tx.excluded;
+  const { dayMonth, year } = parseDateParts(tx.date);
 
   return (
     <div
       className={cn(
-        "flex w-full items-start gap-2 sm:gap-3 py-3 px-2 transition-colors",
-        excluded ? "opacity-50 bg-muted/30" : "hover:bg-secondary/50"
+        "flex w-full items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
+        excluded ? "opacity-50 bg-muted/30" : selectMode ? "cursor-pointer hover:bg-secondary/30" : "hover:bg-secondary/50",
+        selectMode && checked && "bg-primary/5"
       )}
+      onClick={selectMode ? () => onCheck?.(tx.id) : undefined}
     >
-      {/* Date */}
-      <span className="shrink-0 w-16 pt-0.5 text-xs text-muted-foreground tabular-nums font-mono">
-        {shortDate(tx.date)}
-      </span>
+      {/* Date — day+month on top, year below in muted smaller text */}
+      <div className="shrink-0 w-14 pt-0.5 flex flex-col leading-tight">
+        <span className="text-xs text-muted-foreground tabular-nums font-mono">{dayMonth}</span>
+        <span className="text-[10px] text-muted-foreground/50 tabular-nums font-mono">{year}</span>
+      </div>
 
-      {/* Description + optional notes */}
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-        <span className={cn("flex items-start gap-1.5 text-sm text-foreground", excluded && "line-through")}>
-          {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.75" />}
-          <span className="wrap-break-word min-w-0">{tx.description}</span>
+      {/* Description + optional notes — tap to expand full text */}
+      <div
+        className={cn("flex-1 min-w-0 flex flex-col gap-0.5 pt-0.5", !selectMode && "cursor-pointer")}
+        onClick={!selectMode ? (e) => { e.stopPropagation(); setExpanded((p) => !p); } : undefined}
+      >
+        <span className={cn("flex items-start gap-1.5 text-sm text-foreground min-w-0", excluded && "line-through")}>
+          {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.5" />}
+          <span className={cn("min-w-0", expanded ? "wrap-break-word" : "truncate")}>{tx.description}</span>
         </span>
         {tx.notes && <span className="text-xs text-muted-foreground truncate">{tx.notes}</span>}
       </div>
 
-      {/* Category — fixed width so header and rows stay aligned */}
-      <div className="w-14 sm:w-22 shrink-0 pt-0.5">
-        {editing && !excluded ? (
+      {/* Category — content-width so it hugs the label and sits right before the
+          Amount column, leaving the rest of the row to the description. */}
+      {showCategory && <div className="shrink-0 pt-0.5 flex justify-end">
+        {!isIncome && (editing && !excluded && !selectMode ? (
           <select
             value={tx.category}
             onChange={(e) => {
@@ -83,40 +103,49 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
             }}
             onBlur={() => setEditing(false)}
             autoFocus
-            className="w-full text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
+            className="w-24 text-xs border border-input rounded-md px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-7"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-        ) : (
+        ) : !isIncome ? (
           <button
-            onClick={() => !excluded && setEditing(true)}
-            disabled={excluded}
-            className="flex items-center gap-1.5 focus:outline-none disabled:cursor-default"
+            onClick={selectMode ? undefined : () => !excluded && setEditing(true)}
+            disabled={excluded || selectMode}
+            className="text-right focus:outline-none disabled:cursor-default whitespace-nowrap"
             aria-label={`Category: ${tx.category}`}
           >
-            <span className={cn("size-2 rounded-full shrink-0", catDot[tx.category])} />
             <span className={cn("text-xs font-medium", catText[tx.category])}>
               <span className="sm:hidden">{catShort[tx.category]}</span>
               <span className="hidden sm:inline">{tx.category}</span>
             </span>
           </button>
-        )}
-      </div>
+        ) : null)}
+      </div>}
 
-      {/* Amount */}
+      {/* Amount — hugs content (min floor for short amounts) so it sits tight
+          against the category instead of reserving a wide fixed column. */}
       <span
         className={cn(
-          "shrink-0 w-16 pt-0.5 text-sm tabular-nums text-right font-mono",
+          "shrink-0 min-w-14 pt-0.5 text-sm tabular-nums text-right font-mono whitespace-nowrap",
           excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
         )}
       >
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
 
-      {/* Exclude / include */}
-      {onToggleExclude && (
+      {/* Right action: checkbox (select mode), eye button, or delete */}
+      {selectMode ? (
+        <div className="shrink-0 w-6 flex items-center justify-center">
+          <div className={cn(
+            "size-4 rounded-full border-2 flex items-center justify-center transition-colors",
+            checked ? "border-primary bg-primary" : "border-input"
+          )}>
+            {checked && <div className="size-2 rounded-full bg-white" />}
+          </div>
+        </div>
+      ) : onToggleExclude ? (
         <button
           onClick={async () => {
             if (toggling) return;
@@ -137,14 +166,9 @@ export function TransactionRow({ transaction, onCategoryChange, onToggleExclude,
         >
           {toggling ? <Loader2 size={14} className="animate-spin" /> : excluded ? <RotateCcw size={14} /> : <EyeOff size={14} />}
         </button>
-      )}
-
-      {/* Delete (manual rows) or a spacer to keep the right edge aligned */}
-      {onDelete ? (
+      ) : onDelete ? (
         confirmDelete ? (
           <button
-            // onMouseDown e.preventDefault() keeps focus so the click below fires
-            // before the blur handler hides this confirm button.
             onMouseDown={(e) => e.preventDefault()}
             onClick={async () => {
               if (deleting) return;

@@ -24,21 +24,16 @@ export function useBudget(
   const defaultIncome = settings.defaultIncome ?? 0;
   const salaryKeywords = settings.salaryKeywords ?? [];
 
-  // Total income actually received this period (self-transfers already removed
-  // upstream). Used as a fallback so the dashboard reflects real deposits instead
-  // of €0 when the user hasn't entered a planned figure.
+  // Planned salary: per-period override > standing default > 0
+  const salaryBasis = configuredIncome > 0 ? configuredIncome : defaultIncome > 0 ? defaultIncome : 0;
+
   const detectedIncome = roundMoney(monthIncomeTxs.reduce((s, t) => s + t.amount, 0));
 
-  // Income precedence: a per-period configured income (explicit intent for this
-  // month) wins; then the standing default salary set in onboarding/settings;
-  // finally fall back to what the statement shows.
-  const income = roundMoney(
-    configuredIncome > 0 ? configuredIncome : defaultIncome > 0 ? defaultIncome : detectedIncome
-  );
-  const incomeIsDetected = configuredIncome <= 0 && defaultIncome <= 0 && detectedIncome > 0;
-
-  // Individual transfers = CSV income excluding anything matching salary keywords
-  const individualTransfers = roundMoney(
+  // Income transactions that aren't the employer's salary payment.
+  // When employer keywords are configured, the matching transaction is the salary
+  // already covered by salaryBasis — filtering it out prevents double-counting.
+  // When no keywords are set, all detected income is treated as additional.
+  const additionalIncome = roundMoney(
     monthIncomeTxs
       .filter((t) =>
         salaryKeywords.length === 0 ||
@@ -46,6 +41,19 @@ export function useBudget(
       )
       .reduce((s, t) => s + t.amount, 0)
   );
+
+  // Total income = planned salary + income transactions.
+  // When employer keywords are set: only non-salary transactions are added (the salary
+  // transaction in the CSV is already represented by salaryBasis).
+  // When no keywords: all income transactions count as additional (user can set employer
+  // keywords in Settings → Sources if their salary also appears in Revolut).
+  // When no salary basis: income = everything detected.
+  const income = roundMoney(
+    salaryBasis > 0
+      ? salaryBasis + (salaryKeywords.length > 0 ? additionalIncome : detectedIncome)
+      : detectedIncome
+  );
+  const incomeIsDetected = detectedIncome > 0;
 
   // Single source of truth for period spend / refund-netting — shared with the
   // reports page so the two can never show different totals.
@@ -57,7 +65,6 @@ export function useBudget(
 
   const summary: MonthSummary = {
     income,
-    transfersReceived: individualTransfers,
     totalExpenses: roundMoney(needs + wants + savings + uncategorizedExpense),
     needs,
     wants,
@@ -72,5 +79,5 @@ export function useBudget(
     savings: roundMoney((summary.income * budgetRule.savings) / 100),
   };
 
-  return { paydayOfMonth, summary, budgetAllocations, budgetRule, incomeIsDetected };
+  return { paydayOfMonth, summary, budgetAllocations, budgetRule, incomeIsDetected, salaryBasis, additionalIncome };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, FileText, CheckCircle, AlertCircle, Trash2, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +40,8 @@ export default function UploadPage() {
     );
     setExistingFiles(files.map((f) => ({ id: f.id, name: f.name, createdTime: f.createdTime })));
   }, [accessToken, structure]);
+
+  useEffect(() => { loadFiles(); }, [loadFiles]);
 
   const handleFile = useCallback(async (file: File) => {
     if (!accessToken || !structure) return;

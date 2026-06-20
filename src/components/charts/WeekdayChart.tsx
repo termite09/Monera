@@ -6,7 +6,7 @@ import { getPeriodBounds, formatCurrency } from "@/lib/utils";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export type WeekdayChartMode = "period" | "week";
+export type WeekdayChartMode = "period" | "week" | "month";
 
 interface WeekdayChartProps {
   transactions: Transaction[];
@@ -80,14 +80,41 @@ function buildWeekData(transactions: Transaction[]) {
   return points.map((p) => ({ ...p, isMax: !p.future && p.amount > 0 && p.amount === max }));
 }
 
+function buildMonthData(transactions: Transaction[], monthKey: string) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const start = new Date(y, m - 1, 1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(y, m, 0);
+  end.setHours(23, 59, 59, 999);
+  const totals = [0, 0, 0, 0, 0, 0, 0];
+  for (const t of transactions) {
+    if (t.excluded) continue;
+    const d = new Date(t.date + "T00:00:00");
+    if (d < start || d > end) continue;
+    const i = (d.getDay() + 6) % 7;
+    if (t.type === "expense") totals[i] += t.amount;
+    else if (isRefund(t)) totals[i] -= t.amount;
+  }
+  const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
+  const max = Math.max(...netted);
+  return DAYS.map((day, i) => ({ day, amount: netted[i], future: false, isMax: netted[i] > 0 && netted[i] === max }));
+}
+
 export function WeekdayChart({ transactions, monthKey, paydayOfMonth = 1, mode = "period" }: WeekdayChartProps) {
-  const data = mode === "week" ? buildWeekData(transactions) : buildPeriodData(transactions, monthKey, paydayOfMonth);
+  const data =
+    mode === "week" ? buildWeekData(transactions) :
+    mode === "month" ? buildMonthData(transactions, monthKey) :
+    buildPeriodData(transactions, monthKey, paydayOfMonth);
 
   const isEmpty = data.every((d) => d.amount === 0);
   if (isEmpty) {
+    const emptyMsg =
+      mode === "week" ? "No spending this week" :
+      mode === "month" ? "No spending this calendar month" :
+      "No spending this period";
     return (
       <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
-        {mode === "week" ? "No spending this week" : "No spending data"}
+        {emptyMsg}
       </div>
     );
   }

@@ -19,8 +19,11 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Your data, your Drive** | All data lives in a `Monera/` folder you own. The app uses the minimal `drive.file` scope — it can only see files it created. |
 | **Payday-aware budgets** | Periods run payday-to-payday (e.g. the 24th), not calendar months. Override income and the needs / wants / savings split per period. |
 | **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export. Excel files are converted in the browser — nothing leaves your machine until it hits Drive. |
-| **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Per-transaction overrides are remembered and always win. |
-| **Reports & insights** | Budget-vs-actual, month-over-month trends, top merchants, most-frequent merchants, automatic subscription detection, and a prioritized insights feed. |
+| **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
+| **Bulk editing** | Multi-select transactions to exclude or re-categorize many at once. |
+| **Reports & insights** | Budget-vs-actual, month-over-month trends, top merchants, most-frequent merchants, automatic subscription detection, weekday spending breakdown, and a prioritized insights feed. |
+| **Tappable drill-downs** | Tap any dashboard figure — income, expenses, remaining, savings — to see the exact transactions and the calculation behind it. |
+| **Guidance built in** | Every number carries a plain-English info tooltip, and a replayable guided tour explains each page on first visit. |
 | **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
 | **Instant & offline-ready** | Data is cached locally (TanStack Query) and revalidated in the background. Edits like re-categorizing a transaction apply optimistically. Installable PWA. |

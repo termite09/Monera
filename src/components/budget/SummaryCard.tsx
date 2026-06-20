@@ -2,7 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { InfoIcon } from "@/components/ui/InfoIcon";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 
@@ -14,9 +16,11 @@ interface SummaryCardProps {
   index: number;
   secondaryText?: string;
   accent?: string;
+  info?: string;
+  onClick?: () => void;
 }
 
-export function SummaryCard({ label, amount, colorClass, index, secondaryText, accent = "#94a3b8" }: SummaryCardProps) {
+export function SummaryCard({ label, amount, colorClass, index, secondaryText, accent = "#94a3b8", info, onClick }: SummaryCardProps) {
   const [displayed, setDisplayed] = useState(0);
   const rafRef = useRef<number>(0);
 
@@ -33,32 +37,42 @@ export function SummaryCard({ label, amount, colorClass, index, secondaryText, a
     return () => cancelAnimationFrame(rafRef.current);
   }, [amount]);
 
+  const cardContent = (
+    <Card className={cn(
+      "rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_4px_16px_rgba(15,23,42,0.07)]",
+      onClick && "cursor-pointer active:scale-[0.98] transition-transform"
+    )}>
+      <CardContent className="p-4 h-[108px] flex flex-col">
+        <div className="flex items-center gap-1.5 mb-2.5">
+          <span className="size-1.5 rounded-full shrink-0" style={{ background: accent }} />
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em] flex-1">
+            {label}
+          </p>
+          {info && <InfoIcon content={info} side="bottom" />}
+          {onClick && <ChevronRight size={13} className="text-muted-foreground/50 shrink-0" />}
+        </div>
+        <p className={cn("text-2xl leading-none font-medium tabular-nums font-mono", colorClass)}>
+          {formatCurrency(displayed)}
+        </p>
+        {secondaryText && (
+          <span className="mt-auto">
+            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
+              {secondaryText}
+            </span>
+          </span>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, duration: 0.3, ease: "easeOut" }}
+      onClick={onClick}
     >
-      <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_4px_16px_rgba(15,23,42,0.07)]">
-        <CardContent className="p-4 h-[108px] flex flex-col">
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <span className="size-1.5 rounded-full shrink-0" style={{ background: accent }} />
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
-              {label}
-            </p>
-          </div>
-          <p className={cn("text-2xl leading-none font-medium tabular-nums font-mono", colorClass)}>
-            {formatCurrency(displayed)}
-          </p>
-          {secondaryText && (
-            <span className="mt-auto">
-              <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
-                {secondaryText}
-              </span>
-            </span>
-          )}
-        </CardContent>
-      </Card>
+      {cardContent}
     </motion.div>
   );
 }

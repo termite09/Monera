@@ -36,6 +36,7 @@ export const DEFAULT_SETTINGS = {
   savingsVaultKeywords: ["eur savings", "savings for"],
   recurringPayments: [],
   onboarded: false,
+  tourPages: {} as Record<string, boolean>,
 };
 
 export const MONTH_NAMES = [

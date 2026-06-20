@@ -1,6 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { InfoIcon } from "@/components/ui/InfoIcon";
 
 interface BudgetDonutProps {
   label: string;
@@ -8,6 +10,7 @@ interface BudgetDonutProps {
   allocated: number;
   color: string;
   labelClass: string;
+  info?: string;
 }
 
 function compactAmount(n: number): string {
@@ -26,7 +29,8 @@ function amountFontSize(s: string): string {
 const VB = 116;
 const STROKE = 12;
 
-export function BudgetDonut({ label, spent, allocated, color, labelClass }: BudgetDonutProps) {
+export function BudgetDonut({ label, spent, allocated, color, labelClass, info }: BudgetDonutProps) {
+  const router = useRouter();
   const over = spent > allocated;
   const remaining = Math.max(0, allocated - spent);
   const pct = allocated > 0 ? Math.min(spent / allocated, 1) : 0;
@@ -36,9 +40,22 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass }: Budg
   const dash = pct * c;
   const arcColor = over ? "#ef4444" : color;
 
+  const infoText = allocated === 0 && info
+    ? `${info} Go to Settings → Budget to configure your budget split.`
+    : info;
+
   return (
     <div className="flex flex-col items-center gap-2.5 min-w-0">
-      <p className={cn("text-xs font-semibold uppercase tracking-wider", labelClass)}>{label}</p>
+      <div className="flex items-center gap-1">
+        <p className={cn("text-xs font-semibold uppercase tracking-wider", labelClass)}>{label}</p>
+        {info && (
+          <InfoIcon
+            content={infoText!}
+            side="top"
+            onClick={allocated === 0 ? () => router.push("/settings") : undefined}
+          />
+        )}
+      </div>
 
       <div className="relative w-full aspect-square">
         <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-full block">
