@@ -79,7 +79,7 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
     // Skip transaction types we don't track (Topup, Interest, Exchange, etc.)
     if (!ALLOWED_TYPES.has(normalizeType(typedRow.Type ?? ""))) continue;
 
-    const dateStr = typedRow["Started Date"];
+     const dateStr = typedRow["Completed Date"] || typedRow["Started Date"];
     const parsedDate = parseRevolutDate(dateStr);
     if (!parsedDate) {
       errors.push(`Row ${i}: Could not parse date "${dateStr}"`);
