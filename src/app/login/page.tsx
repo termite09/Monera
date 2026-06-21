@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginCard } from "./LoginCard";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
   // If the user is already signed in (e.g. they land here after the OAuth
   // callback, or revisit the URL), send them straight to the app instead of
   // showing the sign-in button again.
@@ -15,5 +19,7 @@ export default async function LoginPage() {
   const session = await auth();
   if (session && !session.error) redirect("/dashboard");
 
-  return <LoginCard />;
+  // NextAuth (and our auth layout) pass a sign-in failure reason as ?error=.
+  const { error } = await searchParams;
+  return <LoginCard error={Array.isArray(error) ? error[0] : error} />;
 }

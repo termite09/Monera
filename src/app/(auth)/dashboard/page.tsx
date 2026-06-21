@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { WeekdayChartMode } from "@/components/charts/WeekdayChart";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCw, ChevronRight, ChevronLeft } from "lucide-react";
+import { AlertCircle, RefreshCw, ChevronRight, ChevronLeft, Upload } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { SummaryCard } from "@/components/budget/SummaryCard";
 import { BudgetDonut } from "@/components/budget/BudgetDonut";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,7 @@ import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
+import { computeSafeToSpend } from "@/lib/safeToSpend";
 import { getPeriodBounds, formatCurrency, formatDate, roundMoney, cleanDescription, cn } from "@/lib/utils";
 import { getChartDateRange } from "@/components/charts/WeekdayChart";
 import { WEEKDAY_LABELS } from "@/config/constants";
@@ -42,7 +44,7 @@ const DASHBOARD_SLIDES = [
   },
 ];
 
-type SheetKind = "income" | "expenses" | "savings" | "remaining" | "weekday";
+type SheetKind = "income" | "expenses" | "savings" | "remaining" | "weekday" | "safe";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -78,13 +80,18 @@ export default function DashboardPage() {
     setWeekdayMode(m);
   }, [month]);
 
-  const [wasNewAtLoad, setWasNewAtLoad] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (wasNewAtLoad !== null || !ready) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWasNewAtLoad(!settings.onboarded && transactions.length === 0);
-  }, [wasNewAtLoad, ready, settings.onboarded, transactions.length]);
-  const showOnboarding = !settings.onboarded && wasNewAtLoad === true;
+  // Onboarding shows until the user completes the wizard (which persists
+  // `onboarded: true`), regardless of whether they uploaded first — so payday,
+  // salary, and budget split always get collected. Guarded by `ready` to avoid
+  // a flash before settings load.
+  const showOnboarding = ready && !settings.onboarded;
+  // Onboarded but no data yet → guide the user to import a statement instead of
+  // showing zero-value cards. Excludes the load-error case (so the retry banner
+  // shows instead) and recurring-only accounts (which do render real budget
+  // data). Manual transactions live in `transactions`, so they're counted too.
+  const showEmptyState =
+    ready && !isLoading && !txError && settings.onboarded &&
+    transactions.length === 0 && (settings.recurringPayments?.length ?? 0) === 0;
 
   const recurringTxs = useMemo(
     () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR"),
@@ -93,6 +100,10 @@ export default function DashboardPage() {
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
 
   const { summary, budgetAllocations, incomeIsDetected, salaryBasis, additionalIncome } = useBudget(allTxs, settings, month);
+  const safeInfo = useMemo(
+    () => computeSafeToSpend(allTxs, settings, month, summary, budgetAllocations, new Date()),
+    [allTxs, settings, month, summary, budgetAllocations]
+  );
   const salaryKeywords = settings.salaryKeywords ?? [];
   const configuredIncome = settings.monthlyBudgets[month]?.income ?? 0;
 
@@ -190,10 +201,34 @@ export default function DashboardPage() {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [weekdayFilter, weekdayMode, allTxs, month, chartMonth, paydayOfMonth]);
 
+  // The third card is forward-looking when this is the live period (what you can
+  // still spend before payday), and falls back to the final "Remaining" once the
+  // period is over (or when income is unknown).
+  const spendableCard = safeInfo.applicable
+    ? {
+        label: "Safe to spend",
+        amount: safeInfo.safe,
+        icon: "=",
+        colorClass: safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+        accent: safeInfo.safe >= 0 ? "#10b981" : "#ef4444",
+        secondaryText: `${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} to payday`,
+        info: "What you can still spend before payday, after setting aside your savings target and the bills still due this period.",
+        onClick: () => setSheet("safe"),
+      }
+    : {
+        label: "Remaining",
+        amount: summary.remaining,
+        icon: "=",
+        colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+        accent: summary.remaining >= 0 ? "#10b981" : "#ef4444",
+        info: "Income minus total expenses. Positive means you're within budget; negative means you've overspent.",
+        onClick: () => setSheet("remaining"),
+      };
+
   const summaryCards = [
     { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", info: "Your total income this period — planned salary plus any income transactions received.", onClick: () => setSheet("income") },
     { label: "Expenses", amount: summary.totalExpenses - summary.savings, icon: "↓", colorClass: "text-foreground", accent: "#64748b", info: "Money spent on Needs, Wants, and any uncategorised transactions this period. Refunds are already subtracted. Savings are shown separately.", onClick: () => setSheet("expenses") },
-    { label: "Remaining", amount: summary.remaining, icon: "=", colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive", accent: summary.remaining >= 0 ? "#10b981" : "#ef4444", info: "Income minus total expenses. Positive means you're within budget; negative means you've overspent.", onClick: () => setSheet("remaining") },
+    spendableCard,
     { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary", accent: "#1C3557", info: "Money categorised as Savings — savings transfers, insurance, or any recurring Savings bill.", onClick: () => setSheet("savings") },
   ];
 
@@ -201,6 +236,31 @@ export default function DashboardPage() {
     return (
       <PageShell>
         <Onboarding />
+      </PageShell>
+    );
+  }
+
+  if (showEmptyState) {
+    return (
+      <PageShell>
+        <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+        <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
+          <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <CardContent className="py-14 flex flex-col items-center text-center gap-4">
+              <Upload size={32} className="text-muted-foreground/50" />
+              <div>
+                <p className="text-base font-medium text-foreground">No transactions yet</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Import a Revolut statement to see your spending, budgets, and insights here.
+                </p>
+              </div>
+              <Button onClick={() => router.push("/upload")}>
+                <Upload size={16} className="mr-1.5" />
+                Import a statement
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </PageShell>
     );
   }
@@ -531,6 +591,70 @@ export default function DashboardPage() {
                     Review →
                   </button>
                 </div>
+              </div>
+            </>
+          )}
+
+          {sheet === "safe" && (
+            <>
+              <SheetHeader className="shrink-0 mb-0.5">
+                <SheetTitle>Safe to spend</SheetTitle>
+              </SheetHeader>
+              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2">
+                <div className="bg-secondary/50 rounded-xl px-3 py-3 flex flex-col gap-2 font-mono text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Income</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(safeInfo.income)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Spent so far</span>
+                    <span className="text-foreground">− {formatCurrency(safeInfo.spentSoFar)}</span>
+                  </div>
+                  {safeInfo.savedSoFar > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Saved so far</span>
+                      <span className="text-foreground">− {formatCurrency(safeInfo.savedSoFar)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Bills due before payday</span>
+                    <span className="text-foreground">− {formatCurrency(safeInfo.billsDue)}</span>
+                  </div>
+                  {safeInfo.savingsRemaining > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Still to set aside for savings</span>
+                      <span className="text-foreground">− {formatCurrency(safeInfo.savingsRemaining)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-border pt-2 flex items-center justify-between font-semibold">
+                    <span>Safe to spend</span>
+                    <span className={safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                      {formatCurrency(safeInfo.safe)}
+                    </span>
+                  </div>
+                </div>
+
+                {safeInfo.billItems.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Bills still due before payday</p>
+                    <div className="rounded-xl border border-border divide-y divide-border">
+                      {safeInfo.billItems.map((b, i) => (
+                        <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground truncate">{b.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(b.date)}</p>
+                          </div>
+                          <span className="text-sm tabular-nums font-mono text-foreground shrink-0">{formatCurrency(b.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  What&apos;s left after your spending so far, money set aside for savings, and bills still due before payday
+                  {safeInfo.daysLeft > 0 ? ` (${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} away)` : ""}.
+                </p>
               </div>
             </>
           )}

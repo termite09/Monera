@@ -12,6 +12,7 @@ import { uploadCSV } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { readSpreadsheetAsCsv, csvFileName } from "@/lib/spreadsheet";
 import { cn } from "@/lib/utils";
+import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
 
 function StepBadge({ done, n }: { done: boolean; n: number }) {
   return (
@@ -133,6 +134,7 @@ export function Onboarding() {
                       <AlertCircle size={13} /> {uploadMsg}
                     </p>
                   )}
+                  <RevolutExportHelp />
                 </>
               )}
             </div>

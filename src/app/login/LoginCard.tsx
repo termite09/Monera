@@ -3,9 +3,22 @@
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function LoginCard() {
+// Maps sign-in failure codes (from NextAuth or our auth layout) to plain English.
+// Auth.js routes its own error codes here as ?error=<Type>; the default covers
+// every OAuth/config code, so only our custom SessionExpired needs special copy.
+function errorMessage(code: string): string {
+  switch (code) {
+    case "SessionExpired":
+      return "Your session expired. Please sign in again.";
+    default:
+      return "Sign-in didn't complete. Please try again.";
+  }
+}
+
+export function LoginCard({ error }: { error?: string }) {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <motion.div
@@ -35,6 +48,13 @@ export function LoginCard() {
             </p>
           </div>
 
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
+              <AlertCircle size={15} className="shrink-0 mt-0.5 text-destructive" />
+              <p className="text-xs text-destructive">{errorMessage(error)}</p>
+            </div>
+          )}
+
           <Button
             onClick={() => signIn("google", { redirectTo: "/dashboard" })}
             className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
@@ -50,7 +70,7 @@ export function LoginCard() {
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            Only accesses files it creates in your Drive
+            Google will ask you to allow Drive access — that&apos;s how your data is saved. Monera only ever sees the files it creates.
           </p>
 
           <p className="text-xs text-center text-muted-foreground/60">

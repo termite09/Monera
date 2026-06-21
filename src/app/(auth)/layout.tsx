@@ -12,7 +12,10 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session || session.error) redirect("/login");
+  // An errored session (e.g. an expired/revoked refresh token) is sent to /login
+  // with a reason so the sign-in screen can explain why the user was signed out.
+  if (session?.error) redirect("/login?error=SessionExpired");
+  if (!session) redirect("/login");
 
   return (
     <AppDataProvider>

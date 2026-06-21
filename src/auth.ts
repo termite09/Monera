@@ -73,6 +73,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/login",
+    // Route auth errors (kind: "error", e.g. Configuration) to our login card so
+    // they show the friendly banner instead of the default Auth.js error page.
+    // Loop-safe: /login is outside the (auth) group and needs no session.
+    error: "/login",
   },
   session: {
     strategy: "jwt",

@@ -1,26 +1,35 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Repeat, Trophy, Receipt, CalendarClock, CreditCard, ArrowRight, ChevronDown, EyeOff } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Repeat, Trophy, Receipt, CalendarClock, CreditCard, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, EyeOff } from "lucide-react";
 import { InfoIcon } from "@/components/ui/InfoIcon";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useBudget } from "@/hooks/useBudget";
+
+const YearBar = dynamic(
+  () => import("@/components/charts/YearBar").then((m) => m.YearBar),
+  { ssr: false, loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 const REPORTS_SLIDES = [
   {
-    title: "Period overview",
-    body: "Reports compare this period to the previous one. Green means you spent less; red means more. The three tabs break down spending by different angles.",
+    title: "Your insights",
+    body: "Insights help you understand your money. Overview shows your savings rate, projected spending, and how this period compares to the last.",
   },
   {
-    title: "Merchant breakdown",
-    body: "The Merchants tab shows where your money actually went. Tap any merchant to expand and see the individual transactions behind the total.",
+    title: "Dig into the detail",
+    body: "Merchants shows where your money actually went — tap any to see the transactions. Subscriptions tracks recurring bills, and Year zooms out to the whole year.",
   },
 ];
-import { buildReport, detectSubscriptions } from "@/lib/reports";
+import { buildReport, detectSubscriptions, monthlyCategoryTotals } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
 import { formatCurrency, formatDate, getCategoryColor, getPeriodBounds, cleanDescription, cn } from "@/lib/utils";
 import { Category } from "@/types";
@@ -50,17 +59,27 @@ const CAT_CHIP: Record<Category, string> = {
   Uncategorized: "bg-secondary text-muted-foreground",
 };
 
-type ReportTab = "overview" | "merchants" | "subscriptions";
+type ReportTab = "overview" | "merchants" | "subscriptions" | "year";
 
 const REPORT_TABS: { id: ReportTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "merchants", label: "Merchants" },
   { id: "subscriptions", label: "Subscriptions" },
+  { id: "year", label: "Year" },
 ];
+
+const isReportTab = (v: string | null): v is ReportTab =>
+  v === "overview" || v === "merchants" || v === "subscriptions" || v === "year";
 
 export default function ReportsPage() {
   const { month, setMonth, transactions, settings, isLoading, toggleExclude } = useAppData();
-  const [tab, setTab] = useState<ReportTab>("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<ReportTab>(() => {
+    const t = searchParams.get("tab");
+    return isReportTab(t) ? t : "overview";
+  });
+  const [year, setYear] = useState(() => new Date().getFullYear());
   const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
   const [showAllFor, setShowAllFor] = useState<Set<string>>(new Set());
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
@@ -89,6 +108,30 @@ export default function ReportsPage() {
   }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth]);
 
   const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
+  const { summary } = useBudget(allTxs, settings, month);
+  const savingsRate = summary.income > 0 ? Math.round((summary.savings / summary.income) * 100) : null;
+
+  // Year tab: recurring bills injected across the whole year so figures match
+  // the dashboard/reports, which inject them per period.
+  const yearTotals = useMemo(() => {
+    const yearTxs = [
+      ...transactions,
+      ...getRecurringInRange(
+        settings.recurringPayments ?? [],
+        new Date(year, 0, 1),
+        new Date(year, 11, 31),
+        paydayOfMonth,
+        settings.currency ?? "EUR"
+      ),
+    ];
+    return monthlyCategoryTotals(yearTxs, year, paydayOfMonth);
+  }, [transactions, settings.recurringPayments, settings.currency, year, paydayOfMonth]);
+  const yearExpenses = yearTotals.reduce((s, m) => s + m.needs + m.wants + m.savings, 0);
+  const yearSavings = yearTotals.reduce((s, m) => s + m.savings, 0);
+  const yearAllTxs = useMemo(() => [
+    ...transactions,
+    ...getRecurringInRange(settings.recurringPayments ?? [], new Date(year, 0, 1), new Date(year, 11, 31), paydayOfMonth, settings.currency ?? "EUR"),
+  ], [transactions, settings.recurringPayments, settings.currency, year, paydayOfMonth]);
 
   // Subscriptions span all history, not just the selected period.
   const subscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
@@ -133,11 +176,11 @@ export default function ReportsPage() {
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Reports</h1>
+          <h1 className="text-xl font-semibold text-foreground">Insights</h1>
         </div>
 
         {/* Sub-tab switcher — one report view at a time, no endless scroll */}
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-secondary">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
           {REPORT_TABS.map((t) => (
             <button
               key={t.id}
@@ -164,6 +207,36 @@ export default function ReportsPage() {
                 emptyPeriod
               ) : (
                 <>
+                  {/* This period's analytics — figures not shown on the dashboard */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                      <CardContent className="p-4">
+                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+                          Savings Rate
+                          <InfoIcon side="bottom" content="The share of your income you set aside this period. Aiming for 20% or more is a common goal." />
+                        </p>
+                        <p className={cn("mt-2 text-xl leading-none font-medium tabular-nums font-mono", savingsRate !== null && savingsRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
+                          {savingsRate === null ? "—" : `${savingsRate}%`}
+                        </p>
+                        {savingsRate !== null && (
+                          <p className="mt-1 text-xs text-muted-foreground">{savingsRate >= 20 ? "on track" : "below 20%"}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                      <CardContent className="p-4">
+                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+                          Projected
+                          <InfoIcon side="bottom" content="If you keep spending at this period's pace, the estimated total by payday." />
+                        </p>
+                        <p className="mt-2 text-xl leading-none font-medium tabular-nums font-mono text-foreground">
+                          {report.daysElapsed < 3 ? "—" : formatCurrency(report.projectedTotal)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">{report.daysElapsed < 3 ? "need more data" : "at current pace"}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
                   {/* vs Last Period — the headline comparison (category by category) */}
                   {report.prevTotal > 0 ? (
                     <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -500,6 +573,53 @@ export default function ReportsPage() {
                         })}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {tab === "year" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Spending across the year, by payday period.</p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setYear((y) => y - 1)} className="size-9" aria-label="Previous year">
+                      <ChevronLeft size={16} />
+                    </Button>
+                    <span className="text-sm font-medium text-foreground w-12 text-center tabular-nums">{year}</span>
+                    <Button variant="ghost" size="icon" onClick={() => setYear((y) => y + 1)} className="size-9" aria-label="Next year">
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="shadow-none border-border">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Total Expenses</p>
+                      <p className="text-xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearExpenses)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="shadow-none border-border">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Total Savings</p>
+                      <p className="text-xl font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">{formatCurrency(yearSavings)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="shadow-none border-border">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Breakdown</CardTitle>
+                    <p className="text-[11px] text-muted-foreground/70 mt-0.5">Tap a month to view its transactions on the dashboard.</p>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <YearBar
+                      transactions={yearAllTxs}
+                      year={year}
+                      paydayOfMonth={paydayOfMonth}
+                      onMonthClick={(key) => { setMonth(key); router.push("/dashboard"); }}
+                    />
                   </CardContent>
                 </Card>
               </>

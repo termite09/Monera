@@ -13,6 +13,7 @@ import { readSpreadsheetAsCsv, csvFileName } from "@/lib/spreadsheet";
 import { DriveAuthError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
 
 interface UploadedFile {
   id: string;
@@ -133,6 +134,8 @@ export default function UploadPage() {
           <p className="text-sm font-medium text-foreground">Drag & drop CSV or Excel, or click to browse</p>
           <p className="text-xs text-muted-foreground mt-1">CSV or Excel (.xlsx) — Revolut or any bank with date / description / amount columns</p>
         </div>
+
+        <RevolutExportHelp />
 
         {/* Status */}
         {status !== "idle" && (
