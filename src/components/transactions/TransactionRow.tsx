@@ -137,31 +137,43 @@ export function TransactionRow({
             </button>
           )}
           {confirmDelete ? (
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={async () => {
-                if (deleting) return;
-                setDeleting(true);
-                try {
-                  await onDelete(tx.id);
-                } catch {
-                  // Handled upstream; reset UI so the row doesn't stay spinning.
-                } finally {
-                  setDeleting(false);
-                  setConfirmDelete(false);
-                }
-              }}
-              disabled={deleting}
-              className="p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
-              aria-label="Confirm delete"
-              title="Tap again to confirm"
-            >
-              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  if (deleting) return;
+                  setDeleting(true);
+                  try {
+                    await onDelete(tx.id);
+                  } catch {
+                    // Handled upstream; reset UI so the row doesn't stay spinning.
+                  } finally {
+                    setDeleting(false);
+                    setConfirmDelete(false);
+                  }
+                }}
+                disabled={deleting}
+                className="p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
+                aria-label="Confirm delete"
+                title="Tap again to confirm"
+              >
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="p-1 rounded-md text-muted-foreground/40 transition-colors hover:text-foreground hover:bg-secondary"
+                aria-label="Cancel delete"
+              >
+                ×
+              </button>
+            </div>
           ) : (
             <button
-              onClick={() => setConfirmDelete(true)}
-              onBlur={() => setConfirmDelete(false)}
+              onClick={() => {
+                setConfirmDelete(true);
+                // Auto-dismiss after 4 seconds if not confirmed — fallback for mobile
+                setTimeout(() => setConfirmDelete(false), 4000);
+              }}
               className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
               aria-label="Delete transaction"
               title="Delete manual transaction"
