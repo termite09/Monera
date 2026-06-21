@@ -48,14 +48,18 @@ export function useBudget(
       .reduce((s, t) => s + t.amount, 0)
   );
 
-  // Total income = planned salary + income transactions.
-  // When employer keywords are set: only non-salary transactions are added (the salary
-  // transaction in the CSV is already represented by salaryBasis).
-  // When no keywords: all income transactions count as additional (user can set employer
-  // keywords in Settings → Sources if their salary also appears in Revolut).
-  // When no salary basis: income = everything detected.
+  // When salary keywords are configured and the matching transaction is present,
+  // use detectedIncome directly (the salary IS counted, no double-counting risk).
+  // Only fall back to salaryBasis when keywords are set but no matching tx found yet
+  // (e.g. salary arrives on the 25th and it's the 10th).
+  const salaryDetected =
+    salaryKeywords.length > 0 &&
+    monthIncomeTxs.some((t) =>
+      salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
+    );
+
   const income = roundMoney(
-    salaryBasis > 0
+    salaryBasis > 0 && !salaryDetected
       ? salaryBasis + additionalIncome
       : detectedIncome
   );
