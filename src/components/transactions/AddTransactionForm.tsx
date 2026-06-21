@@ -35,8 +35,10 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
   const currency = settings.currency ?? "EUR";
 
   const selectType = (t: TransactionType) => {
-    setType(t);
-    if (t !== "income") setCategory("Wants");
+    setType((prev) => {
+      if (prev === "income" && t !== "income") setCategory("Wants");
+      return t;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
