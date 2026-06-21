@@ -30,6 +30,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
   const [category, setCategory] = useState<Category>(initialValues?.category ?? "Wants");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { settings } = useAppData();
   const currency = settings.currency ?? "EUR";
 
@@ -40,13 +41,22 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: Record<string, string> = {};
+    if (!date) newErrors.date = "Date is required";
+    if (!description.trim()) newErrors.description = "Description is required";
     const parsedAmount = roundMoney(parseFloat(amount));
-    if (!description || isNaN(parsedAmount) || parsedAmount <= 0 || !date) return;
+    if (!amount) newErrors.amount = "Amount is required";
+    else if (isNaN(parsedAmount) || parsedAmount <= 0) newErrors.amount = "Enter a valid amount greater than 0";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     setLoading(true);
     try {
       await onSubmit({
         date,
-        description,
+        description: description.trim(),
         amount: parsedAmount,
         type,
         currency,
@@ -82,17 +92,39 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="tx-date">Date <span className="text-destructive">*</span></Label>
-        <Input id="tx-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="h-11" />
+        <Input
+          id="tx-date"
+          type="date"
+          value={date}
+          onChange={(e) => { setDate(e.target.value); setErrors((prev) => { const n = {...prev}; delete n.date; return n; }); }}
+          className={cn("h-11", errors.date && "border-destructive focus-visible:ring-destructive")}
+        />
+        {errors.date && <p className="text-xs text-destructive">{errors.date}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="tx-desc">Description <span className="text-destructive">*</span></Label>
-        <Input id="tx-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Wolt delivery" required className="h-11" />
+        <Input
+          id="tx-desc"
+          value={description}
+          onChange={(e) => { setDescription(e.target.value); setErrors((prev) => { const n = {...prev}; delete n.description; return n; }); }}
+          placeholder="e.g. Wolt delivery"
+          className={cn("h-11", errors.description && "border-destructive focus-visible:ring-destructive")}
+        />
+        {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="tx-amount">Amount ({currency}) <span className="text-destructive">*</span></Label>
-        <Input id="tx-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required className="h-11" />
+        <Input
+          id="tx-amount"
+          type="number"
+          value={amount}
+          onChange={(e) => { setAmount(e.target.value); setErrors((prev) => { const n = {...prev}; delete n.amount; return n; }); }}
+          placeholder="0.00"
+          className={cn("h-11", errors.amount && "border-destructive focus-visible:ring-destructive")}
+        />
+        {errors.amount && <p className="text-xs text-destructive">{errors.amount}</p>}
       </div>
 
           
