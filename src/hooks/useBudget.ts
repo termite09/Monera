@@ -35,10 +35,8 @@ export function useBudget(
 
   const detectedIncome = roundMoney(monthIncomeTxs.reduce((s, t) => s + t.amount, 0));
 
-  // Income transactions that aren't the employer's salary payment.
-  // When employer keywords are configured, the matching transaction is the salary
-  // already covered by salaryBasis — filtering it out prevents double-counting.
-  // When no keywords are set, all detected income is treated as additional.
+  // Non-salary income: transactions that don't match any salary keyword.
+  // Used by the dashboard income card to show the breakdown of other income sources.
   const additionalIncome = roundMoney(
     monthIncomeTxs
       .filter((t) =>
@@ -48,21 +46,11 @@ export function useBudget(
       .reduce((s, t) => s + t.amount, 0)
   );
 
-  // When salary keywords are configured and the matching transaction is present,
-  // use detectedIncome directly (the salary IS counted, no double-counting risk).
-  // Only fall back to salaryBasis when keywords are set but no matching tx found yet
-  // (e.g. salary arrives on the 25th and it's the 10th).
-  const salaryDetected =
-    salaryKeywords.length > 0 &&
-    monthIncomeTxs.some((t) =>
-      salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
-    );
-
-  const income = roundMoney(
-    salaryBasis > 0 && !salaryDetected
-      ? salaryBasis + additionalIncome
-      : detectedIncome
-  );
+  // salaryBasis is a planned/configured income (e.g. primary job paid via a
+  // different account, or a standing retainer). It combines with ALL detected
+  // bank-statement income — salary-keyword transactions included — so that
+  // multiple salary sources from different employers are all counted.
+  const income = roundMoney(salaryBasis > 0 ? salaryBasis + detectedIncome : detectedIncome);
   const incomeIsDetected = detectedIncome > 0;
 
   // Single source of truth for period spend / refund-netting — shared with the

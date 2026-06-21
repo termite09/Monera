@@ -204,7 +204,7 @@ describe("useBudget income reconciliation (H2)", () => {
   });
 });
 
-describe("useBudget — salary double-counting", () => {
+describe("useBudget — salary keyword behaviour", () => {
   const salarySettings: Settings = {
     ...baseSettings,
     defaultIncome: 3000,
@@ -212,14 +212,26 @@ describe("useBudget — salary double-counting", () => {
     monthlyBudgets: {},
   };
 
-  it("does not double-count salary when keyword matches CSV transaction", () => {
+  it("adds detected salary transactions on top of the configured basis (both counted)", () => {
+    // salaryBasis represents planned/external income; CSV salary transactions
+    // are separate entries — both must be included so multiple salary sources work.
     const txs: Transaction[] = [
       tx({ amount: 3000, type: "income", description: "Monthly Salary", date: "2024-06-10", category: "Uncategorized" }),
       tx({ amount: 50, type: "income", description: "Freelance payment", date: "2024-06-12", category: "Uncategorized" }),
     ];
     const { summary } = useBudget(txs, salarySettings, "2024-06");
-    // salary (3000 from settings) + freelance (50) = 3050, NOT 6050
-    expect(summary.income).toBe(3050);
+    // basis (3000) + salary in CSV (3000) + freelance (50) = 6050
+    expect(summary.income).toBe(6050);
+  });
+
+  it("adds multiple salary-keyword transactions when user has several employers", () => {
+    const txs: Transaction[] = [
+      tx({ amount: 3000, type: "income", description: "Primary Salary", date: "2024-06-10", category: "Uncategorized" }),
+      tx({ amount: 1500, type: "income", description: "Side Job Salary", date: "2024-06-15", category: "Uncategorized" }),
+    ];
+    const { summary } = useBudget(txs, salarySettings, "2024-06");
+    // basis (3000) + primary (3000) + side (1500) = 7500
+    expect(summary.income).toBe(7500);
   });
 
   it("uses detectedIncome when no salary basis is configured", () => {
