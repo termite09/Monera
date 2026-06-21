@@ -24,7 +24,7 @@ export function RulesForm({ rules, updateRules }: {
   const [newCat, setNewCat] = useState<Category>("Wants");
   const [dupError, setDupError] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -57,7 +57,7 @@ export function RulesForm({ rules, updateRules }: {
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); setConfirmDelete(false); };
 
   const bulkDelete = () => {
-    setItems((prev) => prev.filter((_, idx) => !selected.has(idx)));
+    setItems((prev) => prev.filter((r) => !selected.has(r.keyword)));
     exitSelectMode();
   };
 
@@ -82,13 +82,17 @@ export function RulesForm({ rules, updateRules }: {
       (!catFilter || r.category === catFilter)
     );
 
-  const allVisibleSelected = visible.length > 0 && visible.every(({ i }) => selected.has(i));
+  const allVisibleSelected = visible.length > 0 && visible.every(({ r }) => selected.has(r.keyword));
 
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
-      setSelected((prev) => { const next = new Set(prev); visible.forEach(({ i }) => next.delete(i)); return next; });
+      setSelected((prev) => {
+        const next = new Set(prev);
+        visible.forEach(({ r }) => next.delete(r.keyword));
+        return next;
+      });
     } else {
-      setSelected((prev) => new Set([...prev, ...visible.map(({ i }) => i)]));
+      setSelected((prev) => new Set([...prev, ...visible.map(({ r }) => r.keyword)]));
     }
   };
 
@@ -195,15 +199,15 @@ export function RulesForm({ rules, updateRules }: {
         <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
           <div className="divide-y divide-border">
             {visible.map(({ r, i }) => (
-              <div key={i} className="flex items-center gap-2 py-2 px-3">
+              <div key={r.keyword} className="flex items-center gap-2 py-2 px-3">
                 {selectMode && (
                   <input
                     type="checkbox"
-                    checked={selected.has(i)}
+                    checked={selected.has(r.keyword)}
                     onChange={() => setSelected((prev) => {
                       const next = new Set(prev);
-                      if (next.has(i)) next.delete(i);
-                      else next.add(i);
+                      if (next.has(r.keyword)) next.delete(r.keyword);
+                      else next.add(r.keyword);
                       return next;
                     })}
                     className="size-4 rounded accent-primary shrink-0 cursor-pointer"
