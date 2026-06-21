@@ -117,6 +117,12 @@ export default function TransactionsPage() {
   const [selectCatSheet, setSelectCatSheet] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
 
+  // Clear selection whenever the scope changes — selected IDs from a previous
+  // filter set are invisible in the new view and would confuse bulk actions.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [filterCat, filterType, rangeMode, customFrom, customTo]);
+
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
   const searching = search.trim().length > 0;
