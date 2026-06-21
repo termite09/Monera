@@ -18,7 +18,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 |---|---|
 | **Your data, your Drive** | All data lives in a `Monera/` folder you own. The app uses the minimal `drive.file` scope — it can only see files it created. |
 | **Payday-aware budgets** | Periods run payday-to-payday (e.g. the 24th), not calendar months. Override income and the needs / wants / savings split per period. |
-| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. |
+| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. Transactions are dated by when you tapped the card, not when the bank settled. |
 | **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
 | **Powerful transaction list** | Multi-column sort (date, description, category, amount), category and type filters, custom date ranges, and full-text search — all persisted across navigation. Descriptions always wrap, never truncate. |
 | **Bulk editing** | Inline checkboxes let you multi-select transactions to exclude or re-categorize many at once. |
@@ -139,6 +139,7 @@ Monera/
 - **No server-side storage.** Data never leaves your Google Drive. Monera has no backend database or analytics pipeline.
 - **No browser storage of financial data.** Transaction data is kept only in memory during the session — nothing is written to localStorage or IndexedDB.
 - **Minimal OAuth scope.** `drive.file` grants access only to the files Monera creates — it cannot read the rest of your Drive.
+- **Persistent sessions.** Google OAuth is configured to always issue a refresh token, so the app silently renews the 1-hour access token in the background — users stay signed in without being interrupted.
 - **HttpOnly session cookies.** Access tokens are stored in a server-side httpOnly cookie and are never exposed to JavaScript or logged.
 - **Zero third-party data sharing.** Authentication is handled entirely by Google. No personal data is sent to any third party.
 

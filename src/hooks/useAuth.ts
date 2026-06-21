@@ -6,8 +6,8 @@ export function useAuth() {
   return {
     session,
     isLoading: status === "loading",
-    isAuthenticated: status === "authenticated",
-    accessToken: session?.accessToken,
+    isAuthenticated: status === "authenticated" && !session?.error,
+    accessToken: session?.error ? undefined : session?.accessToken,
     signIn: () => signIn("google"),
     signOut: () => signOut({ redirectTo: "/login" }),
   };
