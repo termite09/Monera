@@ -20,8 +20,8 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Payday-aware budgets** | Periods run payday-to-payday (e.g. the 24th), not calendar months. Override income and the needs / wants / savings split per period. |
 | **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. Transactions are dated by when you tapped the card, not when the bank settled. |
 | **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
-| **Powerful transaction list** | Multi-column sort (date, description, category, amount), category and type filters, custom date ranges, and full-text search — all persisted across navigation. Descriptions always wrap, never truncate. |
-| **Bulk editing** | Inline checkboxes let you multi-select transactions to exclude, re-categorize, or reset to rule defaults — all at once. |
+| **Powerful transaction list** | Multi-column sort (date, description, category, amount), category and type filters, custom date ranges, and full-text search scoped to the selected period — all persisted across navigation. Descriptions always wrap, never truncate. Large lists load 50 transactions at a time with a "load more" button. |
+| **Bulk editing** | Inline checkboxes let you multi-select transactions to exclude, re-categorize, or reset to rule defaults — all at once. The total bar shows a live income/expense sum for selected items. |
 | **Reports & insights** | Budget-vs-actual, month-over-month comparison (category by category), spending pace and projection, top merchants, most-frequent merchants, stricter subscription detection (recurring amount _and_ cadence), and a prioritized insights feed. |
 | **Tappable drill-downs** | Every figure traces to its transactions: tap a dashboard card, a budget circle, or any chart bar — including a specific weekday, month, or year — to see the exact transactions and the calculation behind it. |
 | **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges. Each mode shows 7 bars (Mon–Sun) aggregated over the selected window, with a dedicated month picker for the Month view. |
@@ -30,7 +30,8 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Guidance built in** | Every number carries a plain-English info tooltip, and a replayable guided tour explains each page on first visit. |
 | **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
-| **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits apply immediately and roll back automatically on failure. Installable PWA. |
+| **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits apply immediately and roll back automatically on failure. Stale category overrides are pruned on load. Installable PWA. |
+| **Multiple income sources** | Salary keywords identify salary-type transactions for display. Configured salary basis (from Settings) and all detected income are always summed — so income from multiple employers and side jobs are counted together. |
 
 ---
 
@@ -117,6 +118,7 @@ src/
 │   ├── reports.ts               # Analytics, subscription detection
 │   ├── insights.ts              # Plain-language insight generation
 │   ├── safeToSpend.ts           # Forward-looking "safe to spend" calculation
+│   ├── migrateSettings.ts       # Version-aware settings migration (fills missing defaults on load)
 │   ├── parser/                  # CSV / XLSX parsing and date handling
 │   ├── spreadsheet.ts           # XLSX → CSV conversion
 │   └── google/                  # Drive API wrappers and folder helpers
@@ -178,7 +180,7 @@ The app builds with `next build` and runs as a standard serverless Next.js appli
 npm test
 ```
 
-The test suite covers the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation, subscription detection, and the insights engine.
+The test suite covers the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, settings migration, and the insights engine.
 
 ---
 
