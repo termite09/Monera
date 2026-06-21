@@ -120,11 +120,19 @@ export default function TransactionsPage() {
   const [selectCatSheet, setSelectCatSheet] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
 
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+
   // Clear selection whenever the scope changes — selected IDs from a previous
   // filter set are invisible in the new view and would confuse bulk actions.
   useEffect(() => {
     setSelected(new Set());
   }, [filterCat, filterType, rangeMode, customFrom, customTo]);
+
+  // Reset pagination whenever filters or sort change.
+  useEffect(() => {
+    setPage(1);
+  }, [filterCat, filterType, rangeMode, customFrom, customTo, search, sortField, sortDir]);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
@@ -392,7 +400,7 @@ export default function TransactionsPage() {
                   </button>
                 </div>
                 <div className="divide-y divide-border">
-                  {filtered.map((tx) => (
+                  {filtered.slice(0, page * PAGE_SIZE).map((tx) => (
                     <TransactionRow
                       key={tx.id}
                       transaction={tx}
@@ -405,6 +413,14 @@ export default function TransactionsPage() {
                       showCategory={filterType !== "income"}
                     />
                   ))}
+                  {filtered.length > page * PAGE_SIZE && (
+                    <button
+                      onClick={() => setPage((p) => p + 1)}
+                      className="w-full py-3 text-sm text-primary hover:bg-secondary/50 transition-colors"
+                    >
+                      Load more ({filtered.length - page * PAGE_SIZE} remaining)
+                    </button>
+                  )}
                 </div>
               </>
             )}
