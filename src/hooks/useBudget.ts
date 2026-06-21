@@ -20,6 +20,12 @@ export function useBudget(
 
   const monthBudget = settings.monthlyBudgets[month];
   const budgetRule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
+  if (process.env.NODE_ENV === "development") {
+    const ruleSum = budgetRule.needs + budgetRule.wants + budgetRule.savings;
+    if (ruleSum !== 100) {
+      console.warn(`[useBudget] Budget rule percentages sum to ${ruleSum}, expected 100`);
+    }
+  }
   const configuredIncome = monthBudget?.income ?? 0;
   const defaultIncome = settings.defaultIncome ?? 0;
   const salaryKeywords = settings.salaryKeywords ?? [];

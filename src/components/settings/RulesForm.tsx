@@ -28,12 +28,14 @@ export function RulesForm({ rules, updateRules }: {
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Intentional sync from externally-loaded rules.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setItems(rules), [rules]);
-
-  const dirty = JSON.stringify(items) !== JSON.stringify(rules);
+  useEffect(() => {
+    setItems(rules);
+    setIsDirty(false);
+  }, [rules]);
 
   const addRule = () => {
     const kw = newKw.trim().toLowerCase();
@@ -44,19 +46,28 @@ export function RulesForm({ rules, updateRules }: {
     }
     setDupError(false);
     setItems((prev) => [{ keyword: kw, category: newCat }, ...prev]);
+    setIsDirty(true);
     setNewKw("");
     setNewCat("Wants");
   };
-  const setRuleCat = (i: number, category: Category) =>
+  const setRuleCat = (i: number, category: Category) => {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, category } : r)));
-  const setRuleKeyword = (i: number, keyword: string) =>
+    setIsDirty(true);
+  };
+  const setRuleKeyword = (i: number, keyword: string) => {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, keyword } : r)));
-  const removeRule = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
+    setIsDirty(true);
+  };
+  const removeRule = (i: number) => {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+    setIsDirty(true);
+  };
 
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); setConfirmDelete(false); };
 
   const bulkDelete = () => {
     setItems((prev) => prev.filter((r) => !selected.has(r.keyword)));
+    setIsDirty(true);
     exitSelectMode();
   };
 
@@ -66,6 +77,7 @@ export function RulesForm({ rules, updateRules }: {
     try {
       await updateRules(items);
       setSaved(true);
+      setIsDirty(false);
       setTimeout(() => setSaved(false), 2000);
     } catch {
       setError(true);
@@ -260,7 +272,7 @@ export function RulesForm({ rules, updateRules }: {
 
       <Button
         onClick={handleSave}
-        disabled={isSaving || !dirty}
+        disabled={isSaving || !isDirty}
         className={cn("w-full", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
       >
         {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}

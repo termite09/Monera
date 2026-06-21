@@ -138,7 +138,7 @@ export default function DashboardPage() {
       if (d < start || d > end) return false;
       return true;
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [allTxs, month, paydayOfMonth, salaryBasis, salaryKeywords]);
+  }, [allTxs, month, paydayOfMonth]);
 
   const periodSavingsTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);

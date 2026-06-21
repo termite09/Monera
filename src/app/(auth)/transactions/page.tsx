@@ -93,7 +93,7 @@ export default function TransactionsPage() {
   const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField ?? "date");
   const [sortDir, setSortDir] = useState<"desc" | "asc">(() => loadFilters().sortDir ?? "desc");
   const [showAdd, setShowAdd] = useState(false);
-  const [editingTx, setEditingTx] = useState<import("@/types").Transaction | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   // Persist filters across page navigations (sessionStorage clears on tab close)
   useEffect(() => {
