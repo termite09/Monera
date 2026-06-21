@@ -194,6 +194,33 @@ describe("useBudget income reconciliation (H2)", () => {
   });
 });
 
+describe("useBudget — salary double-counting", () => {
+  const salarySettings: Settings = {
+    ...baseSettings,
+    defaultIncome: 3000,
+    salaryKeywords: ["salary"],
+    monthlyBudgets: {},
+  };
+
+  it("does not double-count salary when keyword matches CSV transaction", () => {
+    const txs: Transaction[] = [
+      tx({ amount: 3000, type: "income", description: "Monthly Salary", date: "2024-06-10", category: "Uncategorized" }),
+      tx({ amount: 50, type: "income", description: "Freelance payment", date: "2024-06-12", category: "Uncategorized" }),
+    ];
+    const { summary } = useBudget(txs, salarySettings, "2024-06");
+    // salary (3000 from settings) + freelance (50) = 3050, NOT 6050
+    expect(summary.income).toBe(3050);
+  });
+
+  it("uses detectedIncome when no salary basis is configured", () => {
+    const txs: Transaction[] = [
+      tx({ amount: 2800, type: "income", description: "Wages", date: "2024-06-10", category: "Uncategorized" }),
+    ];
+    const { summary } = useBudget(txs, { ...baseSettings, monthlyBudgets: {} }, "2024-06");
+    expect(summary.income).toBe(2800);
+  });
+});
+
 describe("dashboard / reports consistency (C1)", () => {
   it("dashboard totalExpenses equals reports totalSpent when refunds exist", () => {
     const txs = [
