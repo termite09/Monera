@@ -26,7 +26,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Tappable drill-downs** | Every figure traces to its transactions: tap a dashboard card, a budget circle, or any chart bar — including a specific weekday, month, or year — to see the exact transactions and the calculation behind it. |
 | **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges. Each mode shows 7 bars (Mon–Sun) aggregated over the selected window, with a dedicated month picker for the Month view. |
 | **Year overview** | The Year tab aggregates spending by payday period across the full calendar year, with a stacked monthly bar chart (Needs / Wants / Savings legend), total expense and savings summaries, and click-through to any period on the dashboard. |
-| **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after accounting for money spent so far, savings set aside, and recurring bill payments due this period. |
+| **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after accounting for money spent so far, savings set aside, and Recurring bills due this period. |
 | **Guidance built in** | Every number carries a plain-English info tooltip, and a replayable guided tour explains each page on first visit. |
 | **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |

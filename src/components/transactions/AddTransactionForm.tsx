@@ -92,7 +92,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 w-40">
         <Label htmlFor="tx-date">Date <span className="text-destructive">*</span></Label>
         <Input
           id="tx-date"
