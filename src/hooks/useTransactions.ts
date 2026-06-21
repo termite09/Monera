@@ -188,6 +188,24 @@ export function useTransactions(
     [accessToken, structure, patch]
   );
 
+  const updateManualTransaction = useCallback(
+    async (txId: string, updates: Omit<Transaction, "id" | "source" | "categorySource">) => {
+      if (!accessToken || !structure) return;
+      const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
+      const updated = existing.map((t) =>
+        t.id === txId ? { ...t, ...updates } : t
+      );
+      await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
+      patch((d) => ({
+        ...d,
+        rawTxs: d.rawTxs.map((t) =>
+          t.id === txId ? { ...t, ...updates } : t
+        ),
+      }));
+    },
+    [accessToken, structure, patch]
+  );
+
   // Category and exclude are rapid, tap-heavy interactions, so update the UI
   // optimistically (instantly) and roll back if the Drive write fails.
   const updateCategory = useCallback(
@@ -350,6 +368,7 @@ export function useTransactions(
     refetch: query.refetch,
     addManualTransaction,
     deleteManualTransaction,
+    updateManualTransaction,
     updateCategory,
     bulkUpdateCategory,
     bulkExclude,

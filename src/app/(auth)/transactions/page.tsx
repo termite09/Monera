@@ -71,7 +71,7 @@ const CAT_DOT: Record<Category, string> = {
 export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
-    addManualTransaction, deleteManualTransaction, bulkUpdateCategory,
+    addManualTransaction, deleteManualTransaction, updateManualTransaction, bulkUpdateCategory,
     bulkExclude, bulkResetToDefault, toggleExclude, refetch,
   } = useAppData();
 
@@ -441,8 +441,7 @@ export default function TransactionsPage() {
             initialValues={editingTx}
             submitLabel="Save Changes"
             onSubmit={async (updated) => {
-              await deleteManualTransaction(editingTx.id);
-              await addManualTransaction(updated);
+              await updateManualTransaction(editingTx.id, updated);
               setEditingTx(null);
             }}
             onCancel={() => setEditingTx(null)}
