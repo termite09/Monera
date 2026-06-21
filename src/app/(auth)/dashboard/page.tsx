@@ -219,7 +219,7 @@ export default function DashboardPage() {
         colorClass: safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
         accent: safeInfo.safe >= 0 ? "#10b981" : "#ef4444",
         secondaryText: `${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} to payday`,
-        info: "What you can still spend before payday, after setting aside your savings target and upcoming bill payments this period.",
+        info: "What you can still spend before payday, after setting aside your savings target and recurring bill payments this period.",
         onClick: () => setSheet("safe"),
       }
     : {

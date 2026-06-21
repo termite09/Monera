@@ -29,7 +29,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Upcoming bill payments</span>
+            <span className="text-muted-foreground">recurring bill payments</span>
             <span className="text-foreground">− {formatCurrency(safeInfo.billsDue)}</span>
           </div>
           {safeInfo.savingsRemaining > 0 && (
@@ -48,7 +48,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
 
         {safeInfo.billItems.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Upcoming bill payments</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">recurring bill payments</p>
             <div className="rounded-xl border border-border divide-y divide-border">
               {safeInfo.billItems.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 px-3 py-2.5">
@@ -64,7 +64,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
         )}
 
         <p className="text-xs text-muted-foreground">
-          What&apos;s left after your spending so far, money set aside for savings, and upcoming bill payments
+          What&apos;s left after your spending so far, money set aside for savings, and recurring bill payments
           {safeInfo.daysLeft > 0 ? ` (${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} away)` : ""}.
         </p>
       </div>
