@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Repeat, EyeOff, RotateCcw, Loader2, Trash2, Pencil } from "lucide-react";
+import { Repeat, Loader2, Trash2, Pencil } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
 
@@ -91,7 +91,7 @@ export function TransactionRow({
       <div className={cn("shrink-0 w-10 sm:w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (
           <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", catText[tx.category])}>
-            <span className="sm:hidden">{catShort[tx.category]}</span>
+            <span className="sm:hidden">{catShort[tx.category as Category]}</span>
             <span className="hidden sm:inline">{tx.category}</span>
             {tx.categorySource === "override" && (
               <span className="text-[9px] leading-none opacity-50" title="Category was set manually — rule changes won't affect this transaction">✎</span>
@@ -124,27 +124,6 @@ export function TransactionRow({
             {checked && <div className="size-2 rounded-full bg-white" />}
           </div>
         </div>
-      ) : onToggleExclude ? (
-        <button
-          onClick={async () => {
-            if (toggling) return;
-            setToggling(true);
-            try {
-              await onToggleExclude(tx.id);
-            } finally {
-              setToggling(false);
-            }
-          }}
-          disabled={toggling}
-          className={cn(
-            "shrink-0 p-1 rounded-md transition-colors disabled:cursor-wait",
-            excluded ? "text-primary hover:bg-secondary" : "text-muted-foreground/40 hover:text-destructive hover:bg-secondary"
-          )}
-          aria-label={excluded ? "Include in calculations" : "Exclude from calculations"}
-          title={excluded ? "Include in calculations" : "Exclude from calculations"}
-        >
-          {toggling ? <Loader2 size={14} className="animate-spin" /> : excluded ? <RotateCcw size={14} /> : <EyeOff size={14} />}
-        </button>
       ) : onDelete ? (
         <div className="shrink-0 flex items-center gap-0.5">
           {onEdit && !confirmDelete && (

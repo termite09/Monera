@@ -136,11 +136,6 @@ export default function DashboardPage() {
       if (tx.type !== "income" || tx.excluded) return false;
       const d = new Date(tx.date + "T00:00:00");
       if (d < start || d > end) return false;
-      // When a salary basis is configured, salary-matching transactions are
-      // already represented by the "Planned income" row — exclude them here to
-      // avoid showing amounts that aren't included in the income total.
-      if (salaryBasis > 0 && salaryKeywords.length > 0 &&
-          salaryKeywords.some((k) => tx.description.toLowerCase().includes(k.toLowerCase()))) return false;
       return true;
     }).sort((a, b) => b.date.localeCompare(a.date));
   }, [allTxs, month, paydayOfMonth, salaryBasis, salaryKeywords]);

@@ -50,7 +50,7 @@ export function useBudget(
   // When no salary basis: income = everything detected.
   const income = roundMoney(
     salaryBasis > 0
-      ? salaryBasis + (salaryKeywords.length > 0 ? additionalIncome : detectedIncome)
+      ? salaryBasis +  detectedIncome 
       : detectedIncome
   );
   const incomeIsDetected = detectedIncome > 0;

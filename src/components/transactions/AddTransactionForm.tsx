@@ -32,7 +32,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
 
   const selectType = (t: TransactionType) => {
     setType(t);
-    setCategory(t === "income" ? "Needs" : "Wants");
+    if (t !== "income") setCategory("Wants");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,7 +47,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
         amount: parsedAmount,
         type,
         currency: "EUR",
-        category,
+        category: type === "income" ? "Uncategorized" : category,
         notes: notes || undefined,
         excluded: false,
       });
@@ -92,19 +92,22 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
         <Input id="tx-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required className="h-11" />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="tx-category">Category <span className="text-destructive">*</span></Label>
-        <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
-          <SelectTrigger id="tx-category" className="h-11">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Needs">Needs</SelectItem>
-            <SelectItem value="Wants">Wants</SelectItem>
-            <SelectItem value="Savings">Savings</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          
+      {type !== "income" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="tx-category">Category <span className="text-destructive">*</span></Label>
+          <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
+            <SelectTrigger id="tx-category" className="h-11">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Needs">Needs</SelectItem>
+              <SelectItem value="Wants">Wants</SelectItem>
+              <SelectItem value="Savings">Savings</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="tx-notes">Notes</Label>

@@ -378,7 +378,7 @@ export default function TransactionsPage() {
                       onEdit={selectMode || tx.source !== "manual" ? undefined : (id) => setEditingTx(filtered.find((t) => t.id === id) ?? null)}
                       selectMode={selectMode}
                       checked={selected.has(tx.id)}
-                      onCheck={toggleSelect}
+                      onCheck={!selectMode && tx.source === "manual" ? undefined : toggleSelect}
                       showCategory={filterType !== "income"}
                     />
                   ))}

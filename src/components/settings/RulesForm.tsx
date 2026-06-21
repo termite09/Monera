@@ -262,22 +262,13 @@ export function RulesForm({ rules, updateRules }: {
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Button
-          onClick={() => setItems(DEFAULT_CATEGORY_RULES)}
-          variant="outline"
-          className="flex-1"
-        >
-          Reset to defaults
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={isSaving || !dirty}
-          className={cn("flex-1", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
-        >
-          {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}
-        </Button>
-      </div>
+      <Button
+        onClick={handleSave}
+        disabled={isSaving || !dirty}
+        className={cn("w-full", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
+      >
+        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}
+      </Button>
     </div>
   );
 }
