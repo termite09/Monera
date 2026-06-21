@@ -13,7 +13,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
         <SheetTitle>Safe to spend</SheetTitle>
       </SheetHeader>
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2">
-        <div className="bg-secondary/50 rounded-xl px-3 py-3 flex flex-col gap-2 font-mono text-sm">
+        <div className="bg-secondary/50 rounded-xl px-6 py-5 flex flex-col gap-2 font-mono text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Income</span>
             <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(safeInfo.income)}</span>
