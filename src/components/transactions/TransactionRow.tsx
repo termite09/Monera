@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Repeat, EyeOff, RotateCcw, Loader2, Trash2 } from "lucide-react";
+import { Repeat, EyeOff, RotateCcw, Loader2, Trash2, Pencil } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ interface TransactionRowProps {
   transaction: Transaction;
   onToggleExclude?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
+  onEdit?: (id: string) => void;
   selectMode?: boolean;
   checked?: boolean;
   onCheck?: (id: string) => void;
@@ -42,6 +43,7 @@ export function TransactionRow({
   transaction,
   onToggleExclude,
   onDelete,
+  onEdit,
   selectMode = false,
   checked = false,
   onCheck,
@@ -79,15 +81,21 @@ export function TransactionRow({
           <span className="min-w-0 break-words">{cleanDescription(tx.description)}</span>
         </span>
         {tx.notes && <span className="text-xs text-muted-foreground break-words">{tx.notes}</span>}
+        {tx.source === "manual" && (
+          <span className="text-[9px] font-medium text-muted-foreground bg-secondary px-1 py-0.5 rounded self-start leading-tight">manual</span>
+        )}
       </div>
 
       {/* Category — always rendered to keep column layout stable; hidden via
           visibility when showCategory is false so width is preserved. */}
-      <div className={cn("shrink-0 w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
+      <div className={cn("shrink-0 w-10 sm:w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (
-          <span className={cn("text-xs font-medium whitespace-nowrap", catText[tx.category])}>
+          <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", catText[tx.category])}>
             <span className="sm:hidden">{catShort[tx.category]}</span>
             <span className="hidden sm:inline">{tx.category}</span>
+            {tx.categorySource === "override" && (
+              <span className="text-[9px] leading-none opacity-50" title="Category was set manually — rule changes won't affect this transaction">✎</span>
+            )}
           </span>
         )}
       </div>
@@ -103,7 +111,7 @@ export function TransactionRow({
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
 
-      {/* Right action: checkbox when selection is available, otherwise eye/delete */}
+      {/* Right action: checkbox when selection is available, otherwise eye/edit+delete/exclude */}
       {onCheck ? (
         <div
           className="shrink-0 w-6 flex items-center justify-center"
@@ -138,39 +146,51 @@ export function TransactionRow({
           {toggling ? <Loader2 size={14} className="animate-spin" /> : excluded ? <RotateCcw size={14} /> : <EyeOff size={14} />}
         </button>
       ) : onDelete ? (
-        confirmDelete ? (
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={async () => {
-              if (deleting) return;
-              setDeleting(true);
-              try {
-                await onDelete(tx.id);
-              } catch {
-                // Handled upstream; reset UI so the row doesn't stay spinning.
-              } finally {
-                setDeleting(false);
-                setConfirmDelete(false);
-              }
-            }}
-            disabled={deleting}
-            className="shrink-0 p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
-            aria-label="Confirm delete"
-            title="Tap again to confirm"
-          >
-            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-          </button>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            onBlur={() => setConfirmDelete(false)}
-            className="shrink-0 p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
-            aria-label="Delete transaction"
-            title="Delete manual transaction"
-          >
-            <Trash2 size={14} />
-          </button>
-        )
+        <div className="shrink-0 flex items-center gap-0.5">
+          {onEdit && !confirmDelete && (
+            <button
+              onClick={() => onEdit(tx.id)}
+              className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-primary hover:bg-secondary"
+              aria-label="Edit transaction"
+              title="Edit manual transaction"
+            >
+              <Pencil size={13} />
+            </button>
+          )}
+          {confirmDelete ? (
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={async () => {
+                if (deleting) return;
+                setDeleting(true);
+                try {
+                  await onDelete(tx.id);
+                } catch {
+                  // Handled upstream; reset UI so the row doesn't stay spinning.
+                } finally {
+                  setDeleting(false);
+                  setConfirmDelete(false);
+                }
+              }}
+              disabled={deleting}
+              className="p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
+              aria-label="Confirm delete"
+              title="Tap again to confirm"
+            >
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+            </button>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              onBlur={() => setConfirmDelete(false)}
+              className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
+              aria-label="Delete transaction"
+              title="Delete manual transaction"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       ) : null}
     </div>
   );

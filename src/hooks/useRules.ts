@@ -5,9 +5,12 @@ import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders"
 import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
 import { DriveAuthError } from "@/lib/errors";
 
-// Rules saved by the user always include this keyword, so we can tell a
-// user-customized set apart from a stale auto-seeded copy in Drive.
-const MARKER = "to eur savings";
+// Legacy marker: old saves wrote a bare CategoryRule[] and used this keyword
+// as a sentinel to detect user-customized rules vs. the seeded defaults.
+// New saves use { v: 1, customized: true, rules: [...] } — marker no longer needed.
+const LEGACY_MARKER = "to eur savings";
+
+type StoredRulesFile = { v: 1; customized: boolean; rules: CategoryRule[] };
 
 export function useRules(
   accessToken: string | undefined,
@@ -20,11 +23,17 @@ export function useRules(
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      const stored = await readAppFile<CategoryRule[]>(accessToken as string, fileId as string);
-      // Use stored rules only if the user actually customized & saved them;
-      // otherwise fall back to the latest code defaults.
-      const customized = Array.isArray(stored) && stored.length > 0 && stored.some((r) => r.keyword === MARKER);
-      return customized ? stored : DEFAULT_CATEGORY_RULES;
+      const raw = await readAppFile<StoredRulesFile | CategoryRule[]>(accessToken as string, fileId as string);
+      // New format: { v: 1, customized: true, rules: [...] }
+      if (raw && !Array.isArray(raw) && (raw as StoredRulesFile).v === 1) {
+        return (raw as StoredRulesFile).customized ? (raw as StoredRulesFile).rules : DEFAULT_CATEGORY_RULES;
+      }
+      // Legacy format: bare array — use marker sentinel for one-time backward compat.
+      if (Array.isArray(raw) && raw.length > 0) {
+        const wasCustomized = (raw as CategoryRule[]).some((r) => r.keyword === LEGACY_MARKER);
+        return wasCustomized ? (raw as CategoryRule[]) : DEFAULT_CATEGORY_RULES;
+      }
+      return DEFAULT_CATEGORY_RULES;
     },
     enabled: !!accessToken && !!fileId,
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
@@ -36,7 +45,7 @@ export function useRules(
       const prev = qc.getQueryData(queryKey);
       qc.setQueryData(queryKey, next);
       try {
-        await writeAppFile(accessToken, fileId, next);
+        await writeAppFile(accessToken, fileId, { v: 1, customized: true, rules: next } satisfies StoredRulesFile);
       } catch (err) {
         qc.setQueryData(queryKey, prev);
         throw err;

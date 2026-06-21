@@ -22,6 +22,7 @@ export function RulesForm({ rules, updateRules }: {
   const [catFilter, setCatFilter] = useState<Category | "">("");
   const [newKw, setNewKw] = useState("");
   const [newCat, setNewCat] = useState<Category>("Wants");
+  const [dupError, setDupError] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -38,6 +39,11 @@ export function RulesForm({ rules, updateRules }: {
   const addRule = () => {
     const kw = newKw.trim().toLowerCase();
     if (!kw) return;
+    if (items.some((r) => r.keyword === kw)) {
+      setDupError(true);
+      return;
+    }
+    setDupError(false);
     setItems((prev) => [{ keyword: kw, category: newCat }, ...prev]);
     setNewKw("");
     setNewCat("Wants");
@@ -96,16 +102,16 @@ export function RulesForm({ rules, updateRules }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Rules</h1>
+        <h1 className="text-xl font-semibold text-foreground">Mappings</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          When a transaction description contains a keyword, it&apos;s automatically assigned that category. The first matching rule wins.
+          When a transaction description contains a keyword, it&apos;s automatically assigned that category. The first matching mapping wins.
         </p>
       </div>
 
       {/* Add new */}
       <Card className="shadow-none border-border">
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Add Rule</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Add Mapping</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -113,11 +119,14 @@ export function RulesForm({ rules, updateRules }: {
             <Input
               id="rule-kw"
               value={newKw}
-              onChange={(e) => setNewKw(e.target.value)}
+              onChange={(e) => { setNewKw(e.target.value); setDupError(false); }}
               onKeyDown={(e) => e.key === "Enter" && addRule()}
               placeholder="e.g. netflix"
-              className="h-11"
+              className={cn("h-11", dupError && "border-destructive focus-visible:ring-destructive")}
             />
+            {dupError && (
+              <p className="text-xs text-destructive">A mapping for this keyword already exists.</p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="rule-cat">Category</Label>
@@ -125,7 +134,7 @@ export function RulesForm({ rules, updateRules }: {
               id="rule-cat"
               value={newCat}
               onChange={(e) => setNewCat(e.target.value as Category)}
-              className="h-11 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className={cn("h-11 px-3 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring", catColor[newCat])}
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -134,7 +143,7 @@ export function RulesForm({ rules, updateRules }: {
           </div>
           <Button onClick={addRule} variant="outline" className="w-full">
             <Plus size={16} className="mr-1.5" />
-            Add rule
+            Add mapping
           </Button>
         </CardContent>
       </Card>
@@ -162,7 +171,7 @@ export function RulesForm({ rules, updateRules }: {
 
       {/* List header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{visible.length} of {items.length} rules</p>
+        <p className="text-xs text-muted-foreground">{visible.length} of {items.length} mappings</p>
         {!selectMode ? (
           <button
             onClick={() => setSelectMode(true)}
@@ -234,7 +243,7 @@ export function RulesForm({ rules, updateRules }: {
       {/* Bulk delete action bar */}
       {selectMode && selected.size > 0 && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-foreground">{selected.size} rule{selected.size !== 1 ? "s" : ""} selected</p>
+          <p className="text-sm text-foreground">{selected.size} mapping{selected.size !== 1 ? "s" : ""} selected</p>
           {confirmDelete ? (
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">Are you sure?</p>
@@ -266,7 +275,7 @@ export function RulesForm({ rules, updateRules }: {
           disabled={isSaving || !dirty}
           className={cn("flex-1", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
         >
-          {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Rules"}
+          {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}
         </Button>
       </div>
     </div>

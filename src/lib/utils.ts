@@ -138,3 +138,9 @@ export function ordinal(n: number): string {
   if (n % 10 === 3 && n !== 13) return `${n}rd`;
   return `${n}th`;
 }
+
+export function getPrevMonthKey(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}

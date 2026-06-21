@@ -103,7 +103,7 @@ export function DefaultsForm({ settings, updateSettings }: {
             className="h-11"
           />
           <p className="text-xs text-muted-foreground">
-            Used as your income for every period unless a specific month has its own planned income (set in the Budget tab). Leave blank to use the income detected from your statement.
+            Used as your income for every period unless a specific month has its own planned income (set in the Monthly tab). Leave blank to use the income detected from your statement.
           </p>
         </CardContent>
       </Card>

@@ -2,19 +2,20 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Search, AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown, Loader2 } from "lucide-react";
+import { AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
 import { AddTransactionForm } from "@/components/transactions/AddTransactionForm";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
+import { TransactionFilters } from "./_components/TransactionFilters";
+import { BulkActionBar } from "./_components/BulkActionBar";
 import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { netExpenseTotal } from "@/lib/finance";
 import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn } from "@/lib/utils";
@@ -39,7 +40,7 @@ function toInputDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const CATEGORIES: Category[] = ["Needs", "Wants", "Savings", "Uncategorized"];
+const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
 
 type SortField = "date" | "description" | "amount" | "category";
 
@@ -78,7 +79,7 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState(() => loadFilters().search ?? "");
   const [filterCat, setFilterCat] = useState<Category | "All">(() => {
     const cat = searchParams.get("category");
-    if (cat && ["Needs", "Wants", "Savings", "Uncategorized"].includes(cat)) return cat as Category;
+    if (cat && ["Needs", "Wants", "Savings"].includes(cat)) return cat as Category;
     return loadFilters().filterCat ?? "All";
   });
   const [filterType, setFilterType] = useState<TransactionType | "all">(() => loadFilters().filterType ?? "expense");
@@ -92,6 +93,7 @@ export default function TransactionsPage() {
   const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField ?? "date");
   const [sortDir, setSortDir] = useState<"desc" | "asc">(() => loadFilters().sortDir ?? "desc");
   const [showAdd, setShowAdd] = useState(false);
+  const [editingTx, setEditingTx] = useState<import("@/types").Transaction | null>(null);
 
   // Persist filters across page navigations (sessionStorage clears on tab close)
   useEffect(() => {
@@ -260,124 +262,37 @@ export default function TransactionsPage() {
         )}
 
         {/* Controls */}
-        <div className="flex flex-col gap-2">
-          {/* Row 1: Search + Add */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search transactions..."
-                className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <Button onClick={() => setShowAdd(true)} size="sm" className="h-11 shrink-0 px-4">
-              <Plus size={14} className="mr-1.5" />
-              Add
-            </Button>
-          </div>
+        <TransactionFilters
+          search={search}
+          onSearchChange={setSearch}
+          filterType={filterType}
+          onFilterTypeChange={handleFilterTypeChange}
+          filterCat={filterCat}
+          onFilterCatChange={(v) => setFilterCat(v)}
+          rangeMode={rangeMode}
+          onPeriodMode={() => setRangeMode("period")}
+          onCustomMode={selectCustom}
+          customFrom={customFrom}
+          onCustomFromChange={setCustomFrom}
+          customTo={customTo}
+          onCustomToChange={setCustomTo}
+          searching={searching}
+          onAdd={() => setShowAdd(true)}
+        />
 
-          {/* Row 2: Type filter — full-width segmented control */}
-          <div className="grid grid-cols-3 gap-0.5 p-0.5 rounded-lg bg-secondary">
-            {(
-              [
-                { value: "expense" as const, label: "Expenses" },
-                { value: "income" as const, label: "Income" },
-                { value: "all" as const, label: "All" },
-              ] as { value: TransactionType | "all"; label: string }[]
-            ).map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => handleFilterTypeChange(value)}
-                className={cn(
-                  "py-1.5 rounded-md text-xs font-medium transition-colors",
-                  filterType === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Row 3: Category + Period/Custom + Select — secondary controls */}
-          <div className="flex items-center gap-2">
-            {/* Always occupies space; invisible when income so layout stays stable */}
-            <div className={cn("flex-1 min-w-0", filterType === "income" && "invisible pointer-events-none")}>
-              <Select value={filterCat} onValueChange={(v) => setFilterCat(v as Category | "All")}>
-                <SelectTrigger className="h-8 text-xs w-full" aria-label="Filter by category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All categories</SelectItem>
-                  <SelectItem value="Needs">Needs</SelectItem>
-                  <SelectItem value="Wants">Wants</SelectItem>
-                  <SelectItem value="Savings">Savings</SelectItem>
-                  <SelectItem value="Uncategorized">Uncategorized</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {!searching && (
-              <div className="flex gap-0.5 p-0.5 rounded-lg bg-secondary shrink-0">
-                <button
-                  onClick={() => setRangeMode("period")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                    rangeMode === "period" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Period
-                </button>
-                <button
-                  onClick={selectCustom}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                    rangeMode === "custom" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Custom
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Row 4: Count / total — single stable line */}
-          <p className="text-xs text-muted-foreground">
-            {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
-            {searching ? " · all periods" : ""}{" "}·{" "}
-            <span className="font-medium text-foreground tabular-nums font-mono text-sm">
-              {formatCurrency(summaryTotal)}
+        {/* Row: Count / total */}
+        <p className="text-xs text-muted-foreground">
+          {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+          {searching ? " · all periods" : ""}{" "}·{" "}
+          <span className="font-medium text-foreground tabular-nums font-mono text-sm">
+            {formatCurrency(summaryTotal)}
+          </span>
+          {showRefund && (
+            <span className="ml-1 text-muted-foreground/70 tabular-nums font-mono">
+              ({formatCurrency(grossExpense)} − {formatCurrency(refunded)} refunded)
             </span>
-            {showRefund && (
-              <span className="ml-1 text-muted-foreground/70 tabular-nums font-mono">
-                ({formatCurrency(grossExpense)} − {formatCurrency(refunded)} refunded)
-              </span>
-            )}
-          </p>
-
-          {/* Custom date range inputs */}
-          {rangeMode === "custom" && (
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={customFrom}
-                max={customTo || undefined}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                aria-label="From date"
-                className="flex-1 h-10 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <span className="text-xs text-muted-foreground shrink-0">to</span>
-              <input
-                type="date"
-                value={customTo}
-                min={customFrom || undefined}
-                onChange={(e) => setCustomTo(e.target.value)}
-                aria-label="To date"
-                className="flex-1 h-10 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
           )}
-        </div>
+        </p>
 
         <Card className="shadow-none border-border overflow-hidden">
           <CardContent className="p-0">
@@ -460,6 +375,7 @@ export default function TransactionsPage() {
                       transaction={tx}
                       onToggleExclude={selectMode ? undefined : toggleExclude}
                       onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
+                      onEdit={selectMode || tx.source !== "manual" ? undefined : (id) => setEditingTx(filtered.find((t) => t.id === id) ?? null)}
                       selectMode={selectMode}
                       checked={selected.has(tx.id)}
                       onCheck={toggleSelect}
@@ -473,59 +389,22 @@ export default function TransactionsPage() {
         </Card>
       </div>
 
-      {/* Selection action bar — 2-row layout */}
+      {/* Selection action bar */}
       {selected.size > 0 && (
-        <div className="fixed bottom-20 md:bottom-4 left-0 right-0 md:left-56 z-40 px-4">
-          <div className="max-w-2xl mx-auto bg-card border border-border rounded-xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-2.5">
-            {/* Row 1: count + total + clear */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {selected.size} transaction{selected.size === 1 ? "" : "s"}
-                </span>
-                <span className="text-xs text-muted-foreground tabular-nums font-mono">
-                  {formatCurrency(selectedTotal)}
-                </span>
-              </div>
-              <button
-                onClick={exitSelect}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear
-              </button>
-            </div>
-            {/* Row 2: action buttons or loading indicator */}
-            {isBulkLoading ? (
-              <div className="flex items-center gap-2 py-0.5">
-                <Loader2 size={14} className="animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Processing transactions…</span>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                {hasIncluded && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={handleBulkExclude}>
-                    Exclude
-                  </Button>
-                )}
-                {hasExcluded && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={handleBulkInclude}>
-                    Include
-                  </Button>
-                )}
-                {selectedTxs.some((t) => t.type !== "income") && (
-                  <Button size="sm" className="flex-1" onClick={() => setSelectCatSheet(true)}>
-                    Category
-                  </Button>
-                )}
-                {hasDefaultable && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={handleBulkDefault}>
-                    Default
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <BulkActionBar
+          selectedCount={selected.size}
+          selectedTotal={selectedTotal}
+          isBulkLoading={isBulkLoading}
+          hasIncluded={hasIncluded}
+          hasExcluded={hasExcluded}
+          hasDefaultable={hasDefaultable}
+          hasExpensesSelected={selectedTxs.some((t) => t.type !== "income")}
+          onExclude={handleBulkExclude}
+          onInclude={handleBulkInclude}
+          onCategory={() => setSelectCatSheet(true)}
+          onDefault={handleBulkDefault}
+          onClear={exitSelect}
+        />
       )}
 
       {/* Bulk category sheet */}
@@ -554,6 +433,21 @@ export default function TransactionsPage() {
           onSubmit={async (tx) => { await addManualTransaction(tx); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />
+      </Modal>
+
+      <Modal isOpen={!!editingTx} onClose={() => setEditingTx(null)} title="Edit Transaction">
+        {editingTx && (
+          <AddTransactionForm
+            initialValues={editingTx}
+            submitLabel="Save Changes"
+            onSubmit={async (updated) => {
+              await deleteManualTransaction(editingTx.id);
+              await addManualTransaction(updated);
+              setEditingTx(null);
+            }}
+            onCancel={() => setEditingTx(null)}
+          />
+        )}
       </Modal>
 
       <AppTour pageKey="transactions" slides={TRANSACTIONS_SLIDES} />

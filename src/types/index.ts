@@ -57,6 +57,8 @@ export interface Settings {
   onboarded?: boolean;
   /** Keys are page identifiers; true means the user has dismissed the tour for that page. */
   tourPages?: Record<string, boolean>;
+  /** Merchant names hidden from the Insights → Merchants view (does not affect calculations). */
+  hiddenMerchants?: string[];
 }
 
 export interface CategoryRule {

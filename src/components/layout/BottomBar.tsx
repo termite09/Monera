@@ -21,7 +21,7 @@ export function BottomBar() {
       className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-1">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-3">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (

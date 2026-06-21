@@ -1,7 +1,7 @@
 import { Transaction, Settings, MonthSummary, Category } from "@/types";
 import { getPeriodSpend } from "@/lib/finance";
 import { detectSubscriptions } from "@/lib/reports";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPrevMonthKey } from "@/lib/utils";
 
 export type InsightTone = "good" | "warn" | "info";
 
@@ -9,12 +9,6 @@ export interface Insight {
   id: string;
   text: string;
   tone: InsightTone;
-}
-
-function prevMonthKey(monthKey: string): string {
-  const [y, m] = monthKey.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /**
@@ -63,7 +57,7 @@ export function buildInsights(
   }
 
   // Spending vs the previous period.
-  const prevTotal = getPeriodSpend(transactions, prevMonthKey(monthKey), payday).total;
+  const prevTotal = getPeriodSpend(transactions, getPrevMonthKey(monthKey), payday).total;
   if (prevTotal > 0) {
     const change = Math.round(((summary.totalExpenses - prevTotal) / prevTotal) * 100);
     if (change !== 0) {

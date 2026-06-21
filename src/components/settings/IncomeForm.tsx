@@ -129,21 +129,21 @@ export function IncomeForm({ settings, updateSettings }: {
 
       <KeywordEditor
         label="Salary keywords"
-        hint={'Deposits whose description contains one of these are treated as salary and excluded from “received from others”.'}
+        hint="If a deposit description contains one of these words, it will be labelled 'Salary' in your income breakdown. Add your employer's name or the text that appears on your payslip."
         placeholder="e.g. employer name"
         keywords={salary}
         onChange={setSalary}
       />
       <KeywordEditor
-        label="Self-transfer keywords"
-        hint="Transfers between your own accounts (often your own name). These are dropped entirely — neither income nor spending."
+        label="Internal transfer keywords"
+        hint="Transfers between your own accounts (for example, moving money to a savings account). These are removed entirely so they don't show up as income or spending."
         placeholder="e.g. your full name"
         keywords={selfTransfer}
         onChange={setSelfTransfer}
       />
       <KeywordEditor
-        label="Savings-vault keywords"
-        hint="Revolut savings-vault deposits show up twice. The outgoing amount counts as Savings; the positive mirror matching these keywords is dropped."
+        label="Revolut savings keywords"
+        hint="When you move money into a Revolut Savings Vault, it appears twice — once as an outgoing (counted as Savings) and once as an incoming. Add keywords from those incoming descriptions here to remove the duplicate."
         placeholder="e.g. eur savings"
         keywords={savingsVault}
         onChange={setSavingsVault}

@@ -31,8 +31,8 @@ const SETTINGS_SLIDES = [
     body: "Tell Monera your employer name so it can identify your salary in your statement. You can also set keywords to detect transfers between your own accounts and exclude them from spending.",
   },
   {
-    title: "Rules — auto-categorisation",
-    body: "Rules map merchant names to categories automatically. Monera adds rules as you categorise transactions, so over time your uploads need less manual work.",
+    title: "Mappings — auto-categorisation",
+    body: "Mappings link keywords in transaction descriptions to categories automatically. The more you categorise, the smarter it gets over time.",
   },
 ];
 
@@ -54,7 +54,7 @@ export default function SettingsPage() {
     { id: "monthly", label: "Monthly" },
     { id: "bills", label: "Bills" },
     { id: "sources", label: "Sources" },
-    { id: "rules", label: "Rules" },
+    { id: "rules", label: "Mappings" },
   ];
 
   return (

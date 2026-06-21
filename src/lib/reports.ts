@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds, cleanDescription } from "@/lib/utils";
+import { getPeriodBounds, cleanDescription, getPrevMonthKey } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 export interface MonthlyTotals {
@@ -86,11 +86,6 @@ function periodExpenses(
   });
 }
 
-function prevMonthKey(monthKey: string): string {
-  const [year, month] = monthKey.split("-").map(Number);
-  const d = new Date(year, month - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 export interface Subscription {
   name: string;
@@ -179,7 +174,7 @@ export function buildReport(
   // still used below for merchant grouping and biggest-purchase rankings (which
   // are per-transaction views, not netted totals).
   const spend = getPeriodSpend(transactions, monthKey, paydayOfMonth);
-  const prevSpend = getPeriodSpend(transactions, prevMonthKey(monthKey), paydayOfMonth);
+  const prevSpend = getPeriodSpend(transactions, getPrevMonthKey(monthKey), paydayOfMonth);
   const totalSpent = spend.total;
   const prevTotal = prevSpend.total;
 

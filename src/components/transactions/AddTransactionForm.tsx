@@ -16,23 +16,23 @@ import {
 interface AddTransactionFormProps {
   onSubmit: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
   onCancel: () => void;
+  initialValues?: Partial<Pick<Transaction, "date" | "description" | "amount" | "type" | "category" | "notes">>;
+  submitLabel?: string;
 }
 
-export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormProps) {
+export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLabel }: AddTransactionFormProps) {
   const today = new Date().toISOString().split("T")[0];
-  const [date, setDate] = useState(today);
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [type, setType] = useState<TransactionType>("expense");
-  const [category, setCategory] = useState<Category>("Wants");
-  const [notes, setNotes] = useState("");
+  const [date, setDate] = useState(initialValues?.date ?? today);
+  const [description, setDescription] = useState(initialValues?.description ?? "");
+  const [amount, setAmount] = useState(initialValues?.amount != null ? String(initialValues.amount) : "");
+  const [type, setType] = useState<TransactionType>(initialValues?.type ?? "expense");
+  const [category, setCategory] = useState<Category>(initialValues?.category ?? "Wants");
+  const [notes, setNotes] = useState(initialValues?.notes ?? "");
   const [loading, setLoading] = useState(false);
 
-  // Income is usually salary/transfers, not a spending bucket, so default it to
-  // Uncategorized; expenses default to Wants.
   const selectType = (t: TransactionType) => {
     setType(t);
-    setCategory(t === "income" ? "Uncategorized" : "Wants");
+    setCategory(t === "income" ? "Needs" : "Wants");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,7 +102,6 @@ export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormPro
             <SelectItem value="Needs">Needs</SelectItem>
             <SelectItem value="Wants">Wants</SelectItem>
             <SelectItem value="Savings">Savings</SelectItem>
-            <SelectItem value="Uncategorized">Uncategorized</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -115,7 +114,7 @@ export function AddTransactionForm({ onSubmit, onCancel }: AddTransactionFormPro
       <div className="flex gap-3 pt-2">
         <Button variant="outline" type="button" onClick={onCancel} className="flex-1">Cancel</Button>
         <Button type="submit" disabled={loading} className="flex-1">
-          {loading ? "Adding…" : "Add Transaction"}
+          {loading ? "Saving…" : (submitLabel ?? "Add Transaction")}
         </Button>
       </div>
     </form>

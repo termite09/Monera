@@ -21,14 +21,16 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. Transactions are dated by when you tapped the card, not when the bank settled. |
 | **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
 | **Powerful transaction list** | Multi-column sort (date, description, category, amount), category and type filters, custom date ranges, and full-text search — all persisted across navigation. Descriptions always wrap, never truncate. |
-| **Bulk editing** | Inline checkboxes let you multi-select transactions to exclude or re-categorize many at once. |
+| **Bulk editing** | Inline checkboxes let you multi-select transactions to exclude, re-categorize, or reset to rule defaults — all at once. |
 | **Reports & insights** | Budget-vs-actual, month-over-month comparison (category by category), spending pace and projection, top merchants, most-frequent merchants, stricter subscription detection (recurring amount _and_ cadence), and a prioritized insights feed. |
 | **Tappable drill-downs** | Every figure traces to its transactions: tap a dashboard card, a budget circle, or any chart bar — including a specific weekday, month, or year — to see the exact transactions and the calculation behind it. |
-| **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges, with a dedicated month picker, so you can compare any time window at a glance. |
+| **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges. Each mode shows 7 bars (Mon–Sun) aggregated over the selected window, with a dedicated month picker for the Month view. |
+| **Year overview** | The Year tab aggregates spending by payday period across the full calendar year, with a stacked monthly bar chart (Needs / Wants / Savings legend), total expense and savings summaries, and click-through to any period on the dashboard. |
+| **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after accounting for money spent so far, savings set aside, and upcoming bill payments due this period. |
 | **Guidance built in** | Every number carries a plain-English info tooltip, and a replayable guided tour explains each page on first visit. |
 | **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
-| **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits like re-categorizing a transaction apply immediately and roll back automatically on failure. Installable PWA. |
+| **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits apply immediately and roll back automatically on failure. Installable PWA. |
 
 ---
 
@@ -93,22 +95,35 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with Google.
 ```
 src/
 ├── app/
-│   ├── (auth)/          # Authenticated pages: dashboard, transactions,
-│   │                    # reports, upload, settings, year-overview
-│   ├── login/           # Sign-in screen
-│   └── api/auth/        # NextAuth route handler
-├── components/          # UI, charts, layout, budget widgets, onboarding
-├── contexts/            # AppDataContext — central state and mutations
-├── hooks/               # useDrive, useTransactions, useSettings, useBudget …
+│   ├── (auth)/
+│   │   ├── dashboard/
+│   │   │   ├── page.tsx         # Dashboard — summary cards, budget donuts, weekday chart
+│   │   │   └── _sheets/         # Drill-down sheet components (income, expenses, savings…)
+│   │   ├── insights/
+│   │   │   ├── page.tsx         # Insights — tab switcher and shared data memos
+│   │   │   └── _tabs/           # Tab components (Overview, Merchants, Subscriptions, Year)
+│   │   ├── transactions/
+│   │   │   ├── page.tsx         # Transaction list — sort, filter, bulk actions
+│   │   │   └── _components/     # Filter bar and bulk action bar
+│   │   ├── upload/              # CSV / XLSX import
+│   │   └── settings/            # Budget, income, recurring bills, categorisation rules
+│   ├── login/                   # Sign-in screen
+│   └── api/auth/                # NextAuth route handler
+├── components/                  # Shared UI, charts, layout, budget widgets, onboarding
+├── contexts/                    # AppDataContext — central state and mutations
+├── hooks/                       # useDrive, useTransactions, useSettings, useBudget …
 ├── lib/
-│   ├── finance.ts       # Single source of truth for period spend and refund netting
-│   ├── reports.ts       # Analytics, subscription detection
-│   ├── insights.ts      # Plain-language insight generation
-│   ├── parser/          # CSV / XLSX parsing and date handling
-│   ├── spreadsheet.ts   # XLSX → CSV conversion
-│   └── google/          # Drive API wrappers and folder helpers
-└── types/               # Shared TypeScript types
+│   ├── finance.ts               # Single source of truth for period spend and refund netting
+│   ├── reports.ts               # Analytics, subscription detection
+│   ├── insights.ts              # Plain-language insight generation
+│   ├── safeToSpend.ts           # Forward-looking "safe to spend" calculation
+│   ├── parser/                  # CSV / XLSX parsing and date handling
+│   ├── spreadsheet.ts           # XLSX → CSV conversion
+│   └── google/                  # Drive API wrappers and folder helpers
+└── types/                       # Shared TypeScript types
 ```
+
+Page files stay lean by delegating their large content sections to co-located `_sheets/`, `_tabs/`, and `_components/` directories. Shared components that are used across multiple pages live in `src/components/`.
 
 ### Drive folder layout
 

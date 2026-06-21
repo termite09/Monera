@@ -3,8 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Transaction } from "@/types";
 import { getPeriodBounds, formatCurrency, formatShortDate } from "@/lib/utils";
-import { getPeriodSpend } from "@/lib/finance";
-import { WEEKDAY_LABELS, MONTH_NAMES } from "@/config/constants";
+import { WEEKDAY_LABELS } from "@/config/constants";
 
 export type WeekdayChartMode = "period" | "week" | "month" | "year";
 
@@ -104,18 +103,32 @@ function buildMonthData(transactions: Transaction[], monthKey: string) {
   }));
 }
 
-// Year mode aggregates by payday-aware period (not calendar month) and nets
-// refunds via the shared getPeriodSpend helper — the same source of truth the
-// Year Overview page uses — so the two never disagree.
-function buildYearData(transactions: Transaction[], monthKey: string, paydayOfMonth: number) {
+// Year mode: same as month mode but spanning the full calendar year.
+// Each bar shows the total spent on that weekday across every week of the year.
+function buildYearData(transactions: Transaction[], monthKey: string) {
   const [y] = monthKey.split("-").map(Number);
-  const points = MONTH_NAMES.map((name, idx) => {
-    const mk = `${y}-${String(idx + 1).padStart(2, "0")}`;
-    const { total } = getPeriodSpend(transactions, mk, paydayOfMonth);
-    return { day: name.slice(0, 3), amount: total, future: false, isMax: false, dateStr: mk };
-  });
-  const max = Math.max(...points.map((p) => p.amount));
-  return points.map((p) => ({ ...p, isMax: p.amount > 0 && p.amount === max }));
+  const start = new Date(y, 0, 1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(y, 11, 31);
+  end.setHours(23, 59, 59, 999);
+  const totals = [0, 0, 0, 0, 0, 0, 0];
+  for (const t of transactions) {
+    if (t.excluded) continue;
+    const d = new Date(t.date + "T00:00:00");
+    if (d < start || d > end) continue;
+    const i = (d.getDay() + 6) % 7;
+    if (t.type === "expense") totals[i] += t.amount;
+    else if (isRefund(t)) totals[i] -= t.amount;
+  }
+  const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
+  const max = Math.max(...netted);
+  return WEEKDAY_LABELS.map((day, i) => ({
+    day,
+    amount: netted[i],
+    future: false,
+    isMax: netted[i] > 0 && netted[i] === max,
+    dateStr: null as string | null,
+  }));
 }
 
 export function getChartDateRange(
@@ -143,7 +156,7 @@ export function getChartDateRange(
   }
   // year
   const [y] = monthKey.split("-").map(Number);
-  return `Jan ${y} – Dec ${y}`;
+  return String(y);
 }
 
 export function WeekdayChart({
@@ -156,11 +169,11 @@ export function WeekdayChart({
   const data =
     mode === "week" ? buildWeekData(transactions) :
     mode === "month" ? buildMonthData(transactions, monthKey) :
-    mode === "year" ? buildYearData(transactions, monthKey, paydayOfMonth) :
+    mode === "year" ? buildYearData(transactions, monthKey) :
     buildPeriodData(transactions, monthKey, paydayOfMonth);
 
   const isEmpty = data.every((d) => d.amount === 0);
-  const height = mode === "year" ? 200 : 160;
+  const height = mode === "year" ? 180 : 160;
 
   if (isEmpty) {
     const emptyMsg =
@@ -175,34 +188,54 @@ export function WeekdayChart({
     );
   }
 
+  const hasFuture = data.some((d) => d.future);
+
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
-        <Tooltip
-          formatter={(v) => [formatCurrency(v as number), "Spent"]}
-          contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-          cursor={{ fill: "rgba(0,0,0,0.04)" }}
-        />
-        <Bar
-          dataKey="amount"
-          radius={[3, 3, 0, 0]}
-          animationDuration={600}
-          style={onDayClick ? { cursor: "pointer" } : undefined}
-          onClick={onDayClick ? (barData) => {
-            const p = barData.payload as { day: string; dateStr: string | null };
-            onDayClick(p.day, p.dateStr);
-          } : undefined}
-        >
-          {data.map((entry) => (
-            <Cell
-              key={entry.day}
-              fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
-            />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
+          <Tooltip
+            formatter={(v) => [formatCurrency(v as number), "Spent"]}
+            contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+            cursor={{ fill: "rgba(0,0,0,0.04)" }}
+          />
+          <Bar
+            dataKey="amount"
+            radius={[3, 3, 0, 0]}
+            animationDuration={600}
+            style={onDayClick ? { cursor: "pointer" } : undefined}
+            onClick={onDayClick ? (barData) => {
+              const p = barData.payload as { day: string; dateStr: string | null };
+              onDayClick(p.day, p.dateStr);
+            } : undefined}
+          >
+            {data.map((entry) => (
+              <Cell
+                key={entry.day}
+                fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <div className="flex items-center gap-3 mt-1 px-1 justify-end">
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="inline-block size-2 rounded-sm bg-[#1C3557]" />
+          Highest
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="inline-block size-2 rounded-sm bg-[#e2e8f0]" />
+          Spending
+        </span>
+        {hasFuture && (
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="inline-block size-2 rounded-sm bg-[#f1f5f9]" />
+            Upcoming
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

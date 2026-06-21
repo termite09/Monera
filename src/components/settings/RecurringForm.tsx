@@ -6,19 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
-import { generateId, formatCurrency, ordinal } from "@/lib/utils";
+import { generateId, formatCurrency, ordinal, getMonthKey } from "@/lib/utils";
 import { Category, RecurringPayment } from "@/types";
 import { Trash2, Plus, Search, Pencil } from "lucide-react";
 
-const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
+const CATEGORIES: Category[] = ["Needs", "Wants"];
 const RECURRING_PAGE_SIZE = 10;
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SELECT_CLS = "h-9 px-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
-
-function todayMonthKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function fmtPeriod(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
@@ -74,7 +69,7 @@ export function RecurringForm({ settings, updateSettings }: {
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("");
   const [category, setCategory] = useState<Category>("Needs");
-  const [startMonth, setStartMonth] = useState(todayMonthKey());
+  const [startMonth, setStartMonth] = useState(getMonthKey(new Date()));
   const [endMonth, setEndMonth] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
@@ -112,7 +107,7 @@ export function RecurringForm({ settings, updateSettings }: {
     };
     setItems((prev) => [...prev, next]);
     setName(""); setAmount(""); setDay(""); setCategory("Needs");
-    setStartMonth(todayMonthKey()); setEndMonth("");
+    setStartMonth(getMonthKey(new Date())); setEndMonth("");
   };
 
   const startEdit = (item: RecurringPayment) => { setEditingId(item.id); setEditDraft({ ...item }); };
