@@ -45,6 +45,7 @@ const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
 type SortField = "date" | "description" | "amount" | "category";
 
 const FILTER_KEY = "monera-tx-filters";
+const PAGE_SIZE = 50;
 type StoredFilters = {
   search: string;
   filterCat: Category | "All";
@@ -120,7 +121,6 @@ export default function TransactionsPage() {
   const [selectCatSheet, setSelectCatSheet] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
 
-  const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
 
   // Clear selection whenever the scope changes — selected IDs from a previous

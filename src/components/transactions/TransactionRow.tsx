@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Repeat, Loader2, Trash2, Pencil } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { formatCurrency, cleanDescription, cn, getCategoryTextClass } from "@/lib/utils";
@@ -45,6 +45,8 @@ export function TransactionRow({
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (autoHideRef.current) clearTimeout(autoHideRef.current); }, []);
 
   const tx = transaction;
   const isIncome = tx.type === "income";
@@ -165,7 +167,8 @@ export function TransactionRow({
               onClick={() => {
                 setConfirmDelete(true);
                 // Auto-dismiss after 4 seconds if not confirmed — fallback for mobile
-                setTimeout(() => setConfirmDelete(false), 4000);
+                if (autoHideRef.current) clearTimeout(autoHideRef.current);
+                autoHideRef.current = setTimeout(() => setConfirmDelete(false), 4000);
               }}
               className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
               aria-label="Delete transaction"

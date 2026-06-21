@@ -203,19 +203,34 @@ export function useTransactions(
   const updateManualTransaction = useCallback(
     async (txId: string, updates: Omit<Transaction, "id" | "source" | "categorySource">) => {
       if (!accessToken || !structure) return;
-      const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
-      const updated = existing.map((t) =>
-        t.id === txId ? { ...t, ...updates } : t
-      );
-      await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
-      patch((d) => ({
-        ...d,
-        rawTxs: d.rawTxs.map((t) =>
-          t.id === txId ? { ...t, ...updates } : t
-        ),
-      }));
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      // Optimistically apply the update and remove any category override for this
+      // transaction so the new category is not silently shadowed by the override.
+      patch((d) => {
+        const { [txId]: _ov, ...nextOverrides } = d.overrides;
+        return {
+          ...d,
+          rawTxs: d.rawTxs.map((t) => (t.id === txId ? { ...t, ...updates } : t)),
+          overrides: nextOverrides,
+        };
+      });
+      try {
+        const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
+        const updated = existing.map((t) => (t.id === txId ? { ...t, ...updates } : t));
+        await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
+        // If an override existed in the snapshot, also remove it from Drive (non-blocking).
+        if (prev?.overrides[txId] !== undefined) {
+          const existingOverrides = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+          const { [txId]: _removed, ...cleanedOverrides } = existingOverrides;
+          writeAppFile(accessToken, structure.fileIds.categoryOverrides, cleanedOverrides).catch(() => {});
+        }
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
     },
-    [accessToken, structure, patch]
+    [accessToken, structure, patch, qc, appDataId]
   );
 
   // Category and exclude are rapid, tap-heavy interactions, so update the UI

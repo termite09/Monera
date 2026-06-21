@@ -64,7 +64,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
         )}
 
         <p className="text-xs text-muted-foreground">
-          What&apos;s left after your spending so far, money set aside for savings, and Recurring bills
+          What&apos;s left after your spending so far, money set aside for savings, and recurring bills
           {safeInfo.daysLeft > 0 ? ` (${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} away)` : ""}.
         </p>
       </div>
