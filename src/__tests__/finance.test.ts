@@ -3,6 +3,7 @@ import { getPeriodSpend, netExpenseByCategory, netExpenseTotal } from "@/lib/fin
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport } from "@/lib/reports";
 import { Transaction, Category, Settings } from "@/types";
+import { roundMoney } from "@/lib/utils";
 
 const baseSettings: Settings = {
   currency: "€",
@@ -14,6 +15,15 @@ const baseSettings: Settings = {
   savingsVaultKeywords: [],
   recurringPayments: [],
 };
+
+describe("roundMoney", () => {
+  it("eliminates floating-point drift", () => {
+    // 12.995 stored as IEEE 754 rounds incorrectly without EPSILON guard
+    expect(roundMoney(parseFloat("12.995"))).toBe(13.00);
+    expect(roundMoney(0.1 + 0.2)).toBe(0.30);
+    expect(roundMoney(1234.56789)).toBe(1234.57);
+  });
+});
 
 let seq = 0;
 function tx(partial: Partial<Transaction> & { amount: number; type: Transaction["type"] }): Transaction {

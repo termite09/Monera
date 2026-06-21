@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Transaction, Category, TransactionType } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, roundMoney } from "@/lib/utils";
+import { useAppData } from "@/contexts/AppDataContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,8 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
   const [category, setCategory] = useState<Category>(initialValues?.category ?? "Wants");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
   const [loading, setLoading] = useState(false);
+  const { settings } = useAppData();
+  const currency = settings.currency ?? "EUR";
 
   const selectType = (t: TransactionType) => {
     setType(t);
@@ -37,7 +40,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = parseFloat(amount);
+    const parsedAmount = roundMoney(parseFloat(amount));
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0 || !date) return;
     setLoading(true);
     try {
@@ -46,7 +49,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
         description,
         amount: parsedAmount,
         type,
-        currency: "EUR",
+        currency,
         category: type === "income" ? "Uncategorized" : category,
         notes: notes || undefined,
         excluded: false,
@@ -88,7 +91,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="tx-amount">Amount (€) <span className="text-destructive">*</span></Label>
+        <Label htmlFor="tx-amount">Amount ({currency}) <span className="text-destructive">*</span></Label>
         <Input id="tx-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required className="h-11" />
       </div>
 
