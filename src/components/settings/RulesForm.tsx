@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
-import { cn } from "@/lib/utils";
+import { cn, getCategoryTextClass } from "@/lib/utils";
 import { Category, CategoryRule } from "@/types";
-import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
 import { Trash2, Plus, Search } from "lucide-react";
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
@@ -96,13 +95,6 @@ export function RulesForm({ rules, updateRules }: {
     }
   };
 
-  const catColor: Record<string, string> = {
-    Needs: "text-blue-600 dark:text-blue-400",
-    Wants: "text-amber-600 dark:text-amber-400",
-    Savings: "text-emerald-600 dark:text-emerald-400",
-    Uncategorized: "text-muted-foreground",
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -138,7 +130,7 @@ export function RulesForm({ rules, updateRules }: {
               id="rule-cat"
               value={newCat}
               onChange={(e) => setNewCat(e.target.value as Category)}
-              className={cn("h-11 px-3 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring", catColor[newCat])}
+              className={cn("h-11 px-3 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring", getCategoryTextClass(newCat))}
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -223,7 +215,7 @@ export function RulesForm({ rules, updateRules }: {
                   value={r.category}
                   onChange={(e) => setRuleCat(i, e.target.value as Category)}
                   disabled={selectMode}
-                  className={cn("h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", catColor[r.category])}
+                  className={cn("h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", getCategoryTextClass(r.category))}
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>

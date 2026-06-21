@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Repeat, Loader2, Trash2, Pencil } from "lucide-react";
 import { Transaction, Category } from "@/types";
-import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
+import { formatCurrency, cleanDescription, cn, getCategoryTextClass } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -15,13 +15,6 @@ interface TransactionRowProps {
   onCheck?: (id: string) => void;
   showCategory?: boolean;
 }
-
-const catText: Record<string, string> = {
-  Needs: "text-blue-600 dark:text-blue-400",
-  Wants: "text-amber-600 dark:text-amber-400",
-  Savings: "text-emerald-600 dark:text-emerald-400",
-  Uncategorized: "text-muted-foreground",
-};
 
 // Shown on small screens so category is never conveyed by color alone (a11y).
 const catShort: Record<Category, string> = {
@@ -90,7 +83,7 @@ export function TransactionRow({
           visibility when showCategory is false so width is preserved. */}
       <div className={cn("shrink-0 w-10 sm:w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (
-          <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", catText[tx.category])}>
+          <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", getCategoryTextClass(tx.category))}>
             <span className="sm:hidden">{catShort[tx.category as Category]}</span>
             <span className="hidden sm:inline">{tx.category}</span>
             {tx.categorySource === "override" && (
