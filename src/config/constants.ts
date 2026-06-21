@@ -24,6 +24,8 @@ export const SOURCE_COLORS = {
   manual: { bg: "bg-purple-50 dark:bg-purple-950/30", text: "text-purple-700 dark:text-purple-400", border: "border-purple-200 dark:border-purple-800" },
 };
 
+export const SETTINGS_VERSION = 1;
+
 export const DEFAULT_SETTINGS = {
   currency: "€",
   paydayOfMonth: 1,
@@ -37,6 +39,7 @@ export const DEFAULT_SETTINGS = {
   recurringPayments: [],
   onboarded: false,
   tourPages: {} as Record<string, boolean>,
+  settingsVersion: SETTINGS_VERSION,
 };
 
 export const MONTH_NAMES = [
