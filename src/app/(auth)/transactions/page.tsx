@@ -97,9 +97,12 @@ export default function TransactionsPage() {
 
   // Persist filters across page navigations (sessionStorage clears on tab close)
   useEffect(() => {
-    sessionStorage.setItem(FILTER_KEY, JSON.stringify({
-      search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir,
-    } satisfies StoredFilters));
+    const timer = setTimeout(() => {
+      sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+        search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir,
+      } satisfies StoredFilters));
+    }, 400);
+    return () => clearTimeout(timer);
   }, [search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir]);
 
   const handleSort = useCallback((field: SortField) => {
