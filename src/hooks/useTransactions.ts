@@ -89,9 +89,21 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
     });
   }
 
+  // Prune overrides whose transaction IDs no longer exist in the merged set.
+  // This keeps category-overrides.json from accumulating orphaned entries
+  // as transactions are deleted or CSVs are re-uploaded.
+  const liveIds = new Set(mergeTransactions(importedTxs, manualTxs ?? []).map((t) => t.id));
+  const prunedOverrides = Object.fromEntries(
+    Object.entries(ov ?? {}).filter(([id]) => liveIds.has(id))
+  );
+  const overridesPruned = Object.keys(prunedOverrides).length !== Object.keys(ov ?? {}).length;
+  if (overridesPruned) {
+    writeAppFile(accessToken, structure.fileIds.categoryOverrides, prunedOverrides).catch(() => {});
+  }
+
   return {
     rawTxs: mergeTransactions(importedTxs, manualTxs ?? []),
-    overrides: ov ?? {},
+    overrides: prunedOverrides,
     excludedIds: ex ?? [],
   };
 }
