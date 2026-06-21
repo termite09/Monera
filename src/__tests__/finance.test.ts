@@ -3,6 +3,7 @@ import { getPeriodSpend, netExpenseByCategory, netExpenseTotal } from "@/lib/fin
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport } from "@/lib/reports";
 import { Transaction, Category, Settings } from "@/types";
+import { roundMoney } from "@/lib/utils";
 
 const baseSettings: Settings = {
   currency: "€",
@@ -14,6 +15,15 @@ const baseSettings: Settings = {
   savingsVaultKeywords: [],
   recurringPayments: [],
 };
+
+describe("roundMoney", () => {
+  it("eliminates floating-point drift", () => {
+    // 12.995 stored as IEEE 754 rounds incorrectly without EPSILON guard
+    expect(roundMoney(parseFloat("12.995"))).toBe(13.00);
+    expect(roundMoney(0.1 + 0.2)).toBe(0.30);
+    expect(roundMoney(1234.56789)).toBe(1234.57);
+  });
+});
 
 let seq = 0;
 function tx(partial: Partial<Transaction> & { amount: number; type: Transaction["type"] }): Transaction {
@@ -191,6 +201,45 @@ describe("useBudget income reconciliation (H2)", () => {
     };
     const { summary } = useBudget([], settings, "2024-06");
     expect(summary.income).toBe(3000);
+  });
+});
+
+describe("useBudget — salary keyword behaviour", () => {
+  const salarySettings: Settings = {
+    ...baseSettings,
+    defaultIncome: 3000,
+    salaryKeywords: ["salary"],
+    monthlyBudgets: {},
+  };
+
+  it("adds detected salary transactions on top of the configured basis (both counted)", () => {
+    // salaryBasis represents planned/external income; CSV salary transactions
+    // are separate entries — both must be included so multiple salary sources work.
+    const txs: Transaction[] = [
+      tx({ amount: 3000, type: "income", description: "Monthly Salary", date: "2024-06-10", category: "Uncategorized" }),
+      tx({ amount: 50, type: "income", description: "Freelance payment", date: "2024-06-12", category: "Uncategorized" }),
+    ];
+    const { summary } = useBudget(txs, salarySettings, "2024-06");
+    // basis (3000) + salary in CSV (3000) + freelance (50) = 6050
+    expect(summary.income).toBe(6050);
+  });
+
+  it("adds multiple salary-keyword transactions when user has several employers", () => {
+    const txs: Transaction[] = [
+      tx({ amount: 3000, type: "income", description: "Primary Salary", date: "2024-06-10", category: "Uncategorized" }),
+      tx({ amount: 1500, type: "income", description: "Side Job Salary", date: "2024-06-15", category: "Uncategorized" }),
+    ];
+    const { summary } = useBudget(txs, salarySettings, "2024-06");
+    // basis (3000) + primary (3000) + side (1500) = 7500
+    expect(summary.income).toBe(7500);
+  });
+
+  it("uses detectedIncome when no salary basis is configured", () => {
+    const txs: Transaction[] = [
+      tx({ amount: 2800, type: "income", description: "Wages", date: "2024-06-10", category: "Uncategorized" }),
+    ];
+    const { summary } = useBudget(txs, { ...baseSettings, monthlyBudgets: {} }, "2024-06");
+    expect(summary.income).toBe(2800);
   });
 });
 

@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
-import { cn } from "@/lib/utils";
+import { cn, getCategoryTextClass } from "@/lib/utils";
 import { Category, CategoryRule } from "@/types";
-import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
 import { Trash2, Plus, Search } from "lucide-react";
 
 const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
@@ -24,17 +23,19 @@ export function RulesForm({ rules, updateRules }: {
   const [newCat, setNewCat] = useState<Category>("Wants");
   const [dupError, setDupError] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Intentional sync from externally-loaded rules.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setItems(rules), [rules]);
-
-  const dirty = JSON.stringify(items) !== JSON.stringify(rules);
+  useEffect(() => {
+    setItems(rules);
+    setIsDirty(false);
+  }, [rules]);
 
   const addRule = () => {
     const kw = newKw.trim().toLowerCase();
@@ -45,19 +46,28 @@ export function RulesForm({ rules, updateRules }: {
     }
     setDupError(false);
     setItems((prev) => [{ keyword: kw, category: newCat }, ...prev]);
+    setIsDirty(true);
     setNewKw("");
     setNewCat("Wants");
   };
-  const setRuleCat = (i: number, category: Category) =>
+  const setRuleCat = (i: number, category: Category) => {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, category } : r)));
-  const setRuleKeyword = (i: number, keyword: string) =>
+    setIsDirty(true);
+  };
+  const setRuleKeyword = (i: number, keyword: string) => {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, keyword } : r)));
-  const removeRule = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
+    setIsDirty(true);
+  };
+  const removeRule = (i: number) => {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+    setIsDirty(true);
+  };
 
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); setConfirmDelete(false); };
 
   const bulkDelete = () => {
-    setItems((prev) => prev.filter((_, idx) => !selected.has(idx)));
+    setItems((prev) => prev.filter((r) => !selected.has(r.keyword)));
+    setIsDirty(true);
     exitSelectMode();
   };
 
@@ -67,6 +77,7 @@ export function RulesForm({ rules, updateRules }: {
     try {
       await updateRules(items);
       setSaved(true);
+      setIsDirty(false);
       setTimeout(() => setSaved(false), 2000);
     } catch {
       setError(true);
@@ -82,21 +93,18 @@ export function RulesForm({ rules, updateRules }: {
       (!catFilter || r.category === catFilter)
     );
 
-  const allVisibleSelected = visible.length > 0 && visible.every(({ i }) => selected.has(i));
+  const allVisibleSelected = visible.length > 0 && visible.every(({ r }) => selected.has(r.keyword));
 
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
-      setSelected((prev) => { const next = new Set(prev); visible.forEach(({ i }) => next.delete(i)); return next; });
+      setSelected((prev) => {
+        const next = new Set(prev);
+        visible.forEach(({ r }) => next.delete(r.keyword));
+        return next;
+      });
     } else {
-      setSelected((prev) => new Set([...prev, ...visible.map(({ i }) => i)]));
+      setSelected((prev) => new Set([...prev, ...visible.map(({ r }) => r.keyword)]));
     }
-  };
-
-  const catColor: Record<string, string> = {
-    Needs: "text-blue-600 dark:text-blue-400",
-    Wants: "text-amber-600 dark:text-amber-400",
-    Savings: "text-emerald-600 dark:text-emerald-400",
-    Uncategorized: "text-muted-foreground",
   };
 
   return (
@@ -134,7 +142,7 @@ export function RulesForm({ rules, updateRules }: {
               id="rule-cat"
               value={newCat}
               onChange={(e) => setNewCat(e.target.value as Category)}
-              className={cn("h-11 px-3 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring", catColor[newCat])}
+              className={cn("h-11 px-3 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring", getCategoryTextClass(newCat))}
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -195,15 +203,15 @@ export function RulesForm({ rules, updateRules }: {
         <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
           <div className="divide-y divide-border">
             {visible.map(({ r, i }) => (
-              <div key={i} className="flex items-center gap-2 py-2 px-3">
+              <div key={r.keyword} className="flex items-center gap-2 py-2 px-3">
                 {selectMode && (
                   <input
                     type="checkbox"
-                    checked={selected.has(i)}
+                    checked={selected.has(r.keyword)}
                     onChange={() => setSelected((prev) => {
                       const next = new Set(prev);
-                      if (next.has(i)) next.delete(i);
-                      else next.add(i);
+                      if (next.has(r.keyword)) next.delete(r.keyword);
+                      else next.add(r.keyword);
                       return next;
                     })}
                     className="size-4 rounded accent-primary shrink-0 cursor-pointer"
@@ -219,7 +227,7 @@ export function RulesForm({ rules, updateRules }: {
                   value={r.category}
                   onChange={(e) => setRuleCat(i, e.target.value as Category)}
                   disabled={selectMode}
-                  className={cn("h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", catColor[r.category])}
+                  className={cn("h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", getCategoryTextClass(r.category))}
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -262,22 +270,13 @@ export function RulesForm({ rules, updateRules }: {
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Button
-          onClick={() => setItems(DEFAULT_CATEGORY_RULES)}
-          variant="outline"
-          className="flex-1"
-        >
-          Reset to defaults
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={isSaving || !dirty}
-          className={cn("flex-1", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
-        >
-          {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}
-        </Button>
-      </div>
+      <Button
+        onClick={handleSave}
+        disabled={isSaving || !isDirty}
+        className={cn("w-full", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
+      >
+        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}
+      </Button>
     </div>
   );
 }

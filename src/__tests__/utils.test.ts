@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency, roundMoney } from "@/lib/utils";
+import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency, roundMoney, getCategoryTextClass } from "@/lib/utils";
 
 describe("roundMoney", () => {
   it("eliminates floating-point accumulation drift to clean cents", () => {
@@ -79,5 +79,14 @@ describe("formatCurrency", () => {
 
   it("uses provided currency symbol", () => {
     expect(formatCurrency(100, "$")).toBe("$100.00");
+  });
+});
+
+describe("getCategoryTextClass", () => {
+  it("returns correct Tailwind text classes for each category", () => {
+    expect(getCategoryTextClass("Needs")).toBe("text-blue-600 dark:text-blue-400");
+    expect(getCategoryTextClass("Wants")).toBe("text-amber-600 dark:text-amber-400");
+    expect(getCategoryTextClass("Savings")).toBe("text-emerald-600 dark:text-emerald-400");
+    expect(getCategoryTextClass("Uncategorized")).toBe("text-muted-foreground");
   });
 });

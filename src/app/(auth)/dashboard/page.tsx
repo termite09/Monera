@@ -135,15 +135,9 @@ export default function DashboardPage() {
     return allTxs.filter((tx) => {
       if (tx.type !== "income" || tx.excluded) return false;
       const d = new Date(tx.date + "T00:00:00");
-      if (d < start || d > end) return false;
-      // When a salary basis is configured, salary-matching transactions are
-      // already represented by the "Planned income" row — exclude them here to
-      // avoid showing amounts that aren't included in the income total.
-      if (salaryBasis > 0 && salaryKeywords.length > 0 &&
-          salaryKeywords.some((k) => tx.description.toLowerCase().includes(k.toLowerCase()))) return false;
-      return true;
+      return d >= start && d <= end;
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [allTxs, month, paydayOfMonth, salaryBasis, salaryKeywords]);
+  }, [allTxs, month, paydayOfMonth]);
 
   const periodSavingsTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
@@ -219,7 +213,7 @@ export default function DashboardPage() {
         colorClass: safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
         accent: safeInfo.safe >= 0 ? "#10b981" : "#ef4444",
         secondaryText: `${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} to payday`,
-        info: "What you can still spend before payday, after setting aside your savings target and recurring bill payments this period.",
+        info: "What you can still spend before payday, after setting aside your savings target and recurring bills this period.",
         onClick: () => setSheet("safe"),
       }
     : {

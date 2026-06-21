@@ -45,6 +45,7 @@ const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
 type SortField = "date" | "description" | "amount" | "category";
 
 const FILTER_KEY = "monera-tx-filters";
+const PAGE_SIZE = 50;
 type StoredFilters = {
   search: string;
   filterCat: Category | "All";
@@ -71,7 +72,7 @@ const CAT_DOT: Record<Category, string> = {
 export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
-    addManualTransaction, deleteManualTransaction, bulkUpdateCategory,
+    addManualTransaction, deleteManualTransaction, updateManualTransaction, bulkUpdateCategory,
     bulkExclude, bulkResetToDefault, toggleExclude, refetch,
   } = useAppData();
 
@@ -93,13 +94,16 @@ export default function TransactionsPage() {
   const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField ?? "date");
   const [sortDir, setSortDir] = useState<"desc" | "asc">(() => loadFilters().sortDir ?? "desc");
   const [showAdd, setShowAdd] = useState(false);
-  const [editingTx, setEditingTx] = useState<import("@/types").Transaction | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   // Persist filters across page navigations (sessionStorage clears on tab close)
   useEffect(() => {
-    sessionStorage.setItem(FILTER_KEY, JSON.stringify({
-      search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir,
-    } satisfies StoredFilters));
+    const timer = setTimeout(() => {
+      sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+        search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir,
+      } satisfies StoredFilters));
+    }, 400);
+    return () => clearTimeout(timer);
   }, [search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir]);
 
   const handleSort = useCallback((field: SortField) => {
@@ -116,6 +120,19 @@ export default function TransactionsPage() {
   const selectMode = selected.size > 0;
   const [selectCatSheet, setSelectCatSheet] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
+
+  const [page, setPage] = useState(1);
+
+  // Clear selection whenever the scope changes — selected IDs from a previous
+  // filter set are invisible in the new view and would confuse bulk actions.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [filterCat, filterType, rangeMode, customFrom, customTo]);
+
+  // Reset pagination whenever filters or sort change.
+  useEffect(() => {
+    setPage(1);
+  }, [filterCat, filterType, rangeMode, customFrom, customTo, search, sortField, sortDir]);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
@@ -138,11 +155,16 @@ export default function TransactionsPage() {
     let recurringTxs: Transaction[];
     let inRange: (t: Transaction) => boolean;
 
-    if (searching) {
-      const dates = transactions.map((t) => t.date).sort();
-      const earliest = dates[0] ? new Date(dates[0] + "T00:00:00") : new Date();
-      recurringTxs = getRecurringInRange(payments, earliest, new Date(), paydayOfMonth, currency);
-      inRange = () => true;
+    if (searching && customActive) {
+      recurringTxs = getRecurringInRange(payments, new Date(customFrom + "T00:00:00"), new Date(customTo + "T00:00:00"), paydayOfMonth, currency);
+      inRange = (t) => t.date >= customFrom && t.date <= customTo;
+    } else if (searching) {
+      recurringTxs = getRecurringTransactions(payments, month, paydayOfMonth, currency);
+      const { start, end } = getPeriodBounds(month, paydayOfMonth);
+      inRange = (t) => {
+        const d = new Date(t.date + "T00:00:00");
+        return d >= start && d <= end;
+      };
     } else if (customActive) {
       recurringTxs = getRecurringInRange(payments, new Date(customFrom + "T00:00:00"), new Date(customTo + "T00:00:00"), paydayOfMonth, currency);
       inRange = (t) => t.date >= customFrom && t.date <= customTo;
@@ -206,7 +228,16 @@ export default function TransactionsPage() {
   const exitSelect = () => setSelected(new Set());
 
   const selectedTxs = useMemo(() => filtered.filter((t) => selected.has(t.id)), [filtered, selected]);
-  const selectedTotal = useMemo(() => netExpenseTotal(selectedTxs), [selectedTxs]);
+  const selectedTotal = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const t of selectedTxs) {
+      if (t.excluded) continue;
+      if (t.type === "income") income += t.amount;
+      else expense += t.amount;
+    }
+    return roundMoney(income - expense);
+  }, [selectedTxs]);
 
   const handleBulkExclude = async () => {
     const ids = [...selected];
@@ -247,7 +278,7 @@ export default function TransactionsPage() {
         onMonthChange={setMonth}
         paydayOfMonth={paydayOfMonth}
         isLoading={isLoading}
-        navLabel={searching ? "All periods" : rangeLabel}
+        navLabel={rangeLabel}
       />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
@@ -283,7 +314,7 @@ export default function TransactionsPage() {
         {/* Row: Count / total */}
         <p className="text-xs text-muted-foreground">
           {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
-          {searching ? " · all periods" : ""}{" "}·{" "}
+          {" "}·{" "}
           <span className="font-medium text-foreground tabular-nums font-mono text-sm">
             {formatCurrency(summaryTotal)}
           </span>
@@ -369,7 +400,7 @@ export default function TransactionsPage() {
                   </button>
                 </div>
                 <div className="divide-y divide-border">
-                  {filtered.map((tx) => (
+                  {filtered.slice(0, page * PAGE_SIZE).map((tx) => (
                     <TransactionRow
                       key={tx.id}
                       transaction={tx}
@@ -378,10 +409,18 @@ export default function TransactionsPage() {
                       onEdit={selectMode || tx.source !== "manual" ? undefined : (id) => setEditingTx(filtered.find((t) => t.id === id) ?? null)}
                       selectMode={selectMode}
                       checked={selected.has(tx.id)}
-                      onCheck={toggleSelect}
+                      onCheck={!selectMode && tx.source === "manual" ? undefined : toggleSelect}
                       showCategory={filterType !== "income"}
                     />
                   ))}
+                  {filtered.length > page * PAGE_SIZE && (
+                    <button
+                      onClick={() => setPage((p) => p + 1)}
+                      className="w-full py-3 text-sm text-primary hover:bg-secondary/50 transition-colors"
+                    >
+                      Load more ({filtered.length - page * PAGE_SIZE} remaining)
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -441,8 +480,7 @@ export default function TransactionsPage() {
             initialValues={editingTx}
             submitLabel="Save Changes"
             onSubmit={async (updated) => {
-              await deleteManualTransaction(editingTx.id);
-              await addManualTransaction(updated);
+              await updateManualTransaction(editingTx.id, updated);
               setEditingTx(null);
             }}
             onCancel={() => setEditingTx(null)}

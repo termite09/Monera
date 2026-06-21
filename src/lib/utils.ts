@@ -114,6 +114,16 @@ export function getCategoryColor(category: Category): string {
   return colors[category];
 }
 
+export function getCategoryTextClass(category: string): string {
+  const classes: Record<string, string> = {
+    Needs: "text-blue-600 dark:text-blue-400",
+    Wants: "text-amber-600 dark:text-amber-400",
+    Savings: "text-emerald-600 dark:text-emerald-400",
+    Uncategorized: "text-muted-foreground",
+  };
+  return classes[category] ?? "text-muted-foreground";
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }

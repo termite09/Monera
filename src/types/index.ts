@@ -59,6 +59,8 @@ export interface Settings {
   tourPages?: Record<string, boolean>;
   /** Merchant names hidden from the Insights → Merchants view (does not affect calculations). */
   hiddenMerchants?: string[];
+  /** Schema version — incremented when new default fields are added. */
+  settingsVersion?: number;
 }
 
 export interface CategoryRule {

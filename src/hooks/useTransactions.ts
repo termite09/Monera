@@ -89,9 +89,21 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
     });
   }
 
+  // Prune overrides whose transaction IDs no longer exist in the merged set.
+  // This keeps category-overrides.json from accumulating orphaned entries
+  // as transactions are deleted or CSVs are re-uploaded.
+  const liveIds = new Set(mergeTransactions(importedTxs, manualTxs ?? []).map((t) => t.id));
+  const prunedOverrides = Object.fromEntries(
+    Object.entries(ov ?? {}).filter(([id]) => liveIds.has(id))
+  );
+  const overridesPruned = Object.keys(prunedOverrides).length !== Object.keys(ov ?? {}).length;
+  if (overridesPruned) {
+    writeAppFile(accessToken, structure.fileIds.categoryOverrides, prunedOverrides).catch(() => {});
+  }
+
   return {
     rawTxs: mergeTransactions(importedTxs, manualTxs ?? []),
-    overrides: ov ?? {},
+    overrides: prunedOverrides,
     excludedIds: ex ?? [],
   };
 }
@@ -186,6 +198,39 @@ export function useTransactions(
       });
     },
     [accessToken, structure, patch]
+  );
+
+  const updateManualTransaction = useCallback(
+    async (txId: string, updates: Omit<Transaction, "id" | "source" | "categorySource">) => {
+      if (!accessToken || !structure) return;
+      const key = ["transactions", appDataId ?? "none"];
+      const prev = qc.getQueryData<TxData>(key);
+      // Optimistically apply the update and remove any category override for this
+      // transaction so the new category is not silently shadowed by the override.
+      patch((d) => {
+        const { [txId]: _ov, ...nextOverrides } = d.overrides;
+        return {
+          ...d,
+          rawTxs: d.rawTxs.map((t) => (t.id === txId ? { ...t, ...updates } : t)),
+          overrides: nextOverrides,
+        };
+      });
+      try {
+        const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
+        const updated = existing.map((t) => (t.id === txId ? { ...t, ...updates } : t));
+        await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
+        // If an override existed in the snapshot, also remove it from Drive (non-blocking).
+        if (prev?.overrides[txId] !== undefined) {
+          const existingOverrides = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+          const { [txId]: _removed, ...cleanedOverrides } = existingOverrides;
+          writeAppFile(accessToken, structure.fileIds.categoryOverrides, cleanedOverrides).catch(() => {});
+        }
+      } catch (err) {
+        if (prev) qc.setQueryData(key, prev);
+        throw err;
+      }
+    },
+    [accessToken, structure, patch, qc, appDataId]
   );
 
   // Category and exclude are rapid, tap-heavy interactions, so update the UI
@@ -350,6 +395,7 @@ export function useTransactions(
     refetch: query.refetch,
     addManualTransaction,
     deleteManualTransaction,
+    updateManualTransaction,
     updateCategory,
     bulkUpdateCategory,
     bulkExclude,

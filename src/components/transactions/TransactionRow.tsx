@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Repeat, EyeOff, RotateCcw, Loader2, Trash2, Pencil } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Repeat, Loader2, Trash2, Pencil } from "lucide-react";
 import { Transaction, Category } from "@/types";
-import { formatCurrency, cleanDescription, cn } from "@/lib/utils";
+import { formatCurrency, cleanDescription, cn, getCategoryTextClass } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -15,13 +15,6 @@ interface TransactionRowProps {
   onCheck?: (id: string) => void;
   showCategory?: boolean;
 }
-
-const catText: Record<string, string> = {
-  Needs: "text-blue-600 dark:text-blue-400",
-  Wants: "text-amber-600 dark:text-amber-400",
-  Savings: "text-emerald-600 dark:text-emerald-400",
-  Uncategorized: "text-muted-foreground",
-};
 
 // Shown on small screens so category is never conveyed by color alone (a11y).
 const catShort: Record<Category, string> = {
@@ -52,6 +45,8 @@ export function TransactionRow({
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (autoHideRef.current) clearTimeout(autoHideRef.current); }, []);
 
   const tx = transaction;
   const isIncome = tx.type === "income";
@@ -90,8 +85,8 @@ export function TransactionRow({
           visibility when showCategory is false so width is preserved. */}
       <div className={cn("shrink-0 w-10 sm:w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (
-          <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", catText[tx.category])}>
-            <span className="sm:hidden">{catShort[tx.category]}</span>
+          <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", getCategoryTextClass(tx.category))}>
+            <span className="sm:hidden">{catShort[tx.category as Category]}</span>
             <span className="hidden sm:inline">{tx.category}</span>
             {tx.categorySource === "override" && (
               <span className="text-[9px] leading-none opacity-50" title="Category was set manually — rule changes won't affect this transaction">✎</span>
@@ -124,27 +119,6 @@ export function TransactionRow({
             {checked && <div className="size-2 rounded-full bg-white" />}
           </div>
         </div>
-      ) : onToggleExclude ? (
-        <button
-          onClick={async () => {
-            if (toggling) return;
-            setToggling(true);
-            try {
-              await onToggleExclude(tx.id);
-            } finally {
-              setToggling(false);
-            }
-          }}
-          disabled={toggling}
-          className={cn(
-            "shrink-0 p-1 rounded-md transition-colors disabled:cursor-wait",
-            excluded ? "text-primary hover:bg-secondary" : "text-muted-foreground/40 hover:text-destructive hover:bg-secondary"
-          )}
-          aria-label={excluded ? "Include in calculations" : "Exclude from calculations"}
-          title={excluded ? "Include in calculations" : "Exclude from calculations"}
-        >
-          {toggling ? <Loader2 size={14} className="animate-spin" /> : excluded ? <RotateCcw size={14} /> : <EyeOff size={14} />}
-        </button>
       ) : onDelete ? (
         <div className="shrink-0 flex items-center gap-0.5">
           {onEdit && !confirmDelete && (
@@ -158,31 +132,44 @@ export function TransactionRow({
             </button>
           )}
           {confirmDelete ? (
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={async () => {
-                if (deleting) return;
-                setDeleting(true);
-                try {
-                  await onDelete(tx.id);
-                } catch {
-                  // Handled upstream; reset UI so the row doesn't stay spinning.
-                } finally {
-                  setDeleting(false);
-                  setConfirmDelete(false);
-                }
-              }}
-              disabled={deleting}
-              className="p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
-              aria-label="Confirm delete"
-              title="Tap again to confirm"
-            >
-              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  if (deleting) return;
+                  setDeleting(true);
+                  try {
+                    await onDelete(tx.id);
+                  } catch {
+                    // Handled upstream; reset UI so the row doesn't stay spinning.
+                  } finally {
+                    setDeleting(false);
+                    setConfirmDelete(false);
+                  }
+                }}
+                disabled={deleting}
+                className="p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
+                aria-label="Confirm delete"
+                title="Tap again to confirm"
+              >
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="p-1 rounded-md text-muted-foreground/40 transition-colors hover:text-foreground hover:bg-secondary"
+                aria-label="Cancel delete"
+              >
+                ×
+              </button>
+            </div>
           ) : (
             <button
-              onClick={() => setConfirmDelete(true)}
-              onBlur={() => setConfirmDelete(false)}
+              onClick={() => {
+                setConfirmDelete(true);
+                // Auto-dismiss after 4 seconds if not confirmed — fallback for mobile
+                if (autoHideRef.current) clearTimeout(autoHideRef.current);
+                autoHideRef.current = setTimeout(() => setConfirmDelete(false), 4000);
+              }}
               className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
               aria-label="Delete transaction"
               title="Delete manual transaction"

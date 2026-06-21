@@ -27,6 +27,7 @@ interface AppDataContextValue {
   rules: CategoryRule[];
   addManualTransaction: (tx: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
   deleteManualTransaction: (txId: string) => Promise<void>;
+  updateManualTransaction: (id: string, updates: Omit<Transaction, "id" | "source" | "categorySource">) => Promise<void>;
   updateCategory: (txId: string, category: Category) => Promise<void>;
   bulkUpdateCategory: (updates: { txId: string; category: Category }[]) => Promise<void>;
   bulkExclude: (ids: string[], shouldExclude: boolean) => Promise<void>;
@@ -54,6 +55,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     needsReauth: txNeedsReauth,
     addManualTransaction,
     deleteManualTransaction,
+    updateManualTransaction,
     updateCategory,
     bulkUpdateCategory,
     bulkExclude,
@@ -95,6 +97,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       txError,
       addManualTransaction,
       deleteManualTransaction,
+      updateManualTransaction,
       updateCategory,
       bulkUpdateCategory,
       bulkExclude,
@@ -105,7 +108,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateRules,
       refetch,
     }),
-    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateCategory, bulkUpdateCategory, bulkExclude, resetToDefault, bulkResetToDefault, toggleExclude, updateSettings, updateRules, refetch]
+    [month, setMonth, structure, transactions, settings, rules, isLoading, ready, txError, addManualTransaction, deleteManualTransaction, updateManualTransaction, updateCategory, bulkUpdateCategory, bulkExclude, resetToDefault, bulkResetToDefault, toggleExclude, updateSettings, updateRules, refetch]
   );
 
   // Only show SetupScreen when we have a token (Drive initialization is actually

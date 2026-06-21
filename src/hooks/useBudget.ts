@@ -20,6 +20,12 @@ export function useBudget(
 
   const monthBudget = settings.monthlyBudgets[month];
   const budgetRule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
+  if (process.env.NODE_ENV === "development") {
+    const ruleSum = budgetRule.needs + budgetRule.wants + budgetRule.savings;
+    if (ruleSum !== 100) {
+      console.warn(`[useBudget] Budget rule percentages sum to ${ruleSum}, expected 100`);
+    }
+  }
   const configuredIncome = monthBudget?.income ?? 0;
   const defaultIncome = settings.defaultIncome ?? 0;
   const salaryKeywords = settings.salaryKeywords ?? [];
@@ -29,10 +35,8 @@ export function useBudget(
 
   const detectedIncome = roundMoney(monthIncomeTxs.reduce((s, t) => s + t.amount, 0));
 
-  // Income transactions that aren't the employer's salary payment.
-  // When employer keywords are configured, the matching transaction is the salary
-  // already covered by salaryBasis — filtering it out prevents double-counting.
-  // When no keywords are set, all detected income is treated as additional.
+  // Non-salary income: transactions that don't match any salary keyword.
+  // Used by the dashboard income card to show the breakdown of other income sources.
   const additionalIncome = roundMoney(
     monthIncomeTxs
       .filter((t) =>
@@ -42,17 +46,11 @@ export function useBudget(
       .reduce((s, t) => s + t.amount, 0)
   );
 
-  // Total income = planned salary + income transactions.
-  // When employer keywords are set: only non-salary transactions are added (the salary
-  // transaction in the CSV is already represented by salaryBasis).
-  // When no keywords: all income transactions count as additional (user can set employer
-  // keywords in Settings → Sources if their salary also appears in Revolut).
-  // When no salary basis: income = everything detected.
-  const income = roundMoney(
-    salaryBasis > 0
-      ? salaryBasis + (salaryKeywords.length > 0 ? additionalIncome : detectedIncome)
-      : detectedIncome
-  );
+  // salaryBasis is a planned/configured income (e.g. primary job paid via a
+  // different account, or a standing retainer). It combines with ALL detected
+  // bank-statement income — salary-keyword transactions included — so that
+  // multiple salary sources from different employers are all counted.
+  const income = roundMoney(salaryBasis > 0 ? salaryBasis + detectedIncome : detectedIncome);
   const incomeIsDetected = detectedIncome > 0;
 
   // Single source of truth for period spend / refund-netting — shared with the
