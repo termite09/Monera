@@ -42,6 +42,7 @@ interface Props {
 
 export function SubscriptionsTab({ recurringPayments, subscriptions, transactions }: Props) {
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
+  const [expandedBill, setExpandedBill] = useState<string | null>(null);
 
   const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
 
@@ -62,26 +63,64 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           {recurringPayments.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">No recurring bills set up yet. Add them in Settings → Bills.</p>
           ) : (
-            <div className="flex flex-col divide-y divide-border">
+            <div className="flex flex-col divide-y divide-border -mx-4">
               {recurringPayments.map((p) => {
                 const badge = periodRangeBadge(p.startMonth, p.endMonth);
+                const isOpen = expandedBill === p.id;
+                const billTxs = isOpen
+                  ? transactions
+                      .filter((t) => !t.excluded && t.type === "expense" && t.description.toLowerCase().includes(p.name.toLowerCase().trim()))
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                  : [];
+                const billTotal = transactions
+                  .filter((t) => !t.excluded && t.type === "expense" && t.description.toLowerCase().includes(p.name.toLowerCase().trim()))
+                  .reduce((s, t) => s + t.amount, 0);
                 return (
-                  <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm text-foreground break-words min-w-0">{p.name}</p>
-                        <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
-                          {p.category}
-                        </span>
-                        {badge && (
-                          <span className="text-[11px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
-                            {badge}
+                  <div key={p.id} className="border-b border-border/50 last:border-0">
+                    <button
+                      onClick={() => setExpandedBill(isOpen ? null : p.id)}
+                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm text-foreground break-words min-w-0">{p.name}</p>
+                          <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
+                            {p.category}
                           </span>
-                        )}
+                          {badge && (
+                            <span className="text-[11px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
+                              {badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{ordinal(p.dayOfMonth)} of the month · {formatCurrency(p.amount)}/mo</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{ordinal(p.dayOfMonth)} of the month</p>
-                    </div>
-                    <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(p.amount)}/mo</span>
+                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(billTotal)}</span>
+                      <ChevronDown
+                        size={14}
+                        className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+                      />
+                    </button>
+                    {isOpen && (
+                      <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
+                        <p className="px-3 py-2 text-[11px] text-muted-foreground bg-secondary/50 border-b border-border">
+                          {billTxs.length} charge{billTxs.length === 1 ? "" : "s"} across all history
+                        </p>
+                        <div className="divide-y divide-border">
+                          {billTxs.length === 0 ? (
+                            <p className="text-sm text-muted-foreground px-3 py-3">No transactions found.</p>
+                          ) : billTxs.map((tx) => (
+                            <div key={tx.id} className="flex items-start gap-3 px-3 py-2.5">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+                                <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
+                              </div>
+                              <span className="text-sm tabular-nums font-mono text-foreground shrink-0 w-20 text-right">{formatCurrency(tx.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
