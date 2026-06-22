@@ -53,11 +53,11 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
           Monera
         </span>
 
-        <div className="flex flex-col items-center gap-0.5 ml-auto md:ml-0">
+        <div className="flex items-center gap-1 ml-auto md:ml-0">
           {navLabel ? (
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (
-            <div className="flex items-center gap-1">
+            <>
               <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous month">
                 <ChevronLeft size={16} />
               </Button>
@@ -67,10 +67,14 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
               <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next month">
                 <ChevronRight size={16} />
               </Button>
-            </div>
+            </>
           )}
-          <span className="text-[11px] text-muted-foreground tabular-nums leading-none">{todayLabel}</span>
         </div>
+
+        <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full tabular-nums">
+          <span className="font-medium text-foreground">Today</span>
+          {todayLabel}
+        </span>
       </div>
     </header>
   );
