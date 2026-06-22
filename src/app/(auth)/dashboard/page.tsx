@@ -25,7 +25,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { computeSafeToSpend } from "@/lib/safeToSpend";
-import { getPeriodBounds, formatDate, roundMoney, cn } from "@/lib/utils";
+import { getPeriodBounds, formatDate, roundMoney, cn, getMonthKey } from "@/lib/utils";
 import { getChartDateRange } from "@/components/charts/WeekdayChart";
 import { WEEKDAY_LABELS } from "@/config/constants";
 
@@ -62,7 +62,9 @@ export default function DashboardPage() {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [weekdayFilter, setWeekdayFilter] = useState<{ label: string; dateStr: string | null } | null>(null);
   // The "Month" tab gets its own month selector, independent of the header period.
-  const [chartMonth, setChartMonth] = useState<string>(month);
+  // Month mode is plain calendar-month based (not payday periods), so it defaults
+  // to the current calendar month — `getMonthKey(_, 1)` strips any payday offset.
+  const [chartMonth, setChartMonth] = useState<string>(() => getMonthKey(new Date(), 1));
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
   // In Month mode the chart follows its own picker; every other mode follows the
@@ -81,11 +83,11 @@ export default function DashboardPage() {
   }, []);
 
   const selectWeekdayMode = useCallback((m: WeekdayChartMode) => {
-    // Re-seed the Month picker to the current period each time the tab is chosen,
-    // so it always opens on a sensible month.
-    if (m === "month") setChartMonth(month);
+    // Re-seed the Month picker to the current calendar month each time the tab is
+    // chosen, so it always opens on today's month regardless of payday offset.
+    if (m === "month") setChartMonth(getMonthKey(new Date(), 1));
     setWeekdayMode(m);
-  }, [month]);
+  }, []);
 
   // Onboarding shows until the user completes the wizard (which persists
   // `onboarded: true`), regardless of whether they uploaded first — so payday,
