@@ -2,7 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Transaction } from "@/types";
-import { getPeriodBounds, formatCurrency, formatShortDate } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatShortDate, getMonthLabel } from "@/lib/utils";
 import { WEEKDAY_LABELS } from "@/config/constants";
 
 export type WeekdayChartMode = "period" | "week" | "month" | "year";
@@ -147,8 +147,7 @@ export function getChartDateRange(
     return `${formatShortDate(toDateStr(monday))} – ${formatShortDate(toDateStr(sunday))}`;
   }
   if (mode === "month") {
-    const [y, m] = monthKey.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    return getMonthLabel(monthKey, paydayOfMonth);
   }
   if (mode === "period") {
     const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
