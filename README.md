@@ -153,12 +153,13 @@ Monera/
 
 ## Privacy & Security
 
-- **No server-side storage.** Data never leaves your Google Drive. Monera has no backend database or analytics pipeline.
-- **No browser storage of financial data.** Transaction data is kept only in memory during the session — nothing is written to localStorage or IndexedDB.
+- **No server-side storage.** Data never leaves your Google Drive. Monera has no backend database.
+- **No browser storage of financial data.** Transaction data is kept only in memory during the session — nothing is written to localStorage or IndexedDB. Only transaction-list filter preferences are stored, in sessionStorage, which clears when the tab closes.
 - **Minimal OAuth scope.** `drive.file` grants access only to the files Monera creates — it cannot read the rest of your Drive.
 - **Persistent sessions.** Google OAuth is configured to always issue a refresh token, so the app silently renews the 1-hour access token in the background — users stay signed in without being interrupted.
-- **HttpOnly session cookies.** Access tokens are stored in a server-side httpOnly cookie and are never exposed to JavaScript or logged.
-- **Zero third-party data sharing.** Authentication is handled entirely by Google. No personal data is sent to any third party.
+- **HttpOnly session cookies.** Access and refresh tokens are stored in a server-side httpOnly cookie and are never exposed to JavaScript or logged.
+- **No third-party sharing of personal data.** Authentication and storage are handled entirely by Google. The only other third party is Vercel Analytics, which receives anonymous, aggregated usage metrics (page views, performance) — never your name, email, or financial data.
+- **Google API Limited Use.** Monera's use of data received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements. See the in-app [privacy policy](src/app/privacy/page.tsx) for the full per-data-item disclosure.
 
 ---
 
