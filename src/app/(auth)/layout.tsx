@@ -6,6 +6,11 @@ import { AppDataProvider } from "@/contexts/AppDataContext";
 
 export const dynamic = "force-dynamic";
 
+// The app itself lives behind auth — keep every signed-in page out of search results.
+export const metadata = {
+  robots: { index: false, follow: false },
+};
+
 export default async function AuthLayout({
   children,
 }: {
