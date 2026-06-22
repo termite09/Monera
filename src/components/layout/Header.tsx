@@ -17,7 +17,6 @@ interface HeaderProps {
 export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
   const monthLabel = getMonthLabel(month, paydayOfMonth);
-  const todayLabel = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
   const prevMonth = () => {
     const d = new Date(year, monthNum - 2, 1);
@@ -70,11 +69,6 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
             </>
           )}
         </div>
-
-        <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full tabular-nums">
-          <span className="font-medium text-foreground">Today</span>
-          {todayLabel}
-        </span>
       </div>
     </header>
   );

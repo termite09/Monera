@@ -271,6 +271,12 @@ export default function DashboardPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Today</span>
+          {" · "}
+          {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+        </p>
+
         {txError && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
             <AlertCircle size={16} className="shrink-0 text-destructive" />
