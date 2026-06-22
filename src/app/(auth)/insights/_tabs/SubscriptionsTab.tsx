@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Transaction, Category, RecurringPayment } from "@/types";
-import { formatCurrency, formatDate, cleanDescription, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, CalendarClock, CreditCard } from "lucide-react";
 import type { detectSubscriptions } from "@/lib/reports";
@@ -47,17 +47,19 @@ interface Props {
   recurringPayments: RecurringPayment[];
   subscriptions: Subscription[];
   transactions: Transaction[];
-  currentMonth: string;
+  paydayOfMonth: number;
 }
 
-export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, currentMonth }: Props) {
+export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, paydayOfMonth }: Props) {
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
 
   const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
 
-  const earliestMonth = transactions.length > 0
-    ? transactions.reduce((min, t) => t.date < min ? t.date : min, transactions[0].date).slice(0, 7)
-    : currentMonth;
+  const todayMonth = getMonthKey(new Date(), paydayOfMonth);
+  const earliestDate = transactions.length > 0
+    ? transactions.reduce((min, t) => t.date < min ? t.date : min, transactions[0].date)
+    : null;
+  const earliestMonth = earliestDate ? getMonthKey(earliestDate, paydayOfMonth) : todayMonth;
 
   return (
     <>
@@ -81,7 +83,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = periodRangeBadge(p.startMonth, p.endMonth);
-                  const count = countBillPeriods(p, currentMonth, earliestMonth);
+                  const count = countBillPeriods(p, todayMonth, earliestMonth);
                   const total = count * p.amount;
                   return (
                     <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
