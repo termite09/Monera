@@ -17,6 +17,7 @@ interface HeaderProps {
 export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
   const monthLabel = getMonthLabel(month, paydayOfMonth);
+  const todayLabel = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
   const prevMonth = () => {
     const d = new Date(year, monthNum - 2, 1);
@@ -48,9 +49,10 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
       </AnimatePresence>
 
       <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-        <span className="text-base font-semibold text-foreground md:hidden font-serif">
-          Monera
-        </span>
+        <div className="flex flex-col">
+          <span className="text-base font-semibold text-foreground md:hidden font-serif leading-none">Monera</span>
+          <span className="text-xs text-muted-foreground leading-none mt-0.5 md:mt-0 tabular-nums">{todayLabel}</span>
+        </div>
 
         <div className="flex items-center gap-1 ml-auto md:ml-0">
           {navLabel ? (
