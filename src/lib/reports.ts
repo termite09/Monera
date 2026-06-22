@@ -90,6 +90,7 @@ function periodExpenses(
 export interface Subscription {
   name: string;
   amount: number; // representative (median) charge
+  total: number;  // sum of all detected charges
   months: number; // distinct calendar months the charge was seen in
   lastDate: string;
 }
@@ -156,7 +157,9 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     const intervalConsistent = intervals.every((iv) => Math.abs(iv - medianInterval) <= medianInterval * 0.5);
     if (!intervalConsistent) continue;
 
-    subs.push({ name: g.name, amount: mid, months: g.months.size, lastDate: g.lastDate });
+    const rawTotal = g.amounts.reduce((s, a) => s + a, 0);
+    const total = Math.round(rawTotal * 100) / 100;
+    subs.push({ name: g.name, amount: mid, total, months: g.months.size, lastDate: g.lastDate });
   }
 
   return subs.sort((a, b) => b.months - a.months || b.amount - a.amount);

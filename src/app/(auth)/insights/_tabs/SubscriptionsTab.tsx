@@ -109,6 +109,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       .filter((t) => !t.excluded && t.type === "expense" && t.description.toLowerCase().includes(s.name.toLowerCase().trim()))
                       .sort((a, b) => b.date.localeCompare(a.date))
                   : [];
+                const txTotal = isOpen ? Math.round(subTxs.reduce((acc, t) => acc + t.amount, 0) * 100) / 100 : 0;
                 return (
                   <div key={s.name} className="border-b border-border/50 last:border-0">
                     <button
@@ -118,10 +119,10 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground break-words">{s.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {s.months} month{s.months === 1 ? "" : "s"} · last {formatDate(s.lastDate)}
+                          {s.months} month{s.months === 1 ? "" : "s"} · ~{formatCurrency(s.amount)}/charge · last {formatDate(s.lastDate)}
                         </p>
                       </div>
-                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(s.amount)}</span>
+                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(s.total)}</span>
                       <ChevronDown
                         size={14}
                         className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
@@ -145,6 +146,12 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                             </div>
                           ))}
                         </div>
+                        {subTxs.length > 0 && (
+                          <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-secondary/30">
+                            <span className="text-xs font-medium text-muted-foreground">Total</span>
+                            <span className="text-sm font-semibold tabular-nums font-mono text-foreground">{formatCurrency(txTotal)}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
