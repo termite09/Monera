@@ -160,6 +160,7 @@ export default function ReportsPage() {
                 recurringPayments={settings.recurringPayments ?? []}
                 subscriptions={subscriptions}
                 transactions={transactions}
+                currentMonth={month}
               />
             )}
             {tab === "year" && (

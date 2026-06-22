@@ -34,17 +34,30 @@ const CAT_CHIP: Record<Category, string> = {
   Uncategorized: "bg-secondary text-muted-foreground",
 };
 
+function countBillPeriods(p: RecurringPayment, currentMonth: string, fallbackStart: string): number {
+  const start = p.startMonth ?? fallbackStart;
+  const end = p.endMonth && p.endMonth < currentMonth ? p.endMonth : currentMonth;
+  if (start > end) return 0;
+  const [sy, sm] = start.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  return (ey - sy) * 12 + (em - sm) + 1;
+}
+
 interface Props {
   recurringPayments: RecurringPayment[];
   subscriptions: Subscription[];
   transactions: Transaction[];
+  currentMonth: string;
 }
 
-export function SubscriptionsTab({ recurringPayments, subscriptions, transactions }: Props) {
+export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, currentMonth }: Props) {
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
-  const [expandedBill, setExpandedBill] = useState<string | null>(null);
 
   const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
+
+  const earliestMonth = transactions.length > 0
+    ? transactions.reduce((min, t) => t.date < min ? t.date : min, transactions[0].date).slice(0, 7)
+    : currentMonth;
 
   return (
     <>
@@ -65,43 +78,30 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           ) : (
             <>
               <p className="text-xs text-muted-foreground mb-3">Paid from another bank or account — these won't appear in your imported transactions.</p>
-              <div className="flex flex-col divide-y divide-border -mx-4">
+              <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = periodRangeBadge(p.startMonth, p.endMonth);
-                  const isOpen = expandedBill === p.id;
+                  const count = countBillPeriods(p, currentMonth, earliestMonth);
+                  const total = count * p.amount;
                   return (
-                    <div key={p.id} className="border-b border-border/50 last:border-0">
-                      <button
-                        onClick={() => setExpandedBill(isOpen ? null : p.id)}
-                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm text-foreground break-words min-w-0">{p.name}</p>
-                            <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
-                              {p.category}
+                    <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm text-foreground break-words min-w-0">{p.name}</p>
+                          <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
+                            {p.category}
+                          </span>
+                          {badge && (
+                            <span className="text-[11px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
+                              {badge}
                             </span>
-                            {badge && (
-                              <span className="text-[11px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
-                                {badge}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{ordinal(p.dayOfMonth)} of the month</p>
+                          )}
                         </div>
-                        <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(p.amount)}/mo</span>
-                        <ChevronDown
-                          size={14}
-                          className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
-                        />
-                      </button>
-                      {isOpen && (
-                        <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
-                          <p className="px-3 py-3 text-sm text-muted-foreground bg-secondary/50">
-                            This bill is paid from another bank or account and won't appear in your imported CSV files.
-                          </p>
-                        </div>
-                      )}
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {ordinal(p.dayOfMonth)} of the month · {formatCurrency(p.amount)}/mo · {count} time{count === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(total)}</span>
                     </div>
                   );
                 })}
