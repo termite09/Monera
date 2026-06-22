@@ -170,9 +170,14 @@ export default async function Home() {
               </div>
             ))}
           </div>
-          {/* Product preview — drop a real dashboard screenshot in here when ready. */}
-          <div className="mt-10 rounded-2xl border border-border/60 bg-secondary/40 aspect-video flex items-center justify-center">
-            <span className="text-xs text-muted-foreground/60">Your dashboard, at a glance</span>
+          <div className="mt-10 rounded-2xl border border-border/60 overflow-hidden shadow-sm">
+            <img
+              src="/screenshot-dashboard.png"
+              alt="Monera dashboard showing income, expenses, budget progress and spending by day"
+              className="w-full"
+              width={2984}
+              height={1712}
+            />
           </div>
         </section>
 
