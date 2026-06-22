@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service — Monera",
+  title: "Terms of Service",
 };
 
 export default function TermsPage() {

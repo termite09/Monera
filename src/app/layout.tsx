@@ -28,9 +28,18 @@ const dmMono = DM_Mono({
   display: "swap",
 });
 
+const DESCRIPTION =
+  "Turn your Revolut export into payday-aware budgets and spending insights — stored privately in your own Google Drive. Free, open-source, no bank login.";
+
 export const metadata: Metadata = {
-  title: "Monera — Personal Finance",
-  description: "Track your finances effortlessly",
+  metadataBase: new URL("https://mymonera.com"),
+  title: {
+    default: "Monera — Private Budgeting for Revolut Users",
+    template: "%s · Monera",
+  },
+  description: DESCRIPTION,
+  applicationName: "Monera",
+  alternates: { canonical: "/" },
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -44,6 +53,20 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Monera",
   },
+  openGraph: {
+    type: "website",
+    siteName: "Monera",
+    title: "Monera — Private Budgeting for Revolut Users",
+    description: DESCRIPTION,
+    url: "https://mymonera.com",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Monera — Private Budgeting for Revolut Users",
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
