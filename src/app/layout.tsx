@@ -28,8 +28,13 @@ const dmMono = DM_Mono({
   display: "swap",
 });
 
-const DESCRIPTION =
+// Google reads up to ~155 chars in SERPs — use the full version.
+const META_DESCRIPTION =
   "Turn your Revolut export into payday-aware budgets and spending insights — stored privately in your own Google Drive. Free, open-source, no bank login.";
+
+// Social previews (Twitter, LinkedIn, WhatsApp) truncate around 125 chars on mobile.
+const OG_DESCRIPTION =
+  "Turn your Revolut export into payday-aware budgets — stored in your own Google Drive. Free, open-source, no bank login.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mymonera.com"),
@@ -37,7 +42,7 @@ export const metadata: Metadata = {
     default: "Monera — Private Budgeting for Revolut Users",
     template: "%s · Monera",
   },
-  description: DESCRIPTION,
+  description: META_DESCRIPTION,
   applicationName: "Monera",
   alternates: { canonical: "/" },
   manifest: "/manifest.json",
@@ -57,14 +62,14 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Monera",
     title: "Monera — Private Budgeting for Revolut Users",
-    description: DESCRIPTION,
+    description: OG_DESCRIPTION,
     url: "https://mymonera.com",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
     title: "Monera — Private Budgeting for Revolut Users",
-    description: DESCRIPTION,
+    description: OG_DESCRIPTION,
   },
   robots: { index: true, follow: true },
 };
