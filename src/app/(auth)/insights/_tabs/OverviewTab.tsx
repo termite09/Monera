@@ -5,19 +5,12 @@ import type { buildReport } from "@/lib/reports";
 
 type Report = ReturnType<typeof buildReport>;
 
-function fmtPeriodKey(key: string): string {
-  const [y, m] = key.split("-");
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
-}
-
 interface Props {
   report: Report;
   savingsRate: number | null;
-  prevMonthKey: string;
-  month: string;
 }
 
-export function OverviewTab({ report, savingsRate, prevMonthKey, month }: Props) {
+export function OverviewTab({ report, savingsRate }: Props) {
   if (report.txCount === 0) {
     return (
       <Card className="rounded-2xl border-border/70">
@@ -67,7 +60,7 @@ export function OverviewTab({ report, savingsRate, prevMonthKey, month }: Props)
               vs Last Period
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              How each category changed from {fmtPeriodKey(prevMonthKey)} to {fmtPeriodKey(month)}. Green means you spent less.
+              How each category changed from last to current period. Green means you spent less.
             </p>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-0">
