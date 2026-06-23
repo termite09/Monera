@@ -67,7 +67,7 @@ export function OverviewTab({ report, savingsRate, prevMonthKey, month }: Props)
               vs Last Period
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              How each category changed from last to current period. Green means you spent less.
+              How each category changed from {fmtPeriodKey(prevMonthKey)} to {fmtPeriodKey(month)}. Green means you spent less.
             </p>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-0">

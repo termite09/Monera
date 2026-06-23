@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -106,15 +108,27 @@ export default function SettingsPage() {
 
         <AppTour pageKey="settings" slides={SETTINGS_SLIDES} />
 
-        {/* Replay guide */}
-        <div className="mt-2 pt-4 border-t border-border">
-          <button
-            onClick={replayGuide}
-            className="text-sm text-primary hover:underline"
-          >
-            Replay app guide
-          </button>
-          <p className="text-xs text-muted-foreground mt-0.5">Takes you to the dashboard and restarts the tour from the beginning.</p>
+        {/* Replay guide + sign out */}
+        <div className="mt-2 pt-4 border-t border-border flex flex-col gap-4">
+          <div>
+            <button
+              onClick={replayGuide}
+              className="text-sm text-primary hover:underline"
+            >
+              Replay app guide
+            </button>
+            <p className="text-xs text-muted-foreground mt-0.5">Takes you to the dashboard and restarts the tour from the beginning.</p>
+          </div>
+          <div className="md:hidden">
+            <button
+              onClick={() => signOut({ redirectTo: "/login" })}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <LogOut size={15} />
+              Sign out
+            </button>
+            <p className="text-xs text-muted-foreground mt-0.5">Ends your session and returns to the login screen.</p>
+          </div>
         </div>
       </div>
     </PageShell>
