@@ -51,12 +51,6 @@ export default function ReportsPage() {
   });
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
-  const prevMonthKey = (() => {
-    const [y, m] = month.split("-").map(Number);
-    const d = new Date(y, m - 2, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  })();
-
   // Include recurring bills for BOTH the current and the previous period, so
   // buildReport's "vs last period" comparison sees the previous period's
   // recurring bills too.
@@ -144,8 +138,6 @@ export default function ReportsPage() {
               <OverviewTab
                 report={report}
                 savingsRate={savingsRate}
-                prevMonthKey={prevMonthKey}
-                month={month}
               />
             )}
             {tab === "merchants" && (
