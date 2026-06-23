@@ -56,7 +56,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
               </button>
             )}
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">Tap any merchant to see the transactions behind it. Use the hide button to remove a merchant from this view.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Every place you spent money this period, ranked by total amount. Tap any merchant to see the transactions behind it.</p>
         </CardHeader>
         <CardContent className="px-0 pb-2">
           {allMerchants.length === 0 ? (
@@ -144,7 +144,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
           <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <Repeat size={13} /> Most Recurring
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">Merchants you pay repeatedly — likely subscriptions or habits worth reviewing.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Merchants you&apos;ve paid more than once this period, ranked by number of visits — useful for spotting habits.</p>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           {report.frequentMerchants.length === 0 ? (

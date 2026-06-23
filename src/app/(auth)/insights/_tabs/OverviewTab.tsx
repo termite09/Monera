@@ -1,6 +1,5 @@
 import { formatCurrency, getCategoryColor, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InfoIcon } from "@/components/ui/InfoIcon";
 import { ArrowRight } from "lucide-react";
 import type { buildReport } from "@/lib/reports";
 
@@ -35,10 +34,10 @@ export function OverviewTab({ report, savingsRate, prevMonthKey, month }: Props)
       <div className="grid grid-cols-2 gap-3">
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <CardContent className="p-4">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
               Savings Rate
-              <InfoIcon side="bottom" content="The share of your income you set aside this period. Aiming for 20% or more is a common goal." />
             </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Income minus all spending, shown as a percentage.</p>
             <p className={cn("mt-2 text-xl leading-none font-medium tabular-nums font-mono", savingsRate !== null && savingsRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
               {savingsRate === null ? "—" : `${savingsRate}%`}
             </p>
@@ -49,10 +48,10 @@ export function OverviewTab({ report, savingsRate, prevMonthKey, month }: Props)
         </Card>
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <CardContent className="p-4">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
               Projected
-              <InfoIcon side="bottom" content="If you keep spending at this period's pace, the estimated total by payday." />
             </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Estimated total by payday at your current pace.</p>
             <p className="mt-2 text-xl leading-none font-medium tabular-nums font-mono text-foreground">
               {report.daysElapsed < 3 ? "—" : formatCurrency(report.projectedTotal)}
             </p>
@@ -64,15 +63,11 @@ export function OverviewTab({ report, savingsRate, prevMonthKey, month }: Props)
       {report.prevTotal > 0 ? (
         <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               vs Last Period
-              <InfoIcon
-                side="bottom"
-                content="Compares how much you spent per category this period vs the one before. Green ↓ = spent less this period (good). Red ↑ = spent more (worth reviewing). The Change column shows the exact difference."
-              />
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {fmtPeriodKey(prevMonthKey)} compared to {fmtPeriodKey(month)} — by category.
+              How each category changed from last to current period. Green means you spent less.
             </p>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-0">

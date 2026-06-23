@@ -58,12 +58,14 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Total Expenses</p>
             <p className="text-xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearExpenses)}</p>
+            <p className="text-xs text-muted-foreground mt-1">All spending across every period this year.</p>
           </CardContent>
         </Card>
         <Card className="shadow-none border-border">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Total Savings</p>
             <p className="text-xl font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">{formatCurrency(yearSavings)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Everything in the Savings category across the year.</p>
           </CardContent>
         </Card>
       </div>
@@ -71,7 +73,7 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
       <Card className="shadow-none border-border">
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Breakdown</CardTitle>
-          <p className="text-[11px] text-muted-foreground/70 mt-0.5">Tap a month to view its transactions on the dashboard.</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5">Each bar shows Needs, Wants, and Savings for that period. Tap a bar to go to that period on the dashboard.</p>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           <YearBar

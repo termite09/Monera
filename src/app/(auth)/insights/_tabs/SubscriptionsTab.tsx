@@ -79,7 +79,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             <p className="text-sm text-muted-foreground py-2">No recurring bills set up yet. Add them in Settings → Bills.</p>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground mb-3">Paid from another bank or account — these won&apos;t appear in your imported transactions.</p>
+              <p className="text-xs text-muted-foreground mb-3">Added in Settings — paid outside Revolut, so they won&apos;t show up in your imported transactions.</p>
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = periodRangeBadge(p.startMonth, p.endMonth);
@@ -114,11 +114,14 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
       </Card>
 
       <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            <CreditCard size={13} /> Detected Subscriptions
-          </CardTitle>
-          {subscriptions.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">~{formatCurrency(subsMonthly)}/mo</span>}
+        <CardHeader className="pb-2 pt-4 px-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <CreditCard size={13} /> Detected Subscriptions
+            </CardTitle>
+            {subscriptions.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">~{formatCurrency(subsMonthly)}/mo</span>}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">Repeat payments to the same place with a similar amount, appearing at least twice roughly a month apart.</p>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           {subscriptions.length === 0 ? (
