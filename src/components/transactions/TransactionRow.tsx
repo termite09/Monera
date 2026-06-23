@@ -7,7 +7,6 @@ import { formatCurrency, cleanDescription, cn, getCategoryTextClass } from "@/li
 
 interface TransactionRowProps {
   transaction: Transaction;
-  onToggleExclude?: (id: string) => void | Promise<void>;
   onDelete?: (id: string) => void | Promise<void>;
   onEdit?: (id: string) => void;
   selectMode?: boolean;
@@ -34,7 +33,6 @@ function parseDateParts(dateStr: string): { dayMonth: string; year: string } {
 
 export function TransactionRow({
   transaction,
-  onToggleExclude,
   onDelete,
   onEdit,
   selectMode = false,
@@ -42,7 +40,6 @@ export function TransactionRow({
   onCheck,
   showCategory = true,
 }: TransactionRowProps) {
-  const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);

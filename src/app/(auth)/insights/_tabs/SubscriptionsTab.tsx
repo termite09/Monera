@@ -79,7 +79,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             <p className="text-sm text-muted-foreground py-2">No recurring bills set up yet. Add them in Settings → Bills.</p>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground mb-3">Paid from another bank or account — these won't appear in your imported transactions.</p>
+              <p className="text-xs text-muted-foreground mb-3">Paid from another bank or account — these won&apos;t appear in your imported transactions.</p>
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = periodRangeBadge(p.startMonth, p.endMonth);

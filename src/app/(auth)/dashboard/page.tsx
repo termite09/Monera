@@ -4,8 +4,9 @@ import { useState, useMemo, useCallback } from "react";
 import type { WeekdayChartMode } from "@/components/charts/WeekdayChart";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCw, ChevronLeft, Upload } from "lucide-react";
+import { ChevronLeft, Upload } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
+import { ErrorState } from "@/components/layout/ErrorState";
 import { Header } from "@/components/layout/Header";
 import { SummaryCard } from "@/components/budget/SummaryCard";
 import { BudgetDonut } from "@/components/budget/BudgetDonut";
@@ -279,15 +280,7 @@ export default function DashboardPage() {
           {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
         </p>
 
-        {txError && (
-          <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
-            <AlertCircle size={16} className="shrink-0 text-destructive" />
-            <p className="flex-1 text-sm text-destructive">{txError}</p>
-            <button onClick={refetch} className="flex items-center gap-1 text-xs text-destructive underline-offset-2 hover:underline">
-              <RefreshCw size={12} /> Retry
-            </button>
-          </div>
-        )}
+        {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Summary cards */}
         <div className="grid grid-cols-2 gap-3">

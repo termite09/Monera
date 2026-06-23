@@ -30,10 +30,11 @@ export function RulesForm({ rules, updateRules }: {
   const [error, setError] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Intentional sync from externally-loaded rules.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Intentional sync from externally-loaded rules (Drive data arriving after mount).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(rules);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDirty(false);
   }, [rules]);
 

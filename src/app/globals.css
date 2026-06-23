@@ -99,7 +99,6 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  -webkit-overflow-scrolling: touch;
 }
 
 @media (prefers-reduced-motion: reduce) {

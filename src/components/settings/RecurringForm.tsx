@@ -141,7 +141,7 @@ export function RecurringForm({ settings, updateSettings }: {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-semibold text-foreground">Bills</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Fixed bills paid from another bank or account — rent, insurance, gym. These won't appear in your imported CSV files, so Monera adds them automatically to each period.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Fixed bills paid from another bank or account — rent, insurance, gym. These won&apos;t appear in your imported CSV files, so Monera adds them automatically to each period.</p>
       </div>
 
       {/* Search — only shown when there are entries */}

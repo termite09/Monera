@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
+import { ErrorState } from "@/components/layout/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -41,7 +42,7 @@ const isReportTab = (v: string | null): v is ReportTab =>
   v === "overview" || v === "merchants" || v === "subscriptions" || v === "year";
 
 export default function ReportsPage() {
-  const { month, setMonth, transactions, settings, isLoading, updateSettings } = useAppData();
+  const { month, setMonth, transactions, settings, isLoading, txError, refetch, updateSettings } = useAppData();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReportTab>(() => {
@@ -113,6 +114,8 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground">Insights</h1>
         </div>
+
+        {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Sub-tab switcher */}
         <div className="flex overflow-x-auto gap-1 p-1 rounded-lg bg-secondary scrollbar-none">

@@ -2,11 +2,11 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, RefreshCw, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
+import { ErrorState } from "@/components/layout/ErrorState";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TransactionRow } from "@/components/transactions/TransactionRow";
@@ -73,7 +73,7 @@ export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
     addManualTransaction, deleteManualTransaction, updateManualTransaction, bulkUpdateCategory,
-    bulkExclude, bulkResetToDefault, toggleExclude, refetch,
+    bulkExclude, bulkResetToDefault, refetch,
   } = useAppData();
 
   const searchParams = useSearchParams();
@@ -84,10 +84,6 @@ export default function TransactionsPage() {
     return loadFilters().filterCat ?? "All";
   });
   const [filterType, setFilterType] = useState<TransactionType | "all">(() => loadFilters().filterType ?? "expense");
-  const handleFilterTypeChange = useCallback((v: TransactionType | "all") => {
-    setFilterType(v);
-    if (v === "income") setFilterCat("All");
-  }, []);
   const [rangeMode, setRangeMode] = useState<"period" | "custom">(() => loadFilters().rangeMode ?? "period");
   const [customFrom, setCustomFrom] = useState(() => loadFilters().customFrom ?? "");
   const [customTo, setCustomTo] = useState(() => loadFilters().customTo ?? "");
@@ -106,15 +102,6 @@ export default function TransactionsPage() {
     return () => clearTimeout(timer);
   }, [search, filterCat, filterType, rangeMode, customFrom, customTo, sortField, sortDir]);
 
-  const handleSort = useCallback((field: SortField) => {
-    if (sortField !== field) {
-      setSortField(field);
-      setSortDir(field === "date" ? "desc" : "asc");
-    } else {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    }
-  }, [sortField]);
-
   // Multi-select state — no explicit mode toggle; checkboxes always visible
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const selectMode = selected.size > 0;
@@ -123,16 +110,53 @@ export default function TransactionsPage() {
 
   const [page, setPage] = useState(1);
 
-  // Clear selection whenever the scope changes — selected IDs from a previous
-  // filter set are invisible in the new view and would confuse bulk actions.
-  useEffect(() => {
-    setSelected(new Set());
-  }, [filterCat, filterType, rangeMode, customFrom, customTo]);
-
-  // Reset pagination whenever filters or sort change.
-  useEffect(() => {
+  // Filter change handlers that co-locate the side-effects (clear selection,
+  // reset page) with the state change so no secondary effects are needed.
+  const handleSearchChange = useCallback((v: string) => {
+    setSearch(v);
     setPage(1);
-  }, [filterCat, filterType, rangeMode, customFrom, customTo, search, sortField, sortDir]);
+  }, []);
+
+  const handleFilterCatChange = useCallback((v: Category | "All") => {
+    setFilterCat(v);
+    setSelected(new Set());
+    setPage(1);
+  }, []);
+
+  const handleFilterTypeChange = useCallback((v: TransactionType | "all") => {
+    setFilterType(v);
+    if (v === "income") setFilterCat("All");
+    setSelected(new Set());
+    setPage(1);
+  }, []);
+
+  const handlePeriodMode = useCallback(() => {
+    setRangeMode("period");
+    setSelected(new Set());
+    setPage(1);
+  }, []);
+
+  const handleCustomFromChange = useCallback((v: string) => {
+    setCustomFrom(v);
+    setSelected(new Set());
+    setPage(1);
+  }, []);
+
+  const handleCustomToChange = useCallback((v: string) => {
+    setCustomTo(v);
+    setSelected(new Set());
+    setPage(1);
+  }, []);
+
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDir(field === "date" ? "desc" : "asc");
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    }
+    setPage(1);
+  }, [sortField]);
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
@@ -141,6 +165,8 @@ export default function TransactionsPage() {
 
   const selectCustom = () => {
     setRangeMode("custom");
+    setSelected(new Set());
+    setPage(1);
     if (!customFrom || !customTo) {
       const { start, end } = getPeriodBounds(month, paydayOfMonth);
       setCustomFrom(toInputDate(start));
@@ -282,31 +308,23 @@ export default function TransactionsPage() {
       />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
-        {txError && (
-          <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
-            <AlertCircle size={16} className="shrink-0 text-destructive" />
-            <p className="flex-1 text-sm text-destructive">{txError}</p>
-            <button onClick={refetch} className="flex items-center gap-1 text-xs text-destructive underline-offset-2 hover:underline">
-              <RefreshCw size={12} /> Retry
-            </button>
-          </div>
-        )}
+        {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Controls */}
         <TransactionFilters
           search={search}
-          onSearchChange={setSearch}
+          onSearchChange={handleSearchChange}
           filterType={filterType}
           onFilterTypeChange={handleFilterTypeChange}
           filterCat={filterCat}
-          onFilterCatChange={(v) => setFilterCat(v)}
+          onFilterCatChange={handleFilterCatChange}
           rangeMode={rangeMode}
-          onPeriodMode={() => setRangeMode("period")}
+          onPeriodMode={handlePeriodMode}
           onCustomMode={selectCustom}
           customFrom={customFrom}
-          onCustomFromChange={setCustomFrom}
+          onCustomFromChange={handleCustomFromChange}
           customTo={customTo}
-          onCustomToChange={setCustomTo}
+          onCustomToChange={handleCustomToChange}
           searching={searching}
           onAdd={() => setShowAdd(true)}
         />
@@ -404,7 +422,6 @@ export default function TransactionsPage() {
                     <TransactionRow
                       key={tx.id}
                       transaction={tx}
-                      onToggleExclude={selectMode ? undefined : toggleExclude}
                       onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
                       onEdit={selectMode || tx.source !== "manual" ? undefined : (id) => setEditingTx(filtered.find((t) => t.id === id) ?? null)}
                       selectMode={selectMode}

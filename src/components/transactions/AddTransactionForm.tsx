@@ -43,6 +43,10 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Guard against double-submit: a slow Drive write can otherwise be fired
+    // twice (e.g. pressing Enter again before the disabled button re-renders),
+    // creating a duplicate transaction.
+    if (loading) return;
     const newErrors: Record<string, string> = {};
     if (!date) newErrors.date = "Date is required";
     if (!description.trim()) newErrors.description = "Description is required";

@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds, cleanDescription, getPrevMonthKey } from "@/lib/utils";
+import { getPeriodBounds, cleanDescription, getPrevMonthKey, roundMoney } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 export interface MonthlyTotals {
@@ -136,7 +136,10 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     // Require strong evidence: 3+ distinct months and 3+ charges
     if (g.months.size < 3 || g.amounts.length < 3) continue;
 
-    const mid = median(g.amounts);
+    // Round the amount median to clean cents: it is both the displayed
+    // representative charge and the basis for the tolerance check, so it must
+    // not carry sub-cent float drift (e.g. (12.99+13.49)/2 = 13.2399…).
+    const mid = roundMoney(median(g.amounts));
     // Treat the charge as recurring only if every amount is close to the median
     // (small price changes are tolerated; variable spend is not).
     const tolerance = Math.max(1, mid * 0.15);

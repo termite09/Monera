@@ -111,4 +111,17 @@ describe("detectSubscriptions", () => {
     ]);
     expect(subs).toHaveLength(1);
   });
+
+  it("rounds the representative (median) amount to clean cents", () => {
+    // Even-count charges: raw median (12.99 + 13.49) / 2 = 13.2399999… without
+    // rounding. The representative amount must be a clean 13.24.
+    const subs = detectSubscriptions([
+      tx({ amount: 12.99, type: "expense", description: "Disney", date: "2024-03-12" }),
+      tx({ amount: 12.99, type: "expense", description: "Disney", date: "2024-04-12" }),
+      tx({ amount: 13.49, type: "expense", description: "Disney", date: "2024-05-12" }),
+      tx({ amount: 13.49, type: "expense", description: "Disney", date: "2024-06-12" }),
+    ]);
+    expect(subs).toHaveLength(1);
+    expect(subs[0].amount).toBe(13.24);
+  });
 });

@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
+import { ErrorState } from "@/components/layout/ErrorState";
 import { useAppData } from "@/contexts/AppDataContext";
 import { cn } from "@/lib/utils";
 import { MonthForm } from "@/components/settings/MonthForm";
@@ -40,7 +41,7 @@ type Tab = "setup" | "monthly" | "bills" | "sources" | "rules";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { month, setMonth, settings, rules, isLoading, updateSettings, updateRules } = useAppData();
+  const { month, setMonth, settings, rules, isLoading, txError, refetch, updateSettings, updateRules } = useAppData();
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
   const [tab, setTab] = useState<Tab>("setup");
 
@@ -62,6 +63,8 @@ export default function SettingsPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5">
+        {txError && <ErrorState message={txError} onRetry={refetch} />}
+
         {/* Tab switcher */}
         <div className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-secondary">
           {tabs.map((t) => (

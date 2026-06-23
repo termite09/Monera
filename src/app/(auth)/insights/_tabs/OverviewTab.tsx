@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoIcon } from "@/components/ui/InfoIcon";
 import { ArrowRight } from "lucide-react";
 import type { buildReport } from "@/lib/reports";
-import { Category } from "@/types";
 
 type Report = ReturnType<typeof buildReport>;
 

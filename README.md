@@ -31,6 +31,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
 | **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits apply immediately and roll back automatically on failure. Stale category overrides are pruned on load. Installable PWA. |
+| **Resilient error recovery** | If a Drive request fails, every page shows a clear inline error with one-tap retry instead of silently breaking. React error boundaries catch unexpected render errors so the app degrades gracefully rather than going blank. |
 | **Multiple income sources** | Salary keywords identify salary-type transactions for display. Configured salary basis (from Settings) and all detected income are always summed — so income from multiple employers and side jobs are counted together. |
 
 ---
