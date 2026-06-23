@@ -118,13 +118,13 @@ export default function ReportsPage() {
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Sub-tab switcher */}
-        <div className="flex overflow-x-auto gap-1 p-1 rounded-lg bg-secondary scrollbar-none">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
           {REPORT_TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "shrink-0 h-9 px-3 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                "h-9 rounded-md text-xs font-medium transition-colors",
                 tab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >

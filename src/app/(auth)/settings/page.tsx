@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
@@ -43,9 +43,15 @@ type Tab = "setup" | "monthly" | "bills" | "sources" | "rules";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { month, setMonth, settings, rules, isLoading, txError, refetch, updateSettings, updateRules } = useAppData();
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
   const [tab, setTab] = useState<Tab>("setup");
+
+  const handleSignOut = useCallback(() => {
+    sessionStorage.clear();
+    signOut({ redirectTo: "/login" });
+  }, []);
 
   const replayGuide = useCallback(async () => {
     await updateSettings({ ...settings, tourPages: {} });
@@ -65,6 +71,41 @@ export default function SettingsPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5">
+        {/* Account row — mobile only, always at the top */}
+        <div className="md:hidden flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {session?.user?.image ? (
+              <img
+                src={session.user.image}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="size-9 rounded-full shrink-0"
+              />
+            ) : (
+              <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-sm font-semibold text-primary">
+                  {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
+                </span>
+              </div>
+            )}
+            <div className="min-w-0">
+              {session?.user?.name && (
+                <p className="text-sm font-medium text-foreground truncate">{session.user.name}</p>
+              )}
+              {session?.user?.email && (
+                <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:border-destructive hover:text-destructive transition-colors shrink-0"
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
+
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Tab switcher */}
@@ -108,28 +149,17 @@ export default function SettingsPage() {
 
         <AppTour pageKey="settings" slides={SETTINGS_SLIDES} />
 
-        {/* Replay guide + sign out */}
-        <div className="mt-2 pt-4 border-t border-border flex flex-col gap-4">
-          <div>
-            <button
-              onClick={replayGuide}
-              className="text-sm text-primary hover:underline"
-            >
-              Replay app guide
-            </button>
-            <p className="text-xs text-muted-foreground mt-0.5">Takes you to the dashboard and restarts the tour from the beginning.</p>
-          </div>
-          <div className="md:hidden">
-            <button
-              onClick={() => signOut({ redirectTo: "/login" })}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <LogOut size={15} />
-              Sign out
-            </button>
-            <p className="text-xs text-muted-foreground mt-0.5">Ends your session and returns to the login screen.</p>
-          </div>
+        {/* Replay guide */}
+        <div className="mt-2 pt-4 border-t border-border">
+          <button
+            onClick={replayGuide}
+            className="text-sm text-primary hover:underline"
+          >
+            Replay app guide
+          </button>
+          <p className="text-xs text-muted-foreground mt-0.5">Takes you to the dashboard and restarts the tour from the beginning.</p>
         </div>
+
       </div>
     </PageShell>
   );
