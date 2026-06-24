@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ReactNode } from "react";
 
 interface PageShellProps {
@@ -9,13 +9,14 @@ interface PageShellProps {
 }
 
 export function PageShell({ children, className = "" }: PageShellProps) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.main
-      initial={{ opacity: 0, y: 10 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       className={`
-        min-h-[100dvh] max-w-full overflow-x-clip bg-[#FAFAFA] dark:bg-[#0F0F0F]
+        min-h-[100dvh] max-w-full overflow-x-clip bg-background
         pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6 md:ml-56
         ${className}
       `}

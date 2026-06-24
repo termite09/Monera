@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tool-local / runtime files (machine-specific, not committed)
+*.local.json
+.impeccable/hook.cache.json
+.claude/
+.codex/

@@ -9,6 +9,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const GITHUB_URL = "https://github.com/termite09/Monera";
 
@@ -100,7 +101,7 @@ export default async function Home() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Nav */}
       <header className="px-6 py-5 flex items-center justify-between max-w-5xl mx-auto w-full">
-        <span className="font-serif text-xl text-foreground tracking-tight">Monera</span>
+        <span className="font-serif text-2xl text-foreground tracking-tight">Monera</span>
         <div className="flex items-center gap-4">
           <a
             href={GITHUB_URL}
@@ -122,20 +123,17 @@ export default async function Home() {
       <main className="flex-1 w-full">
         {/* Hero */}
         <section className="px-6 pt-16 pb-12 text-center max-w-2xl mx-auto w-full flex flex-col items-center gap-6">
-          <h1 className="text-5xl font-serif text-foreground tracking-tight leading-tight">
-            Finally know where<br />your money goes.
+          <h1 className="text-5xl font-serif text-foreground tracking-tight leading-tight text-balance">
+            Finally know where your money goes.
           </h1>
           <p className="text-base text-muted-foreground max-w-md leading-relaxed">
             Import your Revolut statement and get a clear breakdown of your spending — budgets,
             categories, and insights, all in one place. Your data stays in{" "}
             <strong className="text-foreground font-medium">your own Google Drive</strong>. We never see it.
           </p>
-          <Link
-            href="/login"
-            className="mt-2 inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium hover:bg-primary/90 transition-colors"
-          >
-            Get started — it&apos;s free
-          </Link>
+          <Button asChild size="lg" className="mt-2">
+            <Link href="/login">Get started — it&apos;s free</Link>
+          </Button>
           <p className="text-xs text-muted-foreground/80 tracking-wide">
             Free · Open-source · No bank login
           </p>
@@ -155,17 +153,17 @@ export default async function Home() {
 
         {/* How it works */}
         <section className="px-6 py-16 max-w-4xl mx-auto w-full">
-          <h2 className="text-2xl font-serif text-foreground text-center mb-10">How it works</h2>
+          <h2 className="text-2xl font-serif text-foreground text-center mb-10 text-balance">How it works</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {STEPS.map((s, i) => (
               <div key={s.title} className="bg-card border border-border/60 rounded-2xl p-6 flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <s.icon size={18} />
-                  </span>
-                  <span className="text-xs font-mono text-muted-foreground">Step {i + 1}</span>
+                <span className="text-xs font-mono font-medium text-primary tabular-nums">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="flex items-center gap-2">
+                  <s.icon size={14} className="text-muted-foreground shrink-0" />
+                  <p className="text-sm font-semibold text-foreground">{s.title}</p>
                 </div>
-                <p className="text-sm font-semibold text-foreground">{s.title}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
               </div>
             ))}
@@ -184,10 +182,8 @@ export default async function Home() {
         {/* Privacy / open-source band */}
         <section className="px-6 py-16 bg-card/40 border-y border-border/60">
           <div className="max-w-2xl mx-auto text-center flex flex-col items-center gap-4">
-            <span className="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <ShieldCheck size={22} />
-            </span>
-            <h2 className="text-2xl font-serif text-foreground">
+            <ShieldCheck size={28} className="text-primary" />
+            <h2 className="text-2xl font-serif text-foreground text-balance">
               Your money is nobody&apos;s business but yours.
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -206,7 +202,7 @@ export default async function Home() {
 
         {/* Comparison */}
         <section className="px-6 py-16 max-w-3xl mx-auto w-full">
-          <h2 className="text-2xl font-serif text-foreground text-center mb-10">How Monera compares</h2>
+          <h2 className="text-2xl font-serif text-foreground text-center mb-10 text-balance">How Monera compares</h2>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
@@ -248,15 +244,12 @@ export default async function Home() {
 
         {/* Close CTA */}
         <section className="px-6 py-20 text-center max-w-xl mx-auto w-full flex flex-col items-center gap-5">
-          <h2 className="text-3xl font-serif text-foreground tracking-tight leading-tight">
-            Know where your money goes —<br />without giving it away.
+          <h2 className="text-3xl font-serif text-foreground tracking-tight leading-tight text-balance">
+            Know where your money goes — without giving it away.
           </h2>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium hover:bg-primary/90 transition-colors"
-          >
-            Get started — it&apos;s free
-          </Link>
+          <Button asChild size="lg">
+            <Link href="/login">Get started — it&apos;s free</Link>
+          </Button>
           <p className="text-xs text-muted-foreground/80">
             No bank login. No subscription. Your data stays in your Drive.
           </p>

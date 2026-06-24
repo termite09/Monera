@@ -150,7 +150,7 @@ export default function UploadPage() {
                 ) : status === "error" ? (
                   <AlertCircle size={18} className="text-destructive shrink-0 mt-0.5" />
                 ) : (
-                  <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0 mt-0.5" />
+                  <Loader2 size={16} className="animate-spin text-primary shrink-0 mt-0.5" />
                 )}
                 <p className="text-sm text-foreground">{message}</p>
               </div>

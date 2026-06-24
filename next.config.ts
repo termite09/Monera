@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// Dev-only allowance so impeccable live mode can load.
+const __impeccableLiveDev =
+  process.env.NODE_ENV === "development" ? " http://localhost:8400" : "";
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
@@ -12,11 +16,11 @@ const nextConfig: NextConfig = {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+            `script-src 'self' 'unsafe-eval' 'unsafe-inline'${__impeccableLiveDev}`,
             "style-src 'self' 'unsafe-inline'",
             "font-src 'self'",
             "img-src 'self' data: https:",
-            "connect-src 'self' https://googleapis.com https://*.googleapis.com https://accounts.google.com",
+            `connect-src 'self' https://googleapis.com https://*.googleapis.com https://accounts.google.com${__impeccableLiveDev}`,
             "frame-src https://accounts.google.com",
           ].join("; "),
         },

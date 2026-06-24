@@ -249,7 +249,7 @@ export default function DashboardPage() {
       <PageShell>
         <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
         <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
-          <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <Card className="rounded-2xl border-border/70">
             <CardContent className="py-14 flex flex-col items-center text-center gap-4">
               <Upload size={32} className="text-muted-foreground/50" />
               <div>
@@ -297,7 +297,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Budget donuts */}
-        <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <Card className="rounded-2xl border-border/70">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Budget Progress
@@ -338,7 +338,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Weekday spending chart */}
-        <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <Card className="rounded-2xl border-border/70">
           <CardHeader className="pb-1 pt-4 px-4 flex-row items-center justify-between">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Spending by Day</CardTitle>
             <div className="flex gap-0.5 p-0.5 rounded-md bg-secondary">

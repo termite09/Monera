@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "title": "Design System: Monera",
+  "extensions": {
+    "colorMeta": {
+      "anchor-navy": {
+        "role": "primary",
+        "displayName": "Anchor Navy",
+        "canonical": "oklch(0.27 0.074 252)",
+        "tonalRamp": ["#0a1520", "#122038", "#1c3557", "#2a4d74", "#4a7ec7", "#7dabd9", "#b3ceea", "#dce8f3"]
+      },
+      "anchor-navy-light": {
+        "role": "primary",
+        "displayName": "Steel Blue (dark mode primary)",
+        "canonical": "oklch(0.55 0.12 256)",
+        "tonalRamp": ["#0d1f38", "#1c3557", "#2a4d74", "#4a7ec7", "#7dabd9", "#a8c5e8", "#cddff3", "#e8f1fb"]
+      },
+      "off-white": {
+        "role": "neutral",
+        "displayName": "Off-White (page background)",
+        "canonical": "oklch(0.97 0.007 80)",
+        "tonalRamp": ["#1e1c18", "#3e3b35", "#6b6760", "#9e9a93", "#c8c4bc", "#d8d4cc", "#edeae3", "#f8f7f4"]
+      },
+      "near-black": {
+        "role": "neutral",
+        "displayName": "Near-Black (body text)",
+        "canonical": "oklch(0.08 0.003 50)",
+        "tonalRamp": ["#0c0c0b", "#2e2d2b", "#534f4c", "#7e7a76", "#ada9a5", "#c8c4c0", "#dedad6", "#eeeae7"]
+      },
+      "card-white": {
+        "role": "neutral",
+        "displayName": "Card White (elevated surface)",
+        "canonical": "oklch(1.0 0 0)",
+        "tonalRamp": ["#1a1a1a", "#3d3d3d", "#666666", "#999999", "#cccccc", "#e5e5e5", "#f5f5f5", "#ffffff"]
+      },
+      "warm-surface": {
+        "role": "neutral",
+        "displayName": "Warm Surface (hover / muted / track)",
+        "canonical": "oklch(0.95 0.012 80)",
+        "tonalRamp": ["#1a1917", "#3a3832", "#68655d", "#9c9891", "#c3bfb5", "#d8d4cc", "#e9e6de", "#f1efe9"]
+      },
+      "border-warm": {
+        "role": "neutral",
+        "displayName": "Border Warm (dividers, card edges)",
+        "canonical": "oklch(0.91 0.010 80)",
+        "tonalRamp": ["#1e1c18", "#3e3b35", "#6b6760", "#9e9a93", "#c8c4bc", "#d8d4cc", "#e4e2dc", "#f5f3ee"]
+      },
+      "muted-gray": {
+        "role": "neutral",
+        "displayName": "Muted Gray (secondary text, inactive states)",
+        "canonical": "oklch(0.52 0.020 250)",
+        "tonalRamp": ["#111114", "#252830", "#3d414d", "#576170", "#6b7280", "#939aa6", "#bec3cc", "#e2e4e8"]
+      },
+      "destructive-red": {
+        "role": "semantic",
+        "displayName": "Destructive Red (errors, over-budget)",
+        "canonical": "oklch(0.50 0.21 25)",
+        "tonalRamp": ["#3b0000", "#7f0000", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fee2e2"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headline and landing-page CTAs only. Never used inside the product app."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section titles on public pages; the Monera wordmark in sidebar and mobile header."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles and page section headers inside the product app. Always DM Sans — serif stays outside the app."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Narrative paragraphs, insight copy, descriptions. Max 65–75ch line length."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Button labels, form labels, navigation items, UI controls."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Every financial amount, percentage, budget figure, and transaction value. font-variant-numeric: tabular-nums always."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "loading-bar",
+        "value": "duration: 1.2s, ease: easeInOut, repeat: Infinity",
+        "purpose": "Header loading indicator bar — animates x from -100% to 100% on data fetch."
+      },
+      {
+        "name": "state-transition",
+        "value": "transition: 150ms ease-out",
+        "purpose": "Default CSS transition for hover/focus state changes on buttons, nav items, inputs."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px", "note": "Tailwind sm — small layout adjustments" },
+      { "name": "md", "value": "768px", "note": "Tailwind md — desktop/mobile switch: sidebar vs bottom bar, hidden nav labels" },
+      { "name": "lg", "value": "1024px", "note": "Tailwind lg — wider content columns" },
+      { "name": "xl", "value": "1280px", "note": "Tailwind xl — max-width content containers" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Single highest-priority action per screen. Anchor Navy — used sparingly.",
+      "html": "<button class=\"ds-btn-primary\">Get started — it's free</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--primary); color: var(--primary-foreground); height: 40px; padding: 8px 16px; border: none; border-radius: 8px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1.4; cursor: pointer; white-space: nowrap; transition: background 0.15s ease-out; } .ds-btn-primary:hover { background: #162a47; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action alongside a primary button.",
+      "html": "<button class=\"ds-btn-outline\">View transactions</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--card); color: var(--foreground); height: 40px; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s ease-out; } .ds-btn-outline:hover { background: var(--secondary); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); } .ds-btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Primary container surface. White on off-white. No shadow, border only.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><p class=\"ds-card-title\">Safe to Spend</p><p class=\"ds-card-desc\">What you can still spend before payday</p></div><div class=\"ds-card-content\"><span class=\"ds-amount\">€342.50</span></div></div>",
+      "css": ".ds-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; } .ds-card-header { padding: 24px 24px 0; display: flex; flex-direction: column; gap: 4px; } .ds-card-title { font-family: 'DM Sans', system-ui, sans-serif; font-size: 1rem; font-weight: 600; line-height: 1.4; color: var(--foreground); margin: 0; } .ds-card-desc { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; line-height: 1.4; color: var(--muted-foreground); margin: 0; } .ds-card-content { padding: 12px 24px 24px; } .ds-amount { font-family: 'DM Mono', ui-monospace, monospace; font-size: 1.5rem; font-weight: 500; color: var(--foreground); font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Standard text field. Focus ring is the only focus signal — border does not change.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\" for=\"ds-search\">Search transactions</label><input class=\"ds-input\" id=\"ds-search\" type=\"text\" placeholder=\"Coffee, Tesco, Spotify…\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; } .ds-label { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; color: var(--foreground); } .ds-input { height: 40px; width: 100%; background: var(--card); border: 1px solid var(--input); border-radius: 8px; padding: 8px 12px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; color: var(--foreground); outline: none; transition: box-shadow 0.15s ease-out; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Sidebar Nav",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Desktop sidebar navigation. Active state is a whisper of Anchor Navy bg — sufficient to orient without dominating.",
+      "html": "<nav class=\"ds-sidebar\"><div class=\"ds-sidebar-brand\"><span class=\"ds-wordmark\">Monera</span><span class=\"ds-wordmark-sub\">Personal Finance</span></div><div class=\"ds-sidebar-nav\"><a href=\"#\" class=\"ds-nav-item ds-nav-item--active\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/></svg>Dashboard</a><a href=\"#\" class=\"ds-nav-item\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"8\" y1=\"6\" x2=\"21\" y2=\"6\"/><line x1=\"8\" y1=\"12\" x2=\"21\" y2=\"12\"/><line x1=\"8\" y1=\"18\" x2=\"21\" y2=\"18\"/><line x1=\"3\" y1=\"6\" x2=\"3.01\" y2=\"6\"/><line x1=\"3\" y1=\"12\" x2=\"3.01\" y2=\"12\"/><line x1=\"3\" y1=\"18\" x2=\"3.01\" y2=\"18\"/></svg>Transactions</a><a href=\"#\" class=\"ds-nav-item\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\"/><path d=\"M22 12A10 10 0 0 0 12 2v10z\"/></svg>Insights</a></div></nav>",
+      "css": ".ds-sidebar { display: flex; flex-direction: column; width: 224px; background: var(--card); border-right: 1px solid var(--border); padding-bottom: 12px; } .ds-sidebar-brand { padding: 24px 20px 16px; } .ds-wordmark { display: block; font-family: 'DM Serif Display', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: var(--foreground); line-height: 1.2; } .ds-wordmark-sub { display: block; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.75rem; color: var(--muted-foreground); margin-top: 2px; } .ds-sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; font-weight: 400; color: var(--muted-foreground); text-decoration: none; transition: background 0.1s ease-out, color 0.1s ease-out; } .ds-nav-item:hover { background: var(--secondary); color: var(--foreground); } .ds-nav-item--active { background: color-mix(in oklch, var(--primary) 8%, transparent); color: var(--primary); font-weight: 500; } .ds-nav-item--active svg { stroke-width: 2.5; }"
+    },
+    {
+      "name": "Budget Progress Bar",
+      "kind": "custom",
+      "refersTo": "card-default",
+      "description": "Budget status bar with semantic fill colors. Emerald = OK, Amber = Warning, Red = Over. Never use these colors decoratively.",
+      "html": "<div class=\"ds-budget-bar\"><div class=\"ds-budget-bar__header\"><span class=\"ds-budget-bar__label\">Needs</span><span class=\"ds-budget-bar__amounts ds-budget-bar__amounts--ok\">€820 / €1,100</span></div><div class=\"ds-budget-bar__track\"><div class=\"ds-budget-bar__fill ds-budget-bar__fill--ok\" style=\"width:74.5%\"></div></div><div class=\"ds-budget-bar__footer\"><span>74%</span><span class=\"ds-budget-remaining--ok\">€280 left</span></div></div>",
+      "css": ".ds-budget-bar { display: flex; flex-direction: column; gap: 6px; } .ds-budget-bar__header { display: flex; justify-content: space-between; align-items: center; } .ds-budget-bar__label { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; color: var(--foreground); } .ds-budget-bar__amounts { font-family: 'DM Mono', ui-monospace, monospace; font-size: 0.75rem; font-variant-numeric: tabular-nums; } .ds-budget-bar__amounts--ok { color: #059669; } .ds-budget-bar__amounts--warning { color: #d97706; } .ds-budget-bar__amounts--over { color: #dc2626; } .ds-budget-bar__track { height: 6px; width: 100%; background: var(--secondary); border-radius: 9999px; overflow: hidden; } .ds-budget-bar__fill { height: 100%; border-radius: 9999px; transition: width 0.3s ease-out; } .ds-budget-bar__fill--ok { background: #10b981; } .ds-budget-bar__fill--warning { background: #f59e0b; } .ds-budget-bar__fill--over { background: #dc2626; } .ds-budget-bar__footer { display: flex; justify-content: space-between; font-family: 'DM Mono', ui-monospace, monospace; font-size: 0.75rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; } .ds-budget-remaining--ok { color: #059669; } .ds-budget-remaining--warning { color: #d97706; } .ds-budget-remaining--over { color: #dc2626; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge-primary",
+      "description": "Pill badge for classification and status. Primary = Anchor Navy. Secondary = warm surface.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge\">Subscription</span><span class=\"ds-badge ds-badge--secondary\">Food & Drink</span><span class=\"ds-badge ds-badge--outline\">Recurring</span></div>",
+      "css": ".ds-badges { display: flex; gap: 8px; flex-wrap: wrap; } .ds-badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 10px; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; background: var(--primary); color: var(--primary-foreground); border: 1px solid transparent; } .ds-badge--secondary { background: var(--secondary); color: var(--foreground); border-color: transparent; } .ds-badge--outline { background: transparent; color: var(--foreground); border-color: var(--border); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Private Ledger",
+    "overview": "Every screen in Monera should feel like a well-kept private notebook — precise entries, deliberate whitespace, nothing decorative that doesn't earn its place. The interface serves the user's financial record, not the other way around. Data is the protagonist; chrome and ornamentation are the supporting cast.\n\nThe design walks a careful line: warm enough to feel like a personal tool (not an enterprise dashboard), calibrated enough to earn trust with money (not a lifestyle app). Confidence is expressed through restraint — Anchor Navy appears only where it counts: calls to action, active navigation states, focus rings, and progress fills. Everywhere else, the palette recedes and lets numbers speak.\n\nThis system explicitly rejects the utilitarian, spreadsheet-y aesthetic of traditional budgeting tools — the kind where the design communicates \"tool\" before \"product.\" It also rejects badge-heavy privacy marketing: security claims expressed as shield icons on every surface read as anxiety, not assurance. Privacy here is architectural; the copy explains the mechanism once, and the interface simply executes it, cleanly and without fanfare.",
+    "keyCharacteristics": [
+      "Flat surfaces; tonal depth through surface stacking, not shadows",
+      "One primary color (Anchor Navy) on ≤10% of any given screen",
+      "DM Serif Display reserved for brand moments; DM Sans carries the product",
+      "DM Mono for every financial figure without exception",
+      "Card White on Off-White: the tonal separation does the work of shadows",
+      "All borders and surfaces stay in one warm tonal family"
+    ],
+    "rules": [
+      {
+        "name": "The One Anchor Rule",
+        "body": "Anchor Navy is the only saturated color used on neutral UI. Budget status colors (emerald / amber / destructive) are semantic signals, not accent colors. If a new component wants more color, the answer is Anchor Navy — there is no secondary accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tonal Stack Rule",
+        "body": "Surfaces are layered in one direction: Off-White (page) → Card White (surface) → Warm Surface (hover/muted/track). Never invert this order. Never place a Warm Surface card on a Card White background.",
+        "section": "colors"
+      },
+      {
+        "name": "The Serif Boundary Rule",
+        "body": "DM Serif Display appears only in two contexts: the Monera wordmark and section headings on public-facing pages. Inside the product app, all headings use DM Sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Lock Rule",
+        "body": "Every financial amount, percentage, budget figure, and transaction value uses DM Mono with font-variant-numeric: tabular-nums. No exceptions. Mixing DM Sans and DM Mono in the same row of numeric data is prohibited.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. No box-shadow on cards, inputs, drawers, or popovers. If a component needs more visual presence, use a slightly darker border or a tonal background shift — not a shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Blur Exception",
+        "body": "backdrop-filter: blur is reserved for one surface: the sticky app header. Blurred glass cards or any other decorative application of this property are prohibited.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use DM Mono with font-variant-numeric: tabular-nums for every financial figure — amounts, percentages, budget ratios, transaction values.",
+      "Do place Anchor Navy on ≤10% of any screen. One primary CTA, one active nav state, one focus ring per view.",
+      "Do follow the tonal stack: Off-White → Card White → Warm Surface.",
+      "Do explain privacy mechanically in copy: 'your own Google Drive', 'drive.file scope — it can only see files it created.'",
+      "Do use payday-period framing throughout the product UI. Never 'this month'.",
+      "Do apply text-wrap: balance to h1–h3 headings.",
+      "Do include :focus-visible with a visible 2px Anchor Navy ring on every interactive element.",
+      "Do use emerald / amber / destructive-red exclusively for budget status (OK / Warning / Over)."
+    ],
+    "donts": [
+      "Don't use DM Serif Display inside the product app for anything except the Monera wordmark.",
+      "Don't add box-shadow to cards, inputs, drawers, or containers.",
+      "Don't apply backdrop-filter: blur outside the sticky app header.",
+      "Don't use emerald, amber, or destructive-red decoratively — their meaning is fixed.",
+      "Don't let the design look like YNAB or classic budgeting spreadsheet apps.",
+      "Don't badge-stamp privacy claims. No shield icons as decorative surface elements.",
+      "Don't use calendar-month language inside the product. 'This pay period' or 'since [payday]' is correct.",
+      "Don't nest a card inside a card.",
+      "Don't use background-clip: text with a gradient.",
+      "Don't use border-left or border-right wider than 1px as a colored accent stripe.",
+      "Don't build identical card grids (same-size card, icon + heading + text, repeated)."
+    ]
+  }
+}

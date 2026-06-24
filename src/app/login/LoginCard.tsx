@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,11 @@ function errorMessage(code: string): string {
 }
 
 export function LoginCard({ error }: { error?: string }) {
+  const reduceMotion = useReducedMotion();
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
         className="w-full max-w-sm"
