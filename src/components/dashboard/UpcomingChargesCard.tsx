@@ -45,12 +45,8 @@ export function UpcomingChargesCard({ charges, currency }: Props) {
               className={cn(
                 "flex items-center gap-3 py-2.5 first:pt-0 last:pb-0",
                 charge.isEstimated &&
-                  "cursor-pointer hover:bg-secondary/50 -mx-4 px-4 rounded transition-colors"
-              )}
-              onClick={
-                charge.isEstimated ? () => router.push("/insights") : undefined
-              }
-              role={charge.isEstimated ? "button" : undefined}
+                  "-mx-4 px-4 rounded transition-colors"
+              )}              
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground truncate">{charge.name}</p>
