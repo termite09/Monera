@@ -44,8 +44,8 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Payments due</p>
             <div className="rounded-xl border border-border divide-y divide-border">
-              {safeInfo.billItems.map((b, i) => (
-                <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+              {safeInfo.billItems.map((b) => (
+                <div key={`${b.date}-${b.name}`} className="flex items-center gap-3 px-3 py-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{b.name}</p>
                     <p className="text-xs text-muted-foreground">

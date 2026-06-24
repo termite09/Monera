@@ -2,29 +2,23 @@
 
 import { useState } from "react";
 import { Transaction, Category, RecurringPayment } from "@/types";
-import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey } from "@/lib/utils";
+import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey, ordinal } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, CalendarClock, CreditCard, EyeOff } from "lucide-react";
 import type { detectSubscriptions } from "@/lib/reports";
 
 type Subscription = ReturnType<typeof detectSubscriptions>[number];
 
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function fmtPeriodKey(key: string): string {
+function formatPeriodKey(key: string): string {
   const [y, m] = key.split("-");
   return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
-function periodRangeBadge(startMonth?: string, endMonth?: string): string | null {
+function getPeriodRangeBadge(startMonth?: string, endMonth?: string): string | null {
   if (!startMonth && !endMonth) return null;
-  if (startMonth && endMonth) return `${fmtPeriodKey(startMonth)} – ${fmtPeriodKey(endMonth)}`;
-  if (startMonth) return `From ${fmtPeriodKey(startMonth)}`;
-  return `Until ${fmtPeriodKey(endMonth!)}`;
+  if (startMonth && endMonth) return `${formatPeriodKey(startMonth)} – ${formatPeriodKey(endMonth)}`;
+  if (startMonth) return `From ${formatPeriodKey(startMonth)}`;
+  return `Until ${formatPeriodKey(endMonth!)}`;
 }
 
 const CAT_CHIP: Record<Category, string> = {
@@ -85,14 +79,14 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
               <p className="text-xs text-muted-foreground mb-3">Added in Settings — paid outside Revolut, so they won&apos;t show up in your imported transactions.</p>
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
-                  const badge = periodRangeBadge(p.startMonth, p.endMonth);
+                  const badge = getPeriodRangeBadge(p.startMonth, p.endMonth);
                   const count = countBillPeriods(p, todayMonth, earliestMonth);
                   const total = count * p.amount;
                   return (
                     <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm text-foreground break-words min-w-0">{p.name}</p>
+                          <p className="text-sm text-foreground wrap-break-word min-w-0">{p.name}</p>
                           <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
                             {p.category}
                           </span>
@@ -156,7 +150,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground break-words">{s.name}</p>
+                        <p className="text-sm text-foreground wrap-break-word">{s.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {s.months} month{s.months === 1 ? "" : "s"} · ~{formatCurrency(s.amount)}/charge · last {formatDate(s.lastDate)}
                         </p>
@@ -186,7 +180,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                           ) : subTxs.map((tx) => (
                             <div key={tx.id} className="flex items-start gap-3 px-3 py-2.5">
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+                                <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
                                 <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                               </div>
                               <span className="text-sm tabular-nums font-mono text-foreground shrink-0 w-20 text-right">{formatCurrency(tx.amount)}</span>

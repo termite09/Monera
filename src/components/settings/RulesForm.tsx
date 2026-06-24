@@ -37,7 +37,7 @@ export function RulesForm({ rules, updateRules }: {
     setIsDirty(false);
   }, [rules]);
 
-  const addRule = () => {
+  const handleAddRule = () => {
     const kw = newKw.trim().toLowerCase();
     if (!kw) return;
     if (items.some((r) => r.keyword === kw)) {
@@ -50,22 +50,22 @@ export function RulesForm({ rules, updateRules }: {
     setNewKw("");
     setNewCat("Wants");
   };
-  const setRuleCat = (i: number, category: Category) => {
+  const handleRuleCategoryChange = (i: number, category: Category) => {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, category } : r)));
     setIsDirty(true);
   };
-  const setRuleKeyword = (i: number, keyword: string) => {
+  const handleRuleKeywordChange = (i: number, keyword: string) => {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, keyword } : r)));
     setIsDirty(true);
   };
-  const removeRule = (i: number) => {
+  const handleRemoveRule = (i: number) => {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
     setIsDirty(true);
   };
 
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); setConfirmDelete(false); };
 
-  const bulkDelete = () => {
+  const handleBulkDelete = () => {
     setItems((prev) => prev.filter((r) => !selected.has(r.keyword)));
     setIsDirty(true);
     exitSelectMode();
@@ -128,7 +128,7 @@ export function RulesForm({ rules, updateRules }: {
               id="rule-kw"
               value={newKw}
               onChange={(e) => { setNewKw(e.target.value); setDupError(false); }}
-              onKeyDown={(e) => e.key === "Enter" && addRule()}
+              onKeyDown={(e) => e.key === "Enter" && handleAddRule()}
               placeholder="e.g. netflix"
               className={cn("h-11", dupError && "border-destructive focus-visible:ring-destructive")}
             />
@@ -149,7 +149,7 @@ export function RulesForm({ rules, updateRules }: {
               ))}
             </select>
           </div>
-          <Button onClick={addRule} variant="outline" className="w-full">
+          <Button onClick={handleAddRule} variant="outline" className="w-full">
             <Plus size={16} className="mr-1.5" />
             Add mapping
           </Button>
@@ -219,13 +219,13 @@ export function RulesForm({ rules, updateRules }: {
                 )}
                 <input
                   value={r.keyword}
-                  onChange={(e) => setRuleKeyword(i, e.target.value)}
+                  onChange={(e) => handleRuleKeywordChange(i, e.target.value)}
                   disabled={selectMode}
                   className="flex-1 min-w-0 h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default"
                 />
                 <select
                   value={r.category}
-                  onChange={(e) => setRuleCat(i, e.target.value as Category)}
+                  onChange={(e) => handleRuleCategoryChange(i, e.target.value as Category)}
                   disabled={selectMode}
                   className={cn("h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", getCategoryTextClass(r.category))}
                 >
@@ -235,7 +235,7 @@ export function RulesForm({ rules, updateRules }: {
                 </select>
                 {!selectMode && (
                   <button
-                    onClick={() => removeRule(i)}
+                    onClick={() => handleRemoveRule(i)}
                     className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0"
                     aria-label={`Remove ${r.keyword}`}
                   >
@@ -255,7 +255,7 @@ export function RulesForm({ rules, updateRules }: {
           {confirmDelete ? (
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">Are you sure?</p>
-              <button onClick={bulkDelete} className="text-xs font-medium text-destructive hover:underline">Delete</button>
+              <button onClick={handleBulkDelete} className="text-xs font-medium text-destructive hover:underline">Delete</button>
               <button onClick={() => setConfirmDelete(false)} className="text-xs text-muted-foreground hover:underline">Cancel</button>
             </div>
           ) : (

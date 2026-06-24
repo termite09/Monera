@@ -6,7 +6,7 @@ import type { Subscription } from "@/lib/reports";
 const TODAY = new Date("2026-06-24T12:00:00");
 
 function bill(name: string, date: string, amount: number): SafeToSpendBillItem {
-  return { name, date, amount };
+  return { name, date, amount, source: "recurring", category: "Needs" };
 }
 
 function sub(name: string, lastDate: string, amount: number): Subscription {
@@ -26,8 +26,8 @@ describe("getUpcomingCharges", () => {
   });
 
   it("estimates next date for a subscription charged last month", () => {
-    // lastDate = May 10 → next expected = Jun 10, which has passed → Jul 10
-    const result = getUpcomingCharges([], [sub("Netflix", "2026-05-10", 12.99)], TODAY);
+    // lastDate = May 10 → next expected = Jun 10, which has passed → Jul 10 (17 days out; use 30-day window)
+    const result = getUpcomingCharges([], [sub("Netflix", "2026-05-10", 12.99)], TODAY, 30);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       name: "Netflix",
@@ -45,8 +45,8 @@ describe("getUpcomingCharges", () => {
   });
 
   it("estimates next month when subscription already charged this month", () => {
-    // lastDate = Jun 10 (this month already) → next = Jul 10
-    const result = getUpcomingCharges([], [sub("Spotify", "2026-06-10", 9.99)], TODAY);
+    // lastDate = Jun 10 (this month already) → next = Jul 10 (16 days out; use 30-day window)
+    const result = getUpcomingCharges([], [sub("Spotify", "2026-06-10", 9.99)], TODAY, 30);
     expect(result).toHaveLength(1);
     expect(result[0].date).toBe("2026-07-10");
   });

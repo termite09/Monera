@@ -280,7 +280,7 @@ export default function TransactionsPage() {
   };
 
   const handleBulkCategoryChange = async (category: Category) => {
-    const ids = [...selected].filter((id) => transactions.find((t) => t.id === id)?.type !== "income");
+    const ids = [...selected].filter((id) => transactions.some((t) => t.id === id && t.type !== "income"));
     exitSelect();
     setSelectCatSheet(false);
     if (ids.length > 0) await bulkUpdateCategory(ids.map((txId) => ({ txId, category })));

@@ -22,7 +22,7 @@ export function SavingsSheet({ periodSavingsTxs, onSettings }: Props) {
         ) : periodSavingsTxs.map((tx) => (
           <div key={tx.id} className="flex items-center gap-3 py-1.5">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+              <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
               <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
             </div>
             <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono shrink-0">
@@ -33,7 +33,7 @@ export function SavingsSheet({ periodSavingsTxs, onSettings }: Props) {
       </div>
       <button
         onClick={onSettings}
-        className="shrink-0 mt-1.5 pt-1.5 border-t border-border text-left text-xs text-primary hover:underline"
+        className="shrink-0 mt-1.5 pt-1.5 border-t border-border text-left text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
       >
         Change your Savings budget in Settings →
       </button>

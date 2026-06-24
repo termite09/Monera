@@ -15,16 +15,16 @@ const RECURRING_PAGE_SIZE = 10;
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SELECT_CLS = "h-9 px-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
-function fmtPeriod(ym: string): string {
+function formatPeriod(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleString("default", { month: "short", year: "numeric" });
 }
 
-function periodRangeLabel(r: RecurringPayment): string | null {
+function getPeriodRangeLabel(r: RecurringPayment): string | null {
   if (!r.startMonth && !r.endMonth) return null;
-  if (r.startMonth && r.endMonth) return `${fmtPeriod(r.startMonth)} – ${fmtPeriod(r.endMonth)}`;
-  if (r.startMonth) return `From ${fmtPeriod(r.startMonth)}`;
-  return `Until ${fmtPeriod(r.endMonth!)}`;
+  if (r.startMonth && r.endMonth) return `${formatPeriod(r.startMonth)} – ${formatPeriod(r.endMonth)}`;
+  if (r.startMonth) return `From ${formatPeriod(r.startMonth)}`;
+  return `Until ${formatPeriod(r.endMonth!)}`;
 }
 
 function MonthYearPicker({ value, onChange, label, id }: { value: string; onChange: (v: string) => void; label: string; id?: string }) {
@@ -32,7 +32,7 @@ function MonthYearPicker({ value, onChange, label, id }: { value: string; onChan
   const years = Array.from({ length: 16 }, (_, i) => now.getFullYear() - 10 + i);
   const [ym, mm] = value ? value.split("-") : ["", ""];
 
-  const set = (newY: string, newM: string) => {
+  const handleMonthYearChange = (newY: string, newM: string) => {
     if (!newY || !newM) { onChange(""); return; }
     onChange(`${newY}-${newM}`);
   };
@@ -41,11 +41,11 @@ function MonthYearPicker({ value, onChange, label, id }: { value: string; onChan
     <div className="flex flex-col gap-1">
       <Label className="text-xs">{label}</Label>
       <div className="grid grid-cols-2 gap-1.5">
-        <select id={id} value={mm ?? ""} onChange={(e) => set(ym || String(now.getFullYear()), e.target.value)} className={SELECT_CLS}>
+        <select id={id} value={mm ?? ""} onChange={(e) => handleMonthYearChange(ym || String(now.getFullYear()), e.target.value)} className={SELECT_CLS}>
           <option value="">Month</option>
           {MONTH_NAMES.map((n, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{n}</option>)}
         </select>
-        <select value={ym ?? ""} onChange={(e) => set(e.target.value, mm || String(now.getMonth() + 1).padStart(2, "0"))} className={SELECT_CLS}>
+        <select value={ym ?? ""} onChange={(e) => handleMonthYearChange(e.target.value, mm || String(now.getMonth() + 1).padStart(2, "0"))} className={SELECT_CLS}>
           <option value="">Year</option>
           {years.map((yr) => <option key={yr} value={String(yr)}>{yr}</option>)}
         </select>
@@ -91,7 +91,7 @@ export function RecurringForm({ settings, updateSettings }: {
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
 
-  const addItem = () => {
+  const handleAddItem = () => {
     const amt = parseFloat(amount);
     const d = parseInt(day);
     if (!name.trim() || !amt || amt <= 0 || !d || d < 1 || d > 31) return;
@@ -214,7 +214,7 @@ export function RecurringForm({ settings, updateSettings }: {
                   );
                 }
 
-                const rangeLabel = periodRangeLabel(item);
+                const rangeLabel = getPeriodRangeLabel(item);
                 return (
                   <div key={item.id} className="flex items-center gap-3 py-2.5 px-1">
                     <div className="flex-1 min-w-0">
@@ -298,7 +298,7 @@ export function RecurringForm({ settings, updateSettings }: {
           <p className="text-xs text-muted-foreground">
             Leave &quot;From period&quot; blank to apply to all periods including past ones. Leave &quot;Until&quot; blank for no end date.
           </p>
-          <Button onClick={addItem} variant="outline" className="w-full">
+          <Button onClick={handleAddItem} variant="outline" className="w-full">
             <Plus size={16} className="mr-1.5" />
             Add to list
           </Button>

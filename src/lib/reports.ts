@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds, cleanDescription, getPrevMonthKey, roundMoney } from "@/lib/utils";
+import { getPeriodBounds, cleanDescription, getPrevMonthKey, roundMoney, MS_PER_DAY } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 export interface MonthlyTotals {
@@ -152,7 +152,7 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     for (let i = 1; i < sortedDates.length; i++) {
       const prev = new Date(sortedDates[i - 1] + "T00:00:00");
       const curr = new Date(sortedDates[i] + "T00:00:00");
-      intervals.push(Math.round((curr.getTime() - prev.getTime()) / 86400000));
+      intervals.push(Math.round((curr.getTime() - prev.getTime()) / MS_PER_DAY));
     }
     const medianInterval = median(intervals);
     // Accept monthly (20–35 days) or bi-monthly (36–65 days)
@@ -219,9 +219,9 @@ export function buildReport(
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const now = new Date();
   const periodMs = end.getTime() - start.getTime();
-  const totalDays = Math.max(1, Math.round(periodMs / 86400000));
+  const totalDays = Math.max(1, Math.round(periodMs / MS_PER_DAY));
   const elapsedMs = Math.min(Math.max(now.getTime() - start.getTime(), 0), periodMs);
-  const daysElapsed = Math.max(1, Math.min(totalDays, Math.ceil(elapsedMs / 86400000)));
+  const daysElapsed = Math.max(1, Math.min(totalDays, Math.ceil(elapsedMs / MS_PER_DAY)));
 
   const avgPerDay = totalSpent / daysElapsed;
   const avgPerTx = expenses.length > 0 ? totalSpent / expenses.length : 0;

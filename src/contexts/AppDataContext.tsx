@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useMemo, useEffect, useRef, useState, ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import { Transaction, Settings, Category, CategoryRule } from "@/types";
 import { DriveStructure } from "@/lib/google/folders";
@@ -46,6 +46,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const { accessToken, session } = useAuth();
   const { structure, isLoading: isDriveLoading, error: driveError, needsReauth: driveNeedsReauth, refetch: refetchDrive } = useDrive(accessToken, session?.user?.email ?? undefined);
   const { settings, updateSettings, settingsLoaded } = useSettings(accessToken, structure);
+  const paydayAnchored = useRef(false);
   const { rules, updateRules } = useRules(accessToken, structure);
   const {
     transactions,
@@ -69,13 +70,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const ready = !!structure && settingsLoaded && txLoaded;
 
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
-  // Re-anchor the selected period once the user's real payday loads (it starts at
-  // the default of 1 before settings arrive). This is an intentional sync from an
-  // external source (Drive settings), not a render-driven cascade.
+  // Anchor the selected period to the user's real payday once settings first load
+  // from Drive. Using a ref gate ensures this fires exactly once — on initial load
+  // — so subsequent payday changes from the settings form don't overwrite the
+  // user's manual month navigation.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!settingsLoaded || paydayAnchored.current) return;
+    paydayAnchored.current = true;
     setMonth(getCurrentMonth(paydayOfMonth));
-  }, [paydayOfMonth]);
+  }, [settingsLoaded, paydayOfMonth]);
 
   // If either hook detected an expired token, sign the user out immediately.
   useEffect(() => {

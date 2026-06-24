@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Transaction, Category, CategoryRule, Settings } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
@@ -80,7 +80,7 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
   const merged = { ...cache, ...cacheUpdates };
   const pruned = Object.entries(merged).filter(([k]) => liveKeys.has(k));
   const prunedCache = Object.fromEntries(
-    pruned.length > MAX_CACHE_ENTRIES ? pruned.slice(0, MAX_CACHE_ENTRIES) : pruned
+    pruned.length > MAX_CACHE_ENTRIES ? pruned.slice(-MAX_CACHE_ENTRIES) : pruned
   );
   const cacheChanged = missResults.length > 0 || Object.keys(merged).some((k) => !liveKeys.has(k));
   if (cacheChanged) {
@@ -117,6 +117,15 @@ export function useTransactions(
   const qc = useQueryClient();
   const appDataId = structure?.appDataId;
   const queryKey = ["transactions", appDataId ?? "none"];
+
+  // Serialises category override writes so rapid mutations never race each other.
+  // Each write waits for the previous to settle before reading and writing Drive.
+  const categoryWriteQueue = useRef<Promise<void>>(Promise.resolve());
+  const enqueueWrite = useCallback((fn: () => Promise<void>): Promise<void> => {
+    const queued = categoryWriteQueue.current.then(fn, fn);
+    categoryWriteQueue.current = queued.catch(() => {});
+    return queued;
+  }, []);
 
   const query = useQuery({
     queryKey,
@@ -235,43 +244,48 @@ export function useTransactions(
 
   // Category and exclude are rapid, tap-heavy interactions, so update the UI
   // optimistically (instantly) and roll back if the Drive write fails.
+  // Writes are serialised via enqueueWrite so rapid taps never clobber each other.
   const updateCategory = useCallback(
-    async (txId: string, category: Category) => {
-      if (!accessToken || !structure) return;
+    (txId: string, category: Category): Promise<void> => {
+      if (!accessToken || !structure) return Promise.resolve();
       const key = ["transactions", appDataId ?? "none"];
       const prev = qc.getQueryData<TxData>(key);
       patch((d) => ({ ...d, overrides: { ...d.overrides, [txId]: category } }));
-      try {
-        const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-        const updated = { ...existing, [txId]: category };
-        await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
-        patch((d) => ({ ...d, overrides: updated })); // reconcile with the merged Drive value
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
+      return enqueueWrite(async () => {
+        try {
+          const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+          const updated = { ...existing, [txId]: category };
+          await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
+          patch((d) => ({ ...d, overrides: updated })); // reconcile with the merged Drive value
+        } catch (err) {
+          if (prev) qc.setQueryData(key, prev);
+          throw err;
+        }
+      });
     },
-    [accessToken, structure, patch, qc, appDataId]
+    [accessToken, structure, patch, qc, appDataId, enqueueWrite]
   );
 
   const bulkUpdateCategory = useCallback(
-    async (updates: { txId: string; category: Category }[]) => {
-      if (!accessToken || !structure || updates.length === 0) return;
+    (updates: { txId: string; category: Category }[]): Promise<void> => {
+      if (!accessToken || !structure || updates.length === 0) return Promise.resolve();
       const patchEntries = Object.fromEntries(updates.map(({ txId, category }) => [txId, category]));
       const key = ["transactions", appDataId ?? "none"];
       const prev = qc.getQueryData<TxData>(key);
       patch((d) => ({ ...d, overrides: { ...d.overrides, ...patchEntries } }));
-      try {
-        const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-        const updated = { ...existing, ...patchEntries };
-        await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
-        patch((d) => ({ ...d, overrides: updated }));
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
+      return enqueueWrite(async () => {
+        try {
+          const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
+          const updated = { ...existing, ...patchEntries };
+          await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
+          patch((d) => ({ ...d, overrides: updated }));
+        } catch (err) {
+          if (prev) qc.setQueryData(key, prev);
+          throw err;
+        }
+      });
     },
-    [accessToken, structure, patch, qc, appDataId]
+    [accessToken, structure, patch, qc, appDataId, enqueueWrite]
   );
 
   // Atomic batch exclude/include — one Drive read-write, no race between IDs.

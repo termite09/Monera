@@ -27,6 +27,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges. Each mode shows 7 bars (Mon–Sun) aggregated over the selected window, with a dedicated month picker for the Month view. |
 | **Year overview** | The Year tab aggregates spending by payday period across the full calendar year, with a stacked monthly bar chart (Needs / Wants / Savings legend), total expense and savings summaries, and click-through to any period on the dashboard. |
 | **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after accounting for money spent so far, savings set aside, and recurring payments due this period. |
+| **Upcoming charges** | Dashboard card showing all charges due in the next 14 days — recurring bills with exact dates and detected subscriptions with estimated next-charge dates. Tap "Add as recurring payment" to pin an estimated charge to an exact date. |
 | **Guidance built in** | Every Insights card shows a plain-English description of what it shows and how it's calculated — no tapping required. Dashboard cards carry on-demand tooltips for extra detail. A replayable guided tour explains each page on first visit. |
 | **Mobile-first account controls** | On mobile, the Settings page shows your Google account name, photo, and a Sign out button at the very top — no scrolling required. Sign-out clears the session and all cached data. |
 | **Recurring payments** | Track fixed payments paid outside Revolut (rent, insurance, savings transfers, etc). They appear as synthetic transactions in every period and count toward your budget. Configured under Settings → Payments, with support for any spending category including Savings. |
@@ -183,7 +184,7 @@ The app builds with `next build` and runs as a standard serverless Next.js appli
 npm test
 ```
 
-The test suite covers the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, settings migration, and the insights engine.
+The test suite covers the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, upcoming charge estimation, settings migration, and the insights engine.
 
 ---
 

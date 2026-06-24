@@ -2,7 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Transaction } from "@/types";
-import { getPeriodBounds, formatCurrency, formatShortDate } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatShortDate, toDateStr } from "@/lib/utils";
 import { WEEKDAY_LABELS } from "@/config/constants";
 
 export type WeekdayChartMode = "period" | "week" | "month" | "year";
@@ -13,10 +13,6 @@ interface WeekdayChartProps {
   paydayOfMonth?: number;
   mode?: WeekdayChartMode;
   onDayClick?: (label: string, dateStr: string | null) => void;
-}
-
-function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // Refunds are income tagged to an expense bucket (Needs/Wants/Savings). Salary

@@ -48,7 +48,7 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass, info, 
   return (
     <div className="flex flex-col items-center gap-2.5 min-w-0">
       <div className="flex items-center gap-1">
-        <p className={cn("text-xs font-semibold uppercase tracking-wider", labelClass)}>{label}</p>
+        <p className={cn("text-xs font-semibold uppercase", labelClass)}>{label}</p>
         {info && (
           <InfoIcon
             content={infoText!}
@@ -59,9 +59,10 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass, info, 
       </div>
 
       <div
-        className={cn("relative w-full aspect-square", onClick && "cursor-pointer")}
+        className={cn("relative w-full aspect-square rounded-full", onClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2")}
         onClick={onClick}
         role={onClick ? "button" : undefined}
+        aria-label={onClick ? `${label} budget` : undefined}
         tabIndex={onClick ? 0 : undefined}
         onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
       >

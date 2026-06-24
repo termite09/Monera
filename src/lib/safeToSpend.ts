@@ -1,5 +1,5 @@
 import { Transaction, Settings, MonthSummary, TransactionSource, Category } from "@/types";
-import { getPeriodBounds, roundMoney } from "@/lib/utils";
+import { getPeriodBounds, roundMoney, MS_PER_DAY } from "@/lib/utils";
 import { netExpenseByCategory, netExpenseTotal } from "@/lib/finance";
 
 export interface SafeToSpendBillItem {
@@ -87,7 +87,7 @@ export function computeSafeToSpend(
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const safe = roundMoney(summary.income - spentSoFar - savedSoFar - billsDue);
-  const daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86_400_000));
+  const daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
 
   return {
     applicable: true,

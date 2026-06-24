@@ -136,7 +136,7 @@ export default function DashboardPage() {
       })),
   [recurringTxs, todayStr]
 );
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => new Date(todayStr + "T00:00:00"), [todayStr]);
   const upcomingCharges = useMemo(
     () =>
       getUpcomingCharges(
@@ -146,7 +146,7 @@ export default function DashboardPage() {
         ),
         today
       ),
-    [recurringBillItems, allSubscriptions, settings.excludedSubscriptions]
+    [recurringBillItems, allSubscriptions, settings.excludedSubscriptions, today]
   );
   const salaryKeywords = settings.salaryKeywords ?? [];
   const configuredIncome = settings.monthlyBudgets[month]?.income ?? 0;
@@ -246,7 +246,6 @@ export default function DashboardPage() {
     ? {
         label: "Safe to spend",
         amount: safeInfo.safe,
-        icon: "=",
         colorClass: safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
         accent: safeInfo.safe >= 0 ? "#10b981" : "#ef4444",
         secondaryText: `${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} to payday`,
@@ -256,7 +255,6 @@ export default function DashboardPage() {
     : {
         label: "Remaining",
         amount: summary.remaining,
-        icon: "=",
         colorClass: summary.remaining >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
         accent: summary.remaining >= 0 ? "#10b981" : "#ef4444",
         info: "Income minus total expenses. Positive means you're within budget; negative means you've overspent.",
@@ -264,10 +262,10 @@ export default function DashboardPage() {
       };
 
   const summaryCards = [
-    { label: "Income", amount: summary.income, icon: "↑", colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", info: "Your total income this period — planned salary plus any income transactions received.", onClick: () => setSheet("income") },
-    { label: "Expenses", amount: summary.totalExpenses - summary.savings, icon: "↓", colorClass: "text-foreground", accent: "#64748b", info: "Money spent on Needs and Wants this period. Refunds are already subtracted. Savings are shown separately.", onClick: () => setSheet("expenses") },
+    { label: "Income", amount: summary.income, colorClass: "text-emerald-600 dark:text-emerald-400", accent: "#10b981", info: "Your total income this period — planned salary plus any income transactions received.", onClick: () => setSheet("income") },
+    { label: "Expenses", amount: summary.totalExpenses - summary.savings, colorClass: "text-foreground", accent: "#64748b", info: "Money spent on Needs and Wants this period. Refunds are already subtracted. Savings are shown separately.", onClick: () => setSheet("expenses") },
     spendableCard,
-    { label: "Savings", amount: summary.savings, icon: "S", colorClass: "text-primary", accent: "#1C3557", info: "Money categorised as Savings — savings transfers, insurance, or any recurring Savings bill.", onClick: () => setSheet("savings") },
+    { label: "Savings", amount: summary.savings, colorClass: "text-primary", accent: "#1C3557", info: "Money categorised as Savings — savings transfers, insurance, or any recurring Savings bill.", onClick: () => setSheet("savings") },
   ];
 
   if (showOnboarding) {
@@ -333,7 +331,7 @@ export default function DashboardPage() {
         {/* Budget donuts */}
         <Card className="rounded-2xl border-border/70">
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <CardTitle className="text-sm font-semibold text-foreground">
               Budget Progress
             </CardTitle>
             <p className="text-[11px] text-muted-foreground/70 mt-0.5">Tap a circle to see the transactions behind it.</p>
@@ -380,7 +378,7 @@ export default function DashboardPage() {
         {/* Weekday spending chart */}
         <Card className="rounded-2xl border-border/70">
           <CardHeader className="pb-1 pt-4 px-4 flex-row items-center justify-between">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Spending by Day</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">Spending by Day</CardTitle>
             <div className="flex gap-0.5 p-0.5 rounded-md bg-secondary">
               {(["week", "month", "period", "year"] as const).map((m) => (
                 <button

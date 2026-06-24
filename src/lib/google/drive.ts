@@ -5,19 +5,30 @@ import { DriveAuthError } from "@/lib/errors";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 async function driveRequest(
   url: string,
   accessToken: string,
   options: RequestInit = {},
   attempt = 0
 ): Promise<Response> {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...options.headers,
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (response.status === 401) throw new DriveAuthError();
 
@@ -113,7 +124,7 @@ export async function createFile(
 ): Promise<string> {
   const metadata = { name, parents: [parentId], mimeType };
 
-  const boundary = "monera_boundary";
+  const boundary = `monera_${crypto.randomUUID().replace(/-/g, "")}`;
   const body = [
     `--${boundary}`,
     "Content-Type: application/json; charset=UTF-8",

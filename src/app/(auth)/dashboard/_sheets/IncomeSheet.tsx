@@ -40,7 +40,7 @@ export function IncomeSheet({ salaryBasis, configuredIncome, periodIncomeTxs, sa
               return (
                 <div key={tx.id} className="flex items-center gap-3 py-1.5">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+                    <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">{formatDate(tx.date)}</span>
                       {isSalary && (
@@ -61,7 +61,7 @@ export function IncomeSheet({ salaryBasis, configuredIncome, periodIncomeTxs, sa
       </div>
       <div className="shrink-0 mt-1.5 pt-1.5 border-t border-border flex items-center gap-3">
         <p className="text-xs text-muted-foreground flex-1">Excluded transactions don&apos;t appear here.</p>
-        <button onClick={onManage} className="text-xs text-primary hover:underline shrink-0">
+        <button onClick={onManage} className="text-xs text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded">
           Manage →
         </button>
       </div>

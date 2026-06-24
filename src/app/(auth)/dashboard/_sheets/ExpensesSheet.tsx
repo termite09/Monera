@@ -16,7 +16,7 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
     { label: "Needs", amount: summary.needs, dot: "bg-blue-500", key: "Needs" },
     { label: "Wants", amount: summary.wants, dot: "bg-amber-500", key: "Wants" },
     ...(uncategorizedExpense > 0
-      ? [{ label: "Uncategorized", amount: uncategorizedExpense, dot: "bg-muted-foreground/40", key: "Uncategorized" as Category }]
+      ? [{ label: "Uncategorized", amount: uncategorizedExpense, dot: "bg-muted-foreground/40", key: "Uncategorized" as const }]
       : []),
   ];
 
@@ -49,7 +49,7 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
                       {catTxs.map((tx) => (
                         <div key={tx.id} className="flex items-center gap-3 px-4 py-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+                            <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
                             <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
                           </div>
                           <span className="text-sm tabular-nums font-mono text-foreground shrink-0">

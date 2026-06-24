@@ -56,7 +56,7 @@ export function RemainingSheet({ summary, salaryBasis, incomeIsDetected, configu
             Income minus all your spending this period.{" "}
             {summary.remaining >= 0 ? "You're within budget." : "You've overspent this period."}
           </p>
-          <button onClick={onReview} className="text-xs text-primary hover:underline shrink-0">
+          <button onClick={onReview} className="text-xs text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded">
             Review →
           </button>
         </div>

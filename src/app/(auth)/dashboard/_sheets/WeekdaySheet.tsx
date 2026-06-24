@@ -21,7 +21,7 @@ export function WeekdaySheet({ weekdayTxs, chartDateRange, title }: Props) {
         ) : weekdayTxs.map((tx) => (
           <div key={tx.id} className="flex items-center gap-3 py-2">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground break-words">{cleanDescription(tx.description)}</p>
+              <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
               <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
             </div>
             <span className={cn(
