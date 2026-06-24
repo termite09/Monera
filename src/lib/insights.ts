@@ -3,9 +3,9 @@ import { getPeriodSpend } from "@/lib/finance";
 import { detectSubscriptions } from "@/lib/reports";
 import { formatCurrency, getPrevMonthKey } from "@/lib/utils";
 
-export type InsightTone = "good" | "warn" | "info";
+type InsightTone = "good" | "warn" | "info";
 
-export interface Insight {
+interface Insight {
   id: string;
   text: string;
   tone: InsightTone;
@@ -80,7 +80,9 @@ export function buildInsights(
   }
 
   // Recurring subscription load (across all history).
-  const subs = detectSubscriptions(transactions);
+  const subs = detectSubscriptions(transactions).filter(
+    (s) => !(settings.excludedSubscriptions ?? []).includes(s.name)
+  );
   if (subs.length > 0) {
     const monthly = subs.reduce((s, x) => s + x.amount, 0);
     out.push({ id: "subs", tone: "info", text: `${subs.length} subscription${subs.length === 1 ? "" : "s"} cost about ${money(monthly)}/month.` });

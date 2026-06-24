@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
@@ -12,7 +12,7 @@ export function useSettings(
 ) {
   const qc = useQueryClient();
   const fileId = structure?.fileIds.settings;
-  const queryKey = ["settings", fileId ?? "none"];
+  const queryKey = useMemo(() => ["settings", fileId ?? "none"], [fileId]);
 
   const query = useQuery({
     queryKey,

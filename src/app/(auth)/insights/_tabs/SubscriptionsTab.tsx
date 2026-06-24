@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Transaction, Category, RecurringPayment } from "@/types";
 import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronDown, CalendarClock, CreditCard } from "lucide-react";
+import { ChevronDown, CalendarClock, CreditCard, EyeOff } from "lucide-react";
 import type { detectSubscriptions } from "@/lib/reports";
 
 type Subscription = ReturnType<typeof detectSubscriptions>[number];
@@ -45,12 +45,15 @@ function countBillPeriods(p: RecurringPayment, currentMonth: string, fallbackSta
 
 interface Props {
   recurringPayments: RecurringPayment[];
-  subscriptions: Subscription[];
+  subscriptions: Subscription[];   // already filtered — excluded subs removed by parent
   transactions: Transaction[];
   paydayOfMonth: number;
+  excludedSubCount: number;        // how many detected subs are currently hidden
+  onExclude: (name: string) => void;
+  onRestore: () => void;
 }
 
-export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, paydayOfMonth }: Props) {
+export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, paydayOfMonth, excludedSubCount, onExclude, onRestore }: Props) {
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
 
   const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
@@ -118,6 +121,14 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <CreditCard size={13} /> Detected Subscriptions
+              {excludedSubCount > 0 && (
+                <button
+                  onClick={onRestore}
+                  className="ml-auto text-[10px] normal-case font-normal text-primary hover:underline tracking-normal"
+                >
+                  Show all ({excludedSubCount} hidden)
+                </button>
+              )}
             </CardTitle>
             {subscriptions.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">~{formatCurrency(subsMonthly)}/mo</span>}
           </div>
@@ -137,9 +148,12 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                   : [];
                 return (
                   <div key={s.name} className="border-b border-border/50 last:border-0">
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setExpandedSub(isOpen ? null : s.name)}
-                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpandedSub(isOpen ? null : s.name); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground break-words">{s.name}</p>
@@ -152,7 +166,15 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                         size={14}
                         className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
                       />
-                    </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onExclude(s.name); }}
+                        className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0"
+                        aria-label={`Hide ${s.name} from this view`}
+                        title="Hide from this view (won't affect your data)"
+                      >
+                        <EyeOff size={14} />
+                      </button>
+                    </div>
                     {isOpen && (
                       <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
                         <p className="px-3 py-2 text-[11px] text-muted-foreground bg-secondary/50 border-b border-border">

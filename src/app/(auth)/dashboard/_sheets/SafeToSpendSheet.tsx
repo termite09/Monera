@@ -29,15 +29,9 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Recurring bills</span>
+            <span className="text-muted-foreground">Payments due</span>
             <span className="text-foreground">− {formatCurrency(safeInfo.billsDue)}</span>
           </div>
-          {safeInfo.savingsRemaining > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Due for savings</span>
-              <span className="text-foreground">− {formatCurrency(safeInfo.savingsRemaining)}</span>
-            </div>
-          )}
           <div className="border-t border-border pt-2 flex items-center justify-between font-semibold">
             <span>Safe to spend</span>
             <span className={safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
@@ -48,13 +42,15 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
 
         {safeInfo.billItems.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Recurring bills</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Payments due</p>
             <div className="rounded-xl border border-border divide-y divide-border">
               {safeInfo.billItems.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 px-3 py-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{b.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(b.date)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(b.date)} · {b.category === "Savings" ? "savings transfer" : b.source === "recurring" ? "recurring bill" : "manual expense"}
+                    </p>
                   </div>
                   <span className="text-sm tabular-nums font-mono text-foreground shrink-0">{formatCurrency(b.amount)}</span>
                 </div>

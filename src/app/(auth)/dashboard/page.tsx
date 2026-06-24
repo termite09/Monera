@@ -26,10 +26,13 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { computeSafeToSpend } from "@/lib/safeToSpend";
-import { getPeriodBounds, formatDate, roundMoney, cn, getMonthKey } from "@/lib/utils";
+import { getPeriodBounds, formatDate, roundMoney, cn, getMonthKey, toDateStr } from "@/lib/utils";
 import { getChartDateRange } from "@/components/charts/WeekdayChart";
 import { WEEKDAY_LABELS } from "@/config/constants";
 
+import { detectSubscriptions } from "@/lib/reports";
+import { getUpcomingCharges } from "@/lib/upcomingCharges";
+import { UpcomingChargesCard } from "@/components/dashboard/UpcomingChargesCard";
 import { IncomeSheet } from "./_sheets/IncomeSheet";
 import { ExpensesSheet } from "./_sheets/ExpensesSheet";
 import { SavingsSheet } from "./_sheets/SavingsSheet";
@@ -108,11 +111,31 @@ export default function DashboardPage() {
     [settings.recurringPayments, month, paydayOfMonth, settings.currency]
   );
   const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
+  const todayStr = useMemo(() => toDateStr(new Date()), []);
+  const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= todayStr), [allTxs, todayStr]);
 
-  const { summary, budgetAllocations, incomeIsDetected, salaryBasis, additionalIncome } = useBudget(allTxs, settings, month);
+  const { summary, budgetAllocations, incomeIsDetected, salaryBasis, additionalIncome } = useBudget(currentTxs, settings, month);
   const safeInfo = useMemo(
-    () => computeSafeToSpend(allTxs, settings, month, summary, budgetAllocations, new Date()),
-    [allTxs, settings, month, summary, budgetAllocations]
+    () => computeSafeToSpend(allTxs, settings, month, summary, new Date()),
+    [allTxs, settings, month, summary]
+  );
+  const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
+  const recurringBillItems = useMemo(
+    () => recurringTxs
+      .filter((tx) => !tx.excluded && tx.type === "expense" && tx.date > todayStr)
+      .map((tx) => ({ name: tx.description, amount: tx.amount, date: tx.date })),
+    [recurringTxs, todayStr]
+  );
+  const upcomingCharges = useMemo(
+    () =>
+      getUpcomingCharges(
+        recurringBillItems,
+        allSubscriptions.filter(
+          (s) => !(settings.excludedSubscriptions ?? []).includes(s.name)
+        ),
+        new Date()
+      ),
+    [recurringBillItems, allSubscriptions, settings.excludedSubscriptions]
   );
   const salaryKeywords = settings.salaryKeywords ?? [];
   const configuredIncome = settings.monthlyBudgets[month]?.income ?? 0;
@@ -120,14 +143,14 @@ export default function DashboardPage() {
   // Period transactions for drill-down sheets
   const periodExpenseTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return allTxs
+    return currentTxs
       .filter((tx) => {
         if (tx.excluded || tx.type !== "expense") return false;
         const d = new Date(tx.date + "T00:00:00");
         return d >= start && d <= end;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [allTxs, month, paydayOfMonth]);
+  }, [currentTxs, month, paydayOfMonth]);
 
   const uncategorizedExpense = roundMoney(
     periodExpenseTxs.filter((t) => t.category === "Uncategorized").reduce((s, t) => s + t.amount, 0)
@@ -135,21 +158,21 @@ export default function DashboardPage() {
 
   const periodIncomeTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return allTxs.filter((tx) => {
+    return currentTxs.filter((tx) => {
       if (tx.type !== "income" || tx.excluded) return false;
       const d = new Date(tx.date + "T00:00:00");
       return d >= start && d <= end;
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [allTxs, month, paydayOfMonth]);
+  }, [currentTxs, month, paydayOfMonth]);
 
   const periodSavingsTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return allTxs.filter((tx) => {
+    return currentTxs.filter((tx) => {
       if (tx.category !== "Savings" || tx.type !== "expense" || tx.excluded) return false;
       const d = new Date(tx.date + "T00:00:00");
       return d >= start && d <= end;
     }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [allTxs, month, paydayOfMonth]);
+  }, [currentTxs, month, paydayOfMonth]);
 
   const handleDayClick = useCallback((label: string, dateStr: string | null) => {
     setWeekdayFilter({ label, dateStr });
@@ -337,6 +360,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Upcoming charges */}
+        <UpcomingChargesCard
+          charges={upcomingCharges}
+          currency={settings.currency ?? "€"}
+        />
+
         {/* Weekday spending chart */}
         <Card className="rounded-2xl border-border/70">
           <CardHeader className="pb-1 pt-4 px-4 flex-row items-center justify-between">
@@ -379,7 +408,7 @@ export default function DashboardPage() {
           ) : null}
           <CardContent className="px-4 pb-4">
             <WeekdayChart
-              transactions={allTxs}
+              transactions={currentTxs}
               monthKey={chartKey}
               paydayOfMonth={paydayOfMonth}
               mode={weekdayMode}
@@ -414,7 +443,7 @@ export default function DashboardPage() {
           {sheet === "savings" && (
             <SavingsSheet
               periodSavingsTxs={periodSavingsTxs}
-              onSettings={() => { closeSheet(); router.push("/settings"); }}
+              onSettings={() => { closeSheet(); router.push("/settings?tab=setup"); }}
             />
           )}
           {sheet === "remaining" && (

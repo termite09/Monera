@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CategoryRule } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
@@ -18,7 +18,7 @@ export function useRules(
 ) {
   const qc = useQueryClient();
   const fileId = structure?.fileIds.categoryRules;
-  const queryKey = ["rules", fileId ?? "none"];
+  const queryKey = useMemo(() => ["rules", fileId ?? "none"], [fileId]);
 
   const query = useQuery({
     queryKey,

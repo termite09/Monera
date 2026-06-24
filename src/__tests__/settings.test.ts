@@ -60,4 +60,10 @@ describe("migrateSettings", () => {
     expect(defaults.settingsVersion).toBe(SETTINGS_VERSION);
     expect(SETTINGS_VERSION).toBe(1);
   });
+
+  it("backfills excludedSubscriptions to [] when missing", () => {
+    const { migrated, changed } = migrateSettings({} as Settings, defaults);
+    expect(migrated.excludedSubscriptions).toEqual([]);
+    expect(changed).toBe(true);
+  });
 });

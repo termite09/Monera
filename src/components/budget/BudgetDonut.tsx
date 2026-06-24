@@ -53,7 +53,7 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass, info, 
           <InfoIcon
             content={infoText!}
             side="top"
-            onClick={allocated === 0 ? () => router.push("/settings") : undefined}
+            onClick={allocated === 0 ? () => router.push("/settings?tab=setup") : undefined}
           />
         )}
       </div>

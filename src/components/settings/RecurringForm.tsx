@@ -10,7 +10,7 @@ import { generateId, formatCurrency, ordinal, getMonthKey } from "@/lib/utils";
 import { Category, RecurringPayment } from "@/types";
 import { Trash2, Plus, Search, Pencil } from "lucide-react";
 
-const CATEGORIES: Category[] = ["Needs", "Wants"];
+const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
 const RECURRING_PAGE_SIZE = 10;
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SELECT_CLS = "h-9 px-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
@@ -140,8 +140,8 @@ export function RecurringForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Bills</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Fixed bills paid from another bank or account — rent, insurance, gym. These won&apos;t appear in your imported CSV files, so Monera adds them automatically to each period.</p>
+        <h1 className="text-xl font-semibold text-foreground">Payments</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Fixed payments made from another bank or account — rent, insurance, gym, savings transfers. These won&apos;t appear in your imported CSV files, so Monera adds them automatically to each period.</p>
       </div>
 
       {/* Search — only shown when there are entries */}

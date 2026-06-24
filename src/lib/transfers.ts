@@ -1,6 +1,6 @@
 import { Transaction } from "@/types";
 
-export interface TransferKeywords {
+interface TransferKeywords {
   /** Descriptions identifying transfers between the user's own accounts. */
   selfTransferKeywords?: string[];
   /** Descriptions identifying Revolut savings-vault deposits. */

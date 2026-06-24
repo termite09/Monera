@@ -59,6 +59,8 @@ export interface Settings {
   tourPages?: Record<string, boolean>;
   /** Merchant names hidden from the Insights → Merchants view (does not affect calculations). */
   hiddenMerchants?: string[];
+  /** Detected subscription names the user has dismissed — does not affect calculations. */
+  excludedSubscriptions?: string[];
   /** Schema version — incremented when new default fields are added. */
   settingsVersion?: number;
 }

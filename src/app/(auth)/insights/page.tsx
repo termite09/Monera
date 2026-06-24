@@ -11,7 +11,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport, detectSubscriptions } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
-import { getPeriodBounds, cn } from "@/lib/utils";
+import { getPeriodBounds, cn, toDateStr } from "@/lib/utils";
 
 import { OverviewTab } from "./_tabs/OverviewTab";
 import { MerchantsTab } from "./_tabs/MerchantsTab";
@@ -67,22 +67,25 @@ export default function ReportsPage() {
     return [...transactions, ...recurringTxs];
   }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth]);
 
-  const report = useMemo(() => buildReport(allTxs, month, paydayOfMonth), [allTxs, month, paydayOfMonth]);
-  const { summary } = useBudget(allTxs, settings, month);
+  const todayStr = useMemo(() => toDateStr(new Date()), []);
+  const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= todayStr), [allTxs, todayStr]);
+
+  const report = useMemo(() => buildReport(currentTxs, month, paydayOfMonth), [currentTxs, month, paydayOfMonth]);
+  const { summary } = useBudget(currentTxs, settings, month);
   const savingsRate = summary.income > 0 ? Math.round((summary.savings / summary.income) * 100) : null;
 
   const periodExpenseTxs = useMemo(() => {
     const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return allTxs
+    return currentTxs
       .filter((tx) => {
         if (tx.excluded || tx.type !== "expense") return false;
         const d = new Date(tx.date + "T00:00:00");
         return d >= start && d <= end;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [allTxs, month, paydayOfMonth]);
+  }, [currentTxs, month, paydayOfMonth]);
 
-  const hiddenMerchants = settings.hiddenMerchants ?? [];
+  const hiddenMerchants = useMemo(() => settings.hiddenMerchants ?? [], [settings.hiddenMerchants]);
 
   const allMerchants = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
@@ -98,7 +101,12 @@ export default function ReportsPage() {
   }, [periodExpenseTxs, hiddenMerchants]);
 
   // Subscriptions span all history, not just the selected period.
-  const subscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
+  const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
+  const subscriptions = useMemo(
+    () => allSubscriptions.filter((s) => !(settings.excludedSubscriptions ?? []).includes(s.name)),
+    [allSubscriptions, settings.excludedSubscriptions]
+  );
+  const excludedSubCount = allSubscriptions.length - subscriptions.length;
 
   return (
     <PageShell>
@@ -156,6 +164,14 @@ export default function ReportsPage() {
                 subscriptions={subscriptions}
                 transactions={transactions}
                 paydayOfMonth={paydayOfMonth}
+                excludedSubCount={excludedSubCount}
+                onExclude={(name) =>
+                  updateSettings({
+                    ...settings,
+                    excludedSubscriptions: [...(settings.excludedSubscriptions ?? []), name],
+                  })
+                }
+                onRestore={() => updateSettings({ ...settings, excludedSubscriptions: [] })}
               />
             )}
             {tab === "year" && (

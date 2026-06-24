@@ -1,13 +1,9 @@
 import { Transaction, RecurringPayment } from "@/types";
-import { getPeriodBounds, generateId, periodKeysBetween } from "@/lib/utils";
+import { getPeriodBounds, generateId, periodKeysBetween, toDateStr } from "@/lib/utils";
 
 function clampDay(year: number, monthIndex: number, day: number): Date {
   const lastDay = new Date(year, monthIndex + 1, 0).getDate();
   return new Date(year, monthIndex, Math.min(day, lastDay));
-}
-
-function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /**

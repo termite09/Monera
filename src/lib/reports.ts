@@ -30,19 +30,19 @@ export function monthlyCategoryTotals(
   });
 }
 
-export interface MerchantStat {
+interface MerchantStat {
   name: string;
   total: number;
   count: number;
 }
 
-export interface CategoryStat {
+interface CategoryStat {
   category: Category;
   total: number;
   pct: number;
 }
 
-export interface ReportData {
+interface ReportData {
   totalSpent: number;
   txCount: number;
   avgPerDay: number;
@@ -161,7 +161,7 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     if (!intervalConsistent) continue;
 
     const rawTotal = g.amounts.reduce((s, a) => s + a, 0);
-    const total = Math.round(rawTotal * 100) / 100;
+    const total = roundMoney(rawTotal);
     subs.push({ name: g.name, amount: mid, total, months: g.months.size, lastDate: g.lastDate });
   }
 

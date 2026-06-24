@@ -26,10 +26,10 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Tappable drill-downs** | Every figure traces to its transactions: tap a dashboard card, a budget circle, or any chart bar — including a specific weekday, month, or year — to see the exact transactions and the calculation behind it. |
 | **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges. Each mode shows 7 bars (Mon–Sun) aggregated over the selected window, with a dedicated month picker for the Month view. |
 | **Year overview** | The Year tab aggregates spending by payday period across the full calendar year, with a stacked monthly bar chart (Needs / Wants / Savings legend), total expense and savings summaries, and click-through to any period on the dashboard. |
-| **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after accounting for money spent so far, savings set aside, and Recurring bills due this period. |
+| **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after accounting for money spent so far, savings set aside, and recurring payments due this period. |
 | **Guidance built in** | Every Insights card shows a plain-English description of what it shows and how it's calculated — no tapping required. Dashboard cards carry on-demand tooltips for extra detail. A replayable guided tour explains each page on first visit. |
 | **Mobile-first account controls** | On mobile, the Settings page shows your Google account name, photo, and a Sign out button at the very top — no scrolling required. Sign-out clears the session and all cached data. |
-| **Recurring payments** | Track fixed bills paid outside Revolut. They appear as synthetic transactions in every period and count toward your budget. |
+| **Recurring payments** | Track fixed payments paid outside Revolut (rent, insurance, savings transfers, etc). They appear as synthetic transactions in every period and count toward your budget. Configured under Settings → Payments, with support for any spending category including Savings. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
 | **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits apply immediately and roll back automatically on failure. Stale category overrides are pruned on load. Installable PWA. |
 | **Resilient error recovery** | If a Drive request fails, every page shows a clear inline error with one-tap retry instead of silently breaking. React error boundaries catch unexpected render errors so the app degrades gracefully rather than going blank. |
@@ -109,7 +109,7 @@ src/
 │   │   │   ├── page.tsx         # Transaction list — sort, filter, bulk actions
 │   │   │   └── _components/     # Filter bar and bulk action bar
 │   │   ├── upload/              # CSV / XLSX import
-│   │   └── settings/            # Budget, income, recurring bills, categorisation rules
+│   │   └── settings/            # Budget, income, recurring payments, categorisation rules
 │   ├── login/                   # Sign-in screen
 │   └── api/auth/                # NextAuth route handler
 ├── components/                  # Shared UI, charts, layout, budget widgets, onboarding

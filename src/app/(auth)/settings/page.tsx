@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
@@ -26,8 +26,8 @@ const SETTINGS_SLIDES = [
     body: "Need to adjust just one month? Set a different income or budget split here without touching your defaults. Useful for months with a bonus or unusual expenses.",
   },
   {
-    title: "Bills — recurring payments",
-    body: "Add subscriptions and fixed bills you pay every month — rent, Netflix, gym. Monera uses these to show your committed spending and flag missing payments.",
+    title: "Payments — recurring",
+    body: "Add fixed payments you make from another account — rent, insurance, gym, savings transfers. Monera uses these to show your committed spending and flag missing payments.",
   },
   {
     title: "Sources — income detection",
@@ -43,10 +43,14 @@ type Tab = "setup" | "monthly" | "bills" | "sources" | "rules";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { month, setMonth, settings, rules, isLoading, txError, refetch, updateSettings, updateRules } = useAppData();
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
-  const [tab, setTab] = useState<Tab>("setup");
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = searchParams.get("tab");
+    return (t === "setup" || t === "monthly" || t === "bills" || t === "sources" || t === "rules") ? t : "setup";
+  });
 
   const handleSignOut = useCallback(() => {
     sessionStorage.clear();
@@ -61,7 +65,7 @@ export default function SettingsPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "setup", label: "Setup" },
     { id: "monthly", label: "Monthly" },
-    { id: "bills", label: "Bills" },
+    { id: "bills", label: "Payments" },
     { id: "sources", label: "Sources" },
     { id: "rules", label: "Mappings" },
   ];
@@ -75,12 +79,15 @@ export default function SettingsPage() {
         <div className="md:hidden flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             {session?.user?.image ? (
-              <img
-                src={session.user.image}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="size-9 rounded-full shrink-0"
-              />
+            <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- referrerPolicy is required for Google avatars and is not supported by next/image */}
+                <img
+                  src={session.user.image}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="size-9 rounded-full shrink-0"
+                />
+              </>
             ) : (
               <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <span className="text-sm font-semibold text-primary">

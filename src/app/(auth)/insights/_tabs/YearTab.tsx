@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { monthlyCategoryTotals } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
+import { toDateStr } from "@/lib/utils";
 import type { RecurringPayment } from "@/types";
 
 const YearBar = dynamic(
@@ -28,10 +29,13 @@ interface Props {
 export function YearTab({ transactions, recurringPayments, currency, paydayOfMonth, onMonthClick }: Props) {
   const [year, setYear] = useState(() => new Date().getFullYear());
 
-  const yearAllTxs = useMemo(() => [
-    ...transactions,
-    ...getRecurringInRange(recurringPayments, new Date(year, 0, 1), new Date(year, 11, 31), paydayOfMonth, currency),
-  ], [transactions, recurringPayments, currency, year, paydayOfMonth]);
+  const yearAllTxs = useMemo(() => {
+    const todayStr = toDateStr(new Date());
+    return [
+      ...transactions,
+      ...getRecurringInRange(recurringPayments, new Date(year, 0, 1), new Date(year, 11, 31), paydayOfMonth, currency),
+    ].filter((tx) => tx.date <= todayStr);
+  }, [transactions, recurringPayments, currency, year, paydayOfMonth]);
 
   const yearTotals = useMemo(() => monthlyCategoryTotals(yearAllTxs, year, paydayOfMonth), [yearAllTxs, year, paydayOfMonth]);
 

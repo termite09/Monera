@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import {
@@ -169,7 +170,7 @@ export default async function Home() {
             ))}
           </div>
           <div className="mt-10 rounded-2xl border border-border/60 overflow-hidden shadow-sm">
-            <img
+            <Image
               src="/screenshot-dashboard.png"
               alt="Monera dashboard showing income, expenses, budget progress and spending by day"
               className="w-full"

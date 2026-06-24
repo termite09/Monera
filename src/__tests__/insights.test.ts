@@ -77,4 +77,15 @@ describe("buildInsights", () => {
     const ins = buildInsights([], settings, "2024-06", summaryOf({}), noAlloc);
     expect(ins).toHaveLength(0);
   });
+
+  it("excludes dismissed subscriptions from the subscription insight", () => {
+    const subsTx = [
+      tx({ amount: 9.99, type: "expense", description: "Spotify", date: "2024-04-01" }),
+      tx({ amount: 9.99, type: "expense", description: "Spotify", date: "2024-05-01" }),
+      tx({ amount: 9.99, type: "expense", description: "Spotify", date: "2024-06-01" }),
+    ];
+    const settingsWithExclusion: Settings = { ...settings, excludedSubscriptions: ["Spotify"] };
+    const ins = buildInsights(subsTx, settingsWithExclusion, "2024-06", summaryOf({ income: 1000 }), noAlloc);
+    expect(ins.some((i) => i.id === "subs")).toBe(false);
+  });
 });

@@ -34,7 +34,6 @@ export function RulesForm({ rules, updateRules }: {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(rules);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDirty(false);
   }, [rules]);
 
