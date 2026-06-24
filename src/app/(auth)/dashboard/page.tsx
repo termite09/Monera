@@ -14,12 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const WeekdayChart = dynamic(
-  () => import("@/components/charts/WeekdayChart").then((m) => m.WeekdayChart),
-  { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> }
-);
-
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -29,7 +23,6 @@ import { computeSafeToSpend } from "@/lib/safeToSpend";
 import { getPeriodBounds, formatDate, roundMoney, cn, getMonthKey, toDateStr } from "@/lib/utils";
 import { getChartDateRange } from "@/components/charts/WeekdayChart";
 import { WEEKDAY_LABELS } from "@/config/constants";
-
 import { detectSubscriptions } from "@/lib/reports";
 import { getUpcomingCharges } from "@/lib/upcomingCharges";
 import { UpcomingChargesCard } from "@/components/dashboard/UpcomingChargesCard";
@@ -39,6 +32,11 @@ import { SavingsSheet } from "./_sheets/SavingsSheet";
 import { RemainingSheet } from "./_sheets/RemainingSheet";
 import { SafeToSpendSheet } from "./_sheets/SafeToSpendSheet";
 import { WeekdaySheet } from "./_sheets/WeekdaySheet";
+
+const WeekdayChart = dynamic(
+  () => import("@/components/charts/WeekdayChart").then((m) => m.WeekdayChart),
+  { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> }
+);
 
 const DASHBOARD_SLIDES = [
   {
@@ -120,12 +118,25 @@ export default function DashboardPage() {
     [allTxs, settings, month, summary]
   );
   const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
-  const recurringBillItems = useMemo(
-    () => recurringTxs
-      .filter((tx) => !tx.excluded && tx.type === "expense" && tx.date > todayStr)
-      .map((tx) => ({ name: tx.description, amount: tx.amount, date: tx.date })),
-    [recurringTxs, todayStr]
-  );
+ const recurringBillItems = useMemo(
+  () =>
+    recurringTxs
+      .filter(
+        (tx) =>
+          !tx.excluded &&
+          tx.type === "expense" &&
+          tx.date > todayStr
+      )
+      .map((tx) => ({
+        name: tx.description,
+        amount: tx.amount,
+        date: tx.date,
+        source: tx.source,
+        category: tx.category,
+      })),
+  [recurringTxs, todayStr]
+);
+  const today = useMemo(() => new Date(), []);
   const upcomingCharges = useMemo(
     () =>
       getUpcomingCharges(
@@ -133,7 +144,7 @@ export default function DashboardPage() {
         allSubscriptions.filter(
           (s) => !(settings.excludedSubscriptions ?? []).includes(s.name)
         ),
-        new Date()
+        today
       ),
     [recurringBillItems, allSubscriptions, settings.excludedSubscriptions]
   );

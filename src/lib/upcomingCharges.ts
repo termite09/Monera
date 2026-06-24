@@ -77,16 +77,25 @@ export function getUpcomingCharges(
 
   // Manual bills: already have exact dates, keep those within the window
   const manualCharges: UpcomingCharge[] = billItems
-    .filter((b) => b.date > todayStr && b.date <= windowEndStr)
+    .filter((b) => b.date >= todayStr && b.date <= windowEndStr)
     .map((b) => ({ name: b.name, amount: b.amount, date: b.date, isEstimated: false }));
 
-  const manualNames = new Set(manualCharges.map((c) => c.name.toLowerCase()));
+  const normalize = (s: string) =>
+    s.trim().toLowerCase();
+
+  const manualNames = new Set(
+    manualCharges.map((c) => normalize(c.name))
+  );
 
   // Detected subscriptions: estimate next date, skip if manual bill covers it
   const detectedCharges: UpcomingCharge[] = subscriptions
     .map((s) => ({ s, nextDate: estimateNextDate(s.lastDate, today) }))
-    .filter(({ nextDate }) => nextDate > todayStr)
-    .filter(({ s }) => !manualNames.has(s.name.toLowerCase()))
+    .filter(
+  ({ nextDate }) =>
+    nextDate >= todayStr &&
+    nextDate <= windowEndStr
+)
+    .filter(({ s }) => !manualNames.has(normalize(s.name)))
     .map(({ s, nextDate }) => ({
       name: s.name,
       amount: s.amount,
