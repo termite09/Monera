@@ -104,7 +104,7 @@ export default function UploadPage() {
 
   return (
     <PageShell>
-      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-6">
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-6 md:max-w-none md:px-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Upload Statement</h1>
           <p className="text-sm text-muted-foreground mt-1">Import any bank CSV or Excel file — Revolut is auto-detected, other formats are matched by their column headers</p>

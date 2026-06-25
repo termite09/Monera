@@ -28,7 +28,7 @@ function amountFontSize(s: string): string {
 
 // Internal SVG coordinate space; the <svg> scales to its container via viewBox.
 const VB = 116;
-const STROKE = 12;
+const STROKE = 14;
 
 export function BudgetDonut({ label, spent, allocated, color, labelClass, info, onClick }: BudgetDonutProps) {
   const router = useRouter();
@@ -72,11 +72,11 @@ export function BudgetDonut({ label, spent, allocated, color, labelClass, info, 
             cy={VB / 2}
             r={r}
             fill="none"
-            stroke="currentColor"
+            stroke={color}
             strokeWidth={STROKE}
-            className="text-slate-200 dark:text-slate-700"
+            opacity={0.18}
           />
-          {allocated > 0 && (
+          {allocated > 0 && pct > 0.005 && (
             <circle
               cx={VB / 2}
               cy={VB / 2}

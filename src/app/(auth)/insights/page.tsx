@@ -112,7 +112,7 @@ export default function ReportsPage() {
     <PageShell>
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
-      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Insights</h1>
         </div>

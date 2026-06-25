@@ -30,15 +30,15 @@ export function UpcomingChargesCard({ charges, currency }: Props) {
   const hasEstimated = charges.some((c) => c.isEstimated);
 
   return (
-    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <CardHeader className="pb-2 pt-4 px-4">
+    <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:h-full md:flex md:flex-col">
+      <CardHeader className="pb-2 pt-4 px-4 md:shrink-0">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <CalendarClock size={15} /> Upcoming charges
         </CardTitle>
         <p className="text-[11px] text-muted-foreground/70 mt-0.5">Next 14 days</p>
       </CardHeader>
-      <CardContent className="px-4 pb-4">
-        <div className="flex flex-col divide-y divide-border">
+      <CardContent className="px-4 pb-4 md:flex-1 md:flex md:flex-col md:min-h-0">
+        <div className="flex flex-col divide-y divide-border md:flex-1 md:overflow-y-auto md:overflow-x-hidden md:min-h-0 md:pr-2">
           {charges.map((charge, i) => (
             <div
               key={`${charge.name}-${charge.date}-${i}`}
@@ -67,7 +67,7 @@ export function UpcomingChargesCard({ charges, currency }: Props) {
           ))}
         </div>
         {hasEstimated && (
-          <p className="text-[11px] text-muted-foreground/70 mt-3 pt-3 border-t border-border">
+          <p className="text-[11px] text-muted-foreground/70 mt-3 pt-3 border-t border-border md:shrink-0">
             ~ estimated from last charge date ·{" "}
             <button
               className="underline hover:text-foreground transition-colors"

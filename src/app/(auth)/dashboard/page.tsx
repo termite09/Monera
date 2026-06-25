@@ -280,7 +280,7 @@ export default function DashboardPage() {
     return (
       <PageShell>
         <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
-        <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
+        <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6">
           <Card className="rounded-2xl border-border/70">
             <CardContent className="py-14 flex flex-col items-center text-center gap-4">
               <Upload size={32} className="text-muted-foreground/50" />
@@ -305,9 +305,9 @@ export default function DashboardPage() {
     <PageShell>
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
-      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Today</span>
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6 md:pt-3 md:gap-3 md:pb-0">
+        <p className="text-base text-muted-foreground">
+          <span className="font-semibold text-foreground">Today</span>
           {" · "}
           {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
         </p>
@@ -315,7 +315,7 @@ export default function DashboardPage() {
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="bg-card rounded-2xl border border-border/70 p-4 h-27">
@@ -328,7 +328,7 @@ export default function DashboardPage() {
               ))}
         </div>
 
-        {/* Budget donuts */}
+        {/* Budget Progress — hero card, full width */}
         <Card className="rounded-2xl border-border/70">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-semibold text-foreground">
@@ -337,7 +337,7 @@ export default function DashboardPage() {
             <p className="text-[11px] text-muted-foreground/70 mt-0.5">Tap a circle to see the transactions behind it.</p>
           </CardHeader>
           <CardContent className="px-4 pb-5">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3 md:max-w-2xl md:mx-auto">
               <BudgetDonut
                 label="Needs"
                 spent={summary.needs}
@@ -369,62 +369,65 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Upcoming charges */}
-        <UpcomingChargesCard
-          charges={upcomingCharges}
-          currency={settings.currency ?? "€"}
-        />
+        {/* Support row: Upcoming + Weekday side-by-side on desktop */}
+        <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:grid-rows-1 md:items-stretch md:gap-3 md:h-70">
+          {/* Upcoming charges */}
+          <UpcomingChargesCard
+            charges={upcomingCharges}
+            currency={settings.currency ?? "€"}
+          />
 
-        {/* Weekday spending chart */}
-        <Card className="rounded-2xl border-border/70">
-          <CardHeader className="pb-1 pt-4 px-4 flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-foreground">Spending by Day</CardTitle>
-            <div className="flex gap-0.5 p-0.5 rounded-md bg-secondary">
-              {(["week", "month", "period", "year"] as const).map((m) => (
+          {/* Weekday spending chart */}
+          <Card className="rounded-2xl border-border/70 md:h-full md:flex md:flex-col md:overflow-hidden">
+            <CardHeader className="pb-1 pt-4 px-4 flex-row items-center justify-between md:shrink-0">
+              <CardTitle className="text-sm font-semibold text-foreground">Spending by Day</CardTitle>
+              <div className="flex gap-0.5 p-0.5 rounded-md bg-secondary">
+                {(["week", "month", "period", "year"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => selectWeekdayMode(m)}
+                    className={cn(
+                      "px-2.5 py-1 rounded text-[11px] font-medium transition-colors capitalize",
+                      weekdayMode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
+            {weekdayMode === "month" ? (
+              <div className="px-4 pb-1 flex items-center gap-1">
                 <button
-                  key={m}
-                  onClick={() => selectWeekdayMode(m)}
-                  className={cn(
-                    "px-2.5 py-1 rounded text-[11px] font-medium transition-colors capitalize",
-                    weekdayMode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
+                  onClick={() => stepChartMonth(-1)}
+                  className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  aria-label="Previous month"
                 >
-                  {m}
+                  <ChevronLeft size={15} />
                 </button>
-              ))}
-            </div>
-          </CardHeader>
-          {weekdayMode === "month" ? (
-            <div className="px-4 pb-1 flex items-center gap-1">
-              <button
-                onClick={() => stepChartMonth(-1)}
-                className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                aria-label="Previous month"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <span className="text-[11px] font-medium text-foreground tabular-nums w-28 text-center">{chartDateRange}</span>
-              <button
-                onClick={() => stepChartMonth(1)}
-                className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                aria-label="Next month"
-              >
-                <ChevronLeft size={15} className="rotate-180" />
-              </button>
-            </div>
-          ) : chartDateRange ? (
-            <p className="px-4 text-[11px] text-muted-foreground pb-1">{chartDateRange}</p>
-          ) : null}
-          <CardContent className="px-4 pb-4">
-            <WeekdayChart
-              transactions={currentTxs}
-              monthKey={chartKey}
-              paydayOfMonth={paydayOfMonth}
-              mode={weekdayMode}
-              onDayClick={handleDayClick}
-            />
-          </CardContent>
-        </Card>
+                <span className="text-[11px] font-medium text-foreground tabular-nums w-28 text-center">{chartDateRange}</span>
+                <button
+                  onClick={() => stepChartMonth(1)}
+                  className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  aria-label="Next month"
+                >
+                  <ChevronLeft size={15} className="rotate-180" />
+                </button>
+              </div>
+            ) : chartDateRange ? (
+              <p className="px-4 text-[11px] text-muted-foreground pb-1">{chartDateRange}</p>
+            ) : null}
+            <CardContent className="px-4 pb-4 md:flex-1 md:min-h-0 md:flex md:flex-col">
+              <WeekdayChart
+                transactions={currentTxs}
+                monthKey={chartKey}
+                paydayOfMonth={paydayOfMonth}
+                mode={weekdayMode}
+                onDayClick={handleDayClick}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
       </div>
 

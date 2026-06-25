@@ -307,7 +307,7 @@ export default function TransactionsPage() {
         navLabel={rangeLabel}
       />
 
-      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 md:max-w-none md:px-6">
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Controls */}

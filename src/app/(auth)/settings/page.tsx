@@ -74,7 +74,7 @@ export default function SettingsPage() {
     <PageShell>
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
-      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5">
+      <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5 md:max-w-none md:px-6">
         {/* Account row — mobile only, always at the top */}
         <div className="md:hidden flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">

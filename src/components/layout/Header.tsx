@@ -47,7 +47,7 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
         )}
       </AnimatePresence>
 
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between md:max-w-none md:px-6">
         <span className="text-base font-semibold text-foreground md:hidden font-serif">
           Monera
         </span>

@@ -169,8 +169,9 @@ export function WeekdayChart({
     buildPeriodData(transactions, monthKey, paydayOfMonth);
 
   const isEmpty = data.every((d) => d.amount === 0);
-  const height = mode === "year" ? 180 : 160;
 
+  // Mobile renders at a fixed 120px; on desktop the chart fills its (fixed-height)
+  // card via flex, so the bars grow to use the available vertical space.
   if (isEmpty) {
     const emptyMsg =
       mode === "week" ? "No spending this week" :
@@ -178,7 +179,7 @@ export function WeekdayChart({
       mode === "year" ? "No spending this year" :
       "No spending this period";
     return (
-      <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
+      <div className="flex items-center justify-center text-sm text-muted-foreground h-40 md:h-full">
         {emptyMsg}
       </div>
     );
@@ -187,36 +188,38 @@ export function WeekdayChart({
   const hasFuture = data.some((d) => d.future);
 
   return (
-    <div>
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
-          <Tooltip
-            formatter={(v) => [formatCurrency(v as number), "Spent"]}
-            contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-            cursor={{ fill: "rgba(0,0,0,0.04)" }}
-          />
-          <Bar
-            dataKey="amount"
-            radius={[3, 3, 0, 0]}
-            animationDuration={600}
-            style={onDayClick ? { cursor: "pointer" } : undefined}
-            onClick={onDayClick ? (barData) => {
-              const p = barData.payload as { day: string; dateStr: string | null };
-              onDayClick(p.day, p.dateStr);
-            } : undefined}
-          >
-            {data.map((entry) => (
-              <Cell
-                key={entry.day}
-                fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-      <div className="flex items-center gap-3 mt-1 px-1 justify-end">
+    <div className="md:h-full md:flex md:flex-col">
+      <div className="h-40 md:h-auto md:flex-1 md:min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
+            <Tooltip
+              formatter={(v) => [formatCurrency(v as number), "Spent"]}
+              contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+              cursor={{ fill: "rgba(0,0,0,0.04)" }}
+            />
+            <Bar
+              dataKey="amount"
+              radius={[3, 3, 0, 0]}
+              animationDuration={600}
+              style={onDayClick ? { cursor: "pointer" } : undefined}
+              onClick={onDayClick ? (barData) => {
+                const p = barData.payload as { day: string; dateStr: string | null };
+                onDayClick(p.day, p.dateStr);
+              } : undefined}
+            >
+              {data.map((entry) => (
+                <Cell
+                  key={entry.day}
+                  fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex items-center gap-3 mt-1 px-1 justify-end md:shrink-0">
         <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <span className="inline-block size-2 rounded-sm bg-[#1C3557]" />
           Highest

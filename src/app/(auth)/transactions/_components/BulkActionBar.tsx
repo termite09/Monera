@@ -25,7 +25,7 @@ export function BulkActionBar({
 }: Props) {
   return (
     <div className="fixed bottom-20 md:bottom-4 left-0 right-0 md:left-56 z-40 px-4">
-      <div className="max-w-2xl mx-auto bg-card border border-border rounded-xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-2.5">
+      <div className="max-w-2xl mx-auto bg-card border border-border rounded-xl shadow-lg px-4 pt-3 pb-3 flex flex-col gap-2.5 md:max-w-none">
         {/* Row 1: count + total + clear */}
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
