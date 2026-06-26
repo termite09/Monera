@@ -5,6 +5,7 @@ import { Upload, FileText, CheckCircle, AlertCircle, Trash2, Loader2 } from "luc
 import { PageShell } from "@/components/layout/PageShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listFiles, uploadCSV, deleteFile } from "@/lib/google/drive";
@@ -23,7 +24,8 @@ interface UploadedFile {
 
 export default function UploadPage() {
   
-  const { structure, refetch } = useAppData();
+  const router = useRouter();
+  const { structure, settings, updateSettings, refetch } = useAppData();
   const { accessToken } = useAuth();
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
@@ -108,6 +110,7 @@ export default function UploadPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground">Upload Statement</h1>
           <p className="text-sm text-muted-foreground mt-1">Import any bank CSV or Excel file — Revolut is auto-detected, other formats are matched by their column headers</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Takes ~2 minutes. Export from Revolut, drop the file in — once per pay period is enough.</p>
         </div>
 
         {/* Drop zone */}
@@ -154,6 +157,30 @@ export default function UploadPage() {
                 )}
                 <p className="text-sm text-foreground">{message}</p>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recurring bills nudge — shown once after a successful import */}
+        {status === "success" && !settings.recurringNudgeDismissed && (
+          <Card className="shadow-none border-primary/30 bg-primary/3">
+            <CardContent className="p-4 flex items-start justify-between gap-3">
+              <p className="text-sm text-foreground leading-relaxed">
+                Add your regular bills — rent, insurance, standing orders — to get accurate upcoming charges and safe-to-spend.{" "}
+                <button
+                  onClick={() => router.push("/settings?tab=bills")}
+                  className="underline underline-offset-2 font-medium hover:text-primary transition-colors"
+                >
+                  Set up recurring bills →
+                </button>
+              </p>
+              <button
+                onClick={() => updateSettings({ ...settings, recurringNudgeDismissed: true })}
+                className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
             </CardContent>
           </Card>
         )}

@@ -103,7 +103,7 @@ export function Onboarding() {
             <StepBadge done={uploaded} n={2} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">Upload your first Revolut statement</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Export a CSV or Excel file from Revolut, then add it here.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Export a CSV or Excel file from Revolut, then add it here. Takes ~2 minutes — once per pay period is enough.</p>
               <input
                 ref={fileRef}
                 type="file"

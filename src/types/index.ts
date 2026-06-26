@@ -61,6 +61,8 @@ export interface Settings {
   hiddenMerchants?: string[];
   /** Detected subscription names the user has dismissed — does not affect calculations. */
   excludedSubscriptions?: string[];
+  /** True once the user has dismissed the post-import recurring-bills nudge. */
+  recurringNudgeDismissed?: boolean;
   /** Schema version — incremented when new default fields are added. */
   settingsVersion?: number;
 }

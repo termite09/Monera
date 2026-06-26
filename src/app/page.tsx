@@ -27,7 +27,7 @@ const FAQ = [
   },
   {
     q: "Is it free?",
-    a: "Yes, free and open-source. There's no account on our side and nothing to upsell.",
+    a: "Yes, and there's no catch. Most free finance apps make money from your data — Monera can't, because we never see it. There's no account on our side and nothing to upsell.",
   },
   {
     q: "Why does it need Google Drive access?",
@@ -53,17 +53,17 @@ const STEPS = [
   {
     icon: PieChart,
     title: "See where it went",
-    body: "Payday-aware budgets, categories, subscriptions, and plain-English insights.",
+    body: "Budgets that run payday-to-payday — not the 1st of the month. Categories, subscriptions, and plain-English insights.",
   },
 ];
 
 // Comparison cells: `true` → check, `false` → dim cross, string → text.
-const COMPARISON: { feature: string; monera: boolean | string; revolut: boolean | string; ynab: boolean | string }[] = [
-  { feature: "Payday-to-payday budgets", monera: true, revolut: "Calendar month", ynab: "Calendar / manual" },
-  { feature: "Where your data lives", monera: "Your Google Drive", revolut: "Revolut's servers", ynab: "Their servers" },
-  { feature: "Bank login required", monera: false, revolut: "It's your bank", ynab: true },
-  { feature: "Price", monera: "Free", revolut: "Free", ynab: "Paid" },
-  { feature: "Open-source", monera: true, revolut: false, ynab: false },
+const COMPARISON: { feature: string; monera: boolean | string; emma: boolean | string; snoop: boolean | string; revolut: boolean | string }[] = [
+  { feature: "Payday-to-payday budgets", monera: true, emma: "Calendar month", snoop: "Calendar month", revolut: "Calendar month" },
+  { feature: "Where your data lives", monera: "Your Google Drive", emma: "Emma's servers", snoop: "Snoop's servers", revolut: "Revolut's servers" },
+  { feature: "Bank login / Open Banking required", monera: false, emma: true, snoop: true, revolut: "Built-in" },
+  { feature: "Price", monera: "Free", emma: "Free – £14.99/mo", snoop: "Free / £47.99/yr", revolut: "Free" },
+  { feature: "Open-source", monera: true, emma: false, snoop: false, revolut: false },
 ];
 
 function Cell({ value }: { value: boolean | string }) {
@@ -188,7 +188,7 @@ export default async function Home() {
               Your money is nobody&apos;s business but yours.
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Most budgeting apps ask you to link your bank and trust them with everything. Monera doesn&apos;t.
+              A 2026 study found 60% of popular budgeting apps share your data with third parties — many with advertisers and data brokers. Monera doesn&apos;t.
               There&apos;s no Monera server and no database — your data is written only to a private{" "}
               <code className="font-mono text-xs text-foreground">Monera/</code> folder in your own Google Drive,
               using the minimal <code className="font-mono text-xs text-foreground">drive.file</code> permission that
@@ -210,8 +210,9 @@ export default async function Home() {
                 <tr className="border-b border-border">
                   <th className="text-left font-normal text-muted-foreground py-3 pr-3"></th>
                   <th className="text-center font-semibold text-foreground py-3 px-3">Monera</th>
-                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Revolut analytics</th>
-                  <th className="text-center font-normal text-muted-foreground py-3 px-3">YNAB / Monarch</th>
+                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Emma</th>
+                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Snoop</th>
+                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Revolut built-in</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,13 +220,17 @@ export default async function Home() {
                   <tr key={row.feature} className="border-b border-border/60">
                     <td className="py-3 pr-3 text-foreground">{row.feature}</td>
                     <td className="py-3 px-3 text-center bg-primary/3"><Cell value={row.monera} /></td>
+                    <td className="py-3 px-3 text-center"><Cell value={row.emma} /></td>
+                    <td className="py-3 px-3 text-center"><Cell value={row.snoop} /></td>
                     <td className="py-3 px-3 text-center"><Cell value={row.revolut} /></td>
-                    <td className="py-3 px-3 text-center"><Cell value={row.ynab} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p className="mt-4 text-xs text-muted-foreground text-center">
+            Considering YNAB, Monarch, or Copilot? Great apps — but US-focused and paid. Not ideal for Revolut/EU users.
+          </p>
         </section>
 
         {/* FAQ */}
