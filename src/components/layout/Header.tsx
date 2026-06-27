@@ -47,12 +47,12 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
         )}
       </AnimatePresence>
 
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between md:max-w-none md:px-6">
-        <span className="text-base font-semibold text-foreground md:hidden font-serif">
+      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between lg:max-w-none lg:px-6">
+        <span className="text-base font-semibold text-foreground lg:hidden font-serif">
           Monera
         </span>
 
-        <div className="flex items-center gap-1 ml-auto md:ml-0">
+        <div className="flex items-center gap-1 ml-auto lg:ml-0">
           {navLabel ? (
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (

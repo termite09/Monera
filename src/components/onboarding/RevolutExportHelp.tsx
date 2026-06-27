@@ -6,7 +6,7 @@ const STEPS = [
   "Choose Excel or CSV as the format.",
   "Pick the date range you want to import.",
   "Generate the statement and save or share the file to this device.",
-  "Come back here and upload it.",
+  "Upload it using the button above.",
 ];
 
 /**

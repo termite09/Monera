@@ -35,7 +35,7 @@ export function Onboarding() {
   const [uploadMsg, setUploadMsg] = useState("");
   const [payday, setPayday] = useState(String(settings.paydayOfMonth ?? 1));
   const [salary, setSalary] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
-  const [split, setSplit] = useState(settings.defaultBudgetRule ?? { needs: 30, wants: 60, savings: 10 });
+  const [split, setSplit] = useState(settings.defaultBudgetRule ?? { needs: 50, wants: 30, savings: 20 });
   const [finishing, setFinishing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -52,7 +52,7 @@ export function Onboarding() {
       const { transactions: parsed, errors } = parseCSV(content);
       await uploadCSV(accessToken, csvFileName(file.name), structure.revolutExportsId, content);
       setUploadState("done");
-      setUploadMsg(`Found ${parsed.length} transaction${parsed.length === 1 ? "" : "s"}${errors.length ? `, ${errors.length} skipped` : ""}.`);
+      setUploadMsg(`Found ${parsed.length} transaction${parsed.length === 1 ? "" : "s"}${errors.length ? ` — ${errors.length} rows skipped (unrecognised format)` : ""}.`);
       refetch();
     } catch (err) {
       setUploadState("error");
@@ -102,7 +102,7 @@ export function Onboarding() {
           <div className="flex items-start gap-3">
             <StepBadge done={uploaded} n={2} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">Upload your first Revolut statement</p>
+              <p className="text-sm font-medium text-foreground">Upload your first statement</p>
               <p className="text-xs text-muted-foreground mt-0.5">Export a CSV or Excel file from Revolut, then add it here. Takes ~2 minutes — once per pay period is enough.</p>
               <input
                 ref={fileRef}
@@ -126,7 +126,7 @@ export function Onboarding() {
                     {uploadState === "uploading" ? (
                       <><Loader2 size={15} className="mr-1.5 animate-spin" /> Uploading…</>
                     ) : (
-                      <><Upload size={15} className="mr-1.5" /> Choose CSV file</>
+                      <><Upload size={15} className="mr-1.5" /> Choose file (CSV or Excel)</>
                     )}
                   </Button>
                   {uploadState === "error" && (
@@ -134,6 +134,10 @@ export function Onboarding() {
                       <AlertCircle size={13} /> {uploadMsg}
                     </p>
                   )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Don&apos;t have one yet?{" "}
+                    <span className="text-muted-foreground/60">Skip for now — you can upload from the Upload tab later.</span>
+                  </p>
                   <RevolutExportHelp />
                 </>
               )}
@@ -145,16 +149,20 @@ export function Onboarding() {
             <StepBadge done={false} n={3} />
             <div className="min-w-0 flex-1">
               <Label htmlFor="ob-payday" className="text-sm font-medium text-foreground">When do you get paid?</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">Day of the month — your budget periods run from one payday to the next.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Day of the month (1–28) — your budget periods run from one payday to the next. Enter 28 if you&apos;re paid on the 29th, 30th, or 31st.</p>
               <Input
                 id="ob-payday"
                 type="number"
                 min={1}
                 max={28}
+                placeholder="e.g. 24"
                 value={payday}
                 onChange={(e) => setPayday(e.target.value)}
                 className="mt-2 h-11 w-28"
               />
+              {parseInt(payday) > 28 && (
+                <p className="mt-1 text-xs text-muted-foreground">We cap at 28 to handle all months reliably — your budget will start on the 28th.</p>
+              )}
             </div>
           </div>
 
@@ -163,17 +171,20 @@ export function Onboarding() {
             <StepBadge done={false} n={4} />
             <div className="min-w-0 flex-1">
               <Label htmlFor="ob-salary" className="text-sm font-medium text-foreground">What&apos;s your monthly salary?</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">Used as your income each period. You can override it for a specific month later, or leave it blank to use the figure detected from your statement.</p>
-              <Input
-                id="ob-salary"
-                type="number"
-                min={0}
-                inputMode="decimal"
-                placeholder="e.g. 2000"
-                value={salary}
-                onChange={(e) => setSalary(e.target.value)}
-                className="mt-2 h-11 w-40"
-              />
+              <p className="text-xs text-muted-foreground mt-0.5">Used as your income each period. Leave it blank and Monera will use the largest single credit in your statement as your income. You can override this for any period later.</p>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="text-sm text-muted-foreground font-mono">{settings.currency ?? "EUR"}</span>
+                <Input
+                  id="ob-salary"
+                  type="number"
+                  min={0}
+                  inputMode="decimal"
+                  placeholder="e.g. 2000"
+                  value={salary}
+                  onChange={(e) => setSalary(e.target.value)}
+                  className="h-11 w-36"
+                />
+              </div>
             </div>
           </div>
 
@@ -182,7 +193,7 @@ export function Onboarding() {
             <StepBadge done={splitValid} n={5} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">How do you want to split your budget?</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Percent of income for Needs, Wants and Savings. Must add up to 100%.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Percent of income for each category. Must add up to 100%.</p>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(["needs", "wants", "savings"] as const).map((k) => (
                   <div key={k} className="flex flex-col gap-1">
@@ -205,6 +216,12 @@ export function Onboarding() {
               <p className={cn("text-xs mt-1.5", splitValid ? "text-muted-foreground" : "text-destructive")}>
                 {splitValid ? "Adds up to 100%." : `Currently ${splitTotal}% — adjust to total 100%.`}
               </p>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground/70">
+                <span>Rent, groceries, transport</span>
+                <span>Eating out, subscriptions</span>
+                <span>Savings transfers, investments</span>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground/60">The 50/30/20 rule is a popular starting point — adjust to fit your life.</p>
             </div>
           </div>
         </CardContent>

@@ -19,7 +19,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex flex-col w-56 h-screen fixed left-0 top-0 bg-card border-r border-border z-30">
+    <aside className="hidden lg:flex flex-col w-56 h-screen fixed left-0 top-0 bg-card border-r border-border z-30">
       <div className="px-5 py-6">
         <h1 className="text-2xl text-foreground font-serif">
           Monera

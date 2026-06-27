@@ -54,7 +54,7 @@ export function SummaryCard({ label, amount, colorClass, index, secondaryText, a
           {info && <InfoIcon content={info} side="bottom" />}
           {onClick && <ChevronRight size={13} className="text-muted-foreground/50 shrink-0" />}
         </div>
-        <p className={cn("text-2xl leading-none font-medium tabular-nums font-mono", colorClass)}>
+        <p className={cn("text-xl sm:text-2xl leading-none font-medium tabular-nums font-mono", colorClass)}>
           {formatCurrency(displayed)}
         </p>
         {secondaryText && (

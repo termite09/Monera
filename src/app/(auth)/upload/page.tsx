@@ -68,7 +68,7 @@ export default function UploadPage() {
       const { transactions, errors } = parseCSV(content);
       await uploadCSV(accessToken, csvFileName(file.name), structure.revolutExportsId, content);
       setStatus("success");
-      setMessage(`Uploaded ${file.name} — found ${transactions.length} transactions${errors.length > 0 ? `, ${errors.length} parse errors` : ""}`);
+      setMessage(`Uploaded ${file.name} — found ${transactions.length} transactions${errors.length > 0 ? `, ${errors.length} rows skipped (unrecognised format)` : ""}`);
       await loadFiles();
       refetch();
     } catch (err) {

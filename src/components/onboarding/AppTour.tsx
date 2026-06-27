@@ -57,6 +57,11 @@ export function AppTour({ pageKey, slides }: AppTourProps) {
           <Button variant="ghost" className="text-muted-foreground" onClick={dismiss}>
             Skip tour
           </Button>
+          {slide > 0 && (
+            <Button variant="ghost" onClick={() => setSlide((s) => s - 1)}>
+              Back
+            </Button>
+          )}
           <Button
             className="flex-1"
             onClick={() => {
