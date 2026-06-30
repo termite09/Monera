@@ -18,7 +18,7 @@ import { TransactionFilters } from "./_components/TransactionFilters";
 import { BulkActionBar } from "./_components/BulkActionBar";
 import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { netExpenseTotal } from "@/lib/finance";
-import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn, toDateStr } from "@/lib/utils";
 import { Category, Transaction, TransactionType } from "@/types";
 
 const TRANSACTIONS_SLIDES = [
@@ -224,19 +224,28 @@ export default function TransactionsPage() {
     [scopedTxs, filterType, sortField, sortDir]
   );
 
+  const todayStr = useMemo(() => toDateStr(new Date()), []);
+
+  // Recurring projections and manual entries dated in the future are still shown
+  // in the list below (so upcoming bills stay visible), but they haven't actually
+  // happened yet — the total only counts what has, matching every other total in
+  // the app (dashboard, insights).
   const { summaryTotal, grossExpense, refunded } = useMemo(() => {
     let income = 0;
     let gross = 0;
-    for (const t of scopedTxs) {
+    const incurred = scopedTxs.filter((t) => t.date <= todayStr);
+    for (const t of incurred) {
       if (t.excluded) continue;
       if (t.type === "income") income += t.amount;
       else gross += t.amount;
     }
-    const net = netExpenseTotal(scopedTxs);
+    const net = netExpenseTotal(incurred);
     const total =
       filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : net;
     return { summaryTotal: total, grossExpense: roundMoney(gross), refunded: roundMoney(gross - net) };
-  }, [scopedTxs, filterType]);
+  }, [scopedTxs, filterType, todayStr]);
+
+  const upcomingCount = useMemo(() => filtered.filter((t) => t.date > todayStr).length, [filtered, todayStr]);
 
   const rangeLabel = customActive ? `${formatShortDate(customFrom)} – ${formatShortDate(customTo)}` : undefined;
   const showRefund = filterType === "expense" && refunded > 0;
@@ -339,6 +348,11 @@ export default function TransactionsPage() {
           {showRefund && (
             <span className="ml-1 text-muted-foreground/70 tabular-nums font-mono">
               ({formatCurrency(grossExpense)} − {formatCurrency(refunded)} refunded)
+            </span>
+          )}
+          {upcomingCount > 0 && (
+            <span className="ml-1 text-muted-foreground/70">
+              ({upcomingCount} upcoming not yet counted)
             </span>
           )}
         </p>

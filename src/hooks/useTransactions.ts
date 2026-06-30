@@ -23,7 +23,8 @@ const MAX_CACHE_ENTRIES = 60;
 // Bump when the parser's output changes so stale entries are re-parsed once.
 // v2: parser no longer strips self-transfers / savings-vault mirrors (that moved
 // to settings-driven filterInternalTransfers), so cached rows must be rebuilt.
-const CACHE_VERSION = "v2";
+// v3: Revolut parser now keeps PENDING rows (previously skipped until COMPLETED).
+const CACHE_VERSION = "v3";
 
 function cacheKey(f: { id: string; size?: string }): string {
   return `${f.id}:${f.size ?? "0"}:${CACHE_VERSION}`;

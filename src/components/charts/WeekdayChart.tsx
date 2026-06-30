@@ -23,14 +23,19 @@ const isRefund = (t: Transaction) =>
 function buildPeriodData(transactions: Transaction[], monthKey: string, paydayOfMonth: number) {
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const totals = [0, 0, 0, 0, 0, 0, 0];
+  const spent = [0, 0, 0, 0, 0, 0, 0];
+  const received = [0, 0, 0, 0, 0, 0, 0];
 
   for (const t of transactions) {
     if (t.excluded) continue;
     const d = new Date(t.date + "T00:00:00");
     if (d < start || d > end) continue;
     const i = (d.getDay() + 6) % 7;
-    if (t.type === "expense") totals[i] += t.amount;
-    else if (isRefund(t)) totals[i] -= t.amount;
+    if (t.type === "expense") { totals[i] += t.amount; spent[i] += t.amount; }
+    else if (t.type === "income") {
+      received[i] += t.amount;
+      if (isRefund(t)) totals[i] -= t.amount;
+    }
   }
 
   const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
@@ -38,6 +43,8 @@ function buildPeriodData(transactions: Transaction[], monthKey: string, paydayOf
   return WEEKDAY_LABELS.map((day, i) => ({
     day,
     amount: netted[i],
+    spent: Math.round(spent[i] * 100) / 100,
+    received: Math.round(received[i] * 100) / 100,
     future: false,
     isMax: netted[i] > 0 && netted[i] === max,
     dateStr: null as string | null,
@@ -57,16 +64,19 @@ function buildWeekData(transactions: Transaction[]) {
     const future = d > today;
     const dayStr = toDateStr(d);
     const sameDay = transactions.filter((t) => !t.excluded && t.date === dayStr);
-    const net = future
-      ? 0
-      : Math.max(
-          0,
-          Math.round(
-            (sameDay.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0) -
-              sameDay.filter(isRefund).reduce((s, t) => s + t.amount, 0)) * 100
-          ) / 100
-        );
-    return { day, amount: net, future, isMax: false, dateStr: dayStr };
+    const daySpent = sameDay.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    const dayReceived = sameDay.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    const dayRefunds = sameDay.filter(isRefund).reduce((s, t) => s + t.amount, 0);
+    const net = future ? 0 : Math.max(0, Math.round((daySpent - dayRefunds) * 100) / 100);
+    return {
+      day,
+      amount: net,
+      spent: future ? 0 : Math.round(daySpent * 100) / 100,
+      received: future ? 0 : Math.round(dayReceived * 100) / 100,
+      future,
+      isMax: false,
+      dateStr: dayStr,
+    };
   });
 
   const max = Math.max(...points.map((p) => p.amount));
@@ -80,19 +90,26 @@ function buildMonthData(transactions: Transaction[], monthKey: string) {
   const end = new Date(y, m, 0);
   end.setHours(23, 59, 59, 999);
   const totals = [0, 0, 0, 0, 0, 0, 0];
+  const spent = [0, 0, 0, 0, 0, 0, 0];
+  const received = [0, 0, 0, 0, 0, 0, 0];
   for (const t of transactions) {
     if (t.excluded) continue;
     const d = new Date(t.date + "T00:00:00");
     if (d < start || d > end) continue;
     const i = (d.getDay() + 6) % 7;
-    if (t.type === "expense") totals[i] += t.amount;
-    else if (isRefund(t)) totals[i] -= t.amount;
+    if (t.type === "expense") { totals[i] += t.amount; spent[i] += t.amount; }
+    else if (t.type === "income") {
+      received[i] += t.amount;
+      if (isRefund(t)) totals[i] -= t.amount;
+    }
   }
   const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
   const max = Math.max(...netted);
   return WEEKDAY_LABELS.map((day, i) => ({
     day,
     amount: netted[i],
+    spent: Math.round(spent[i] * 100) / 100,
+    received: Math.round(received[i] * 100) / 100,
     future: false,
     isMax: netted[i] > 0 && netted[i] === max,
     dateStr: null as string | null,
@@ -108,19 +125,26 @@ function buildYearData(transactions: Transaction[], monthKey: string) {
   const end = new Date(y, 11, 31);
   end.setHours(23, 59, 59, 999);
   const totals = [0, 0, 0, 0, 0, 0, 0];
+  const spent = [0, 0, 0, 0, 0, 0, 0];
+  const received = [0, 0, 0, 0, 0, 0, 0];
   for (const t of transactions) {
     if (t.excluded) continue;
     const d = new Date(t.date + "T00:00:00");
     if (d < start || d > end) continue;
     const i = (d.getDay() + 6) % 7;
-    if (t.type === "expense") totals[i] += t.amount;
-    else if (isRefund(t)) totals[i] -= t.amount;
+    if (t.type === "expense") { totals[i] += t.amount; spent[i] += t.amount; }
+    else if (t.type === "income") {
+      received[i] += t.amount;
+      if (isRefund(t)) totals[i] -= t.amount;
+    }
   }
   const netted = totals.map((v) => Math.max(0, Math.round(v * 100) / 100));
   const max = Math.max(...netted);
   return WEEKDAY_LABELS.map((day, i) => ({
     day,
     amount: netted[i],
+    spent: Math.round(spent[i] * 100) / 100,
+    received: Math.round(received[i] * 100) / 100,
     future: false,
     isMax: netted[i] > 0 && netted[i] === max,
     dateStr: null as string | null,
@@ -153,6 +177,41 @@ export function getChartDateRange(
   // year
   const [y] = monthKey.split("-").map(Number);
   return String(y);
+}
+
+interface BarTooltipPayload {
+  day: string;
+  spent: number;
+  received: number;
+}
+
+function BarTooltip({ active, payload }: { active?: boolean; payload?: { payload: BarTooltipPayload }[] }) {
+  if (!active || !payload?.length) return null;
+  const { spent, received } = payload[0].payload;
+  const net = spent - received;
+  return (
+    <div
+      style={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+      className="bg-card px-3 py-2 shadow-sm flex flex-col gap-1 min-w-32 font-mono"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-muted-foreground">Spent</span>
+        <span className="text-foreground">{formatCurrency(spent)}</span>
+      </div>
+      {received > 0 && (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">Received</span>
+          <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(received)}</span>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-1 font-semibold">
+        <span>Net</span>
+        <span className={net <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}>
+          {net > 0 ? "− " : net < 0 ? "+ " : ""}{formatCurrency(Math.abs(net))}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function WeekdayChart({
@@ -194,11 +253,7 @@ export function WeekdayChart({
           <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
-            <Tooltip
-              formatter={(v) => [formatCurrency(v as number), "Spent"]}
-              contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-              cursor={{ fill: "rgba(0,0,0,0.04)" }}
-            />
+            <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
             <Bar
               dataKey="amount"
               radius={[3, 3, 0, 0]}

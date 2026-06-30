@@ -205,7 +205,7 @@ export default function DashboardPage() {
 
     // Week mode: one exact calendar date.
     if (weekdayMode === "week" && dateStr && dateStr.length === 10) {
-      return allTxs
+      return currentTxs
         .filter((t) => !t.excluded && t.date === dateStr)
         .sort((a, b) => b.date.localeCompare(a.date));
     }
@@ -229,7 +229,7 @@ export default function DashboardPage() {
     } else {
       ({ start, end } = getPeriodBounds(month, paydayOfMonth));
     }
-    return allTxs
+    return currentTxs
       .filter((t) => {
         if (t.excluded) return false;
         const d = new Date(t.date + "T00:00:00");
@@ -237,7 +237,7 @@ export default function DashboardPage() {
         return (d.getDay() + 6) % 7 === dayIdx;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [weekdayFilter, weekdayMode, allTxs, month, chartMonth, paydayOfMonth]);
+  }, [weekdayFilter, weekdayMode, currentTxs, month, chartMonth, paydayOfMonth]);
 
   // The third card is forward-looking when this is the live period (what you can
   // still spend before payday), and falls back to the final "Remaining" once the
