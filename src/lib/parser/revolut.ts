@@ -26,6 +26,11 @@ const ALLOWED_TYPES = new Set([
   "TRANSFER",
 ]);
 
+// States meaning "this never actually happened" — everything else (COMPLETED,
+// PENDING) is imported since settlement can take days and we don't want to
+// wait on it.
+const EXCLUDED_STATES = new Set(["DECLINED", "FAILED", "REVERTED"]);
+
 function normalizeType(type: string): string {
   return type.toUpperCase().replace(/[\s_]/g, "");
 }
@@ -74,7 +79,7 @@ export function parseRevolutCSV(csvContent: string): ParsedCSV {
 
     const typedRow = row as unknown as RevolutRow;
 
-    if (typedRow.State?.toUpperCase() !== "COMPLETED") continue;
+    if (EXCLUDED_STATES.has(typedRow.State?.toUpperCase())) continue;
 
     // Skip transaction types we don't track (Topup, Interest, Exchange, etc.)
     if (!ALLOWED_TYPES.has(normalizeType(typedRow.Type ?? ""))) continue;

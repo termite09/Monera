@@ -41,8 +41,14 @@ describe("parseRevolutCSV", () => {
     expect(transactions[0].amount).toBe(1200);
   });
 
-  it("skips PENDING rows", () => {
+  it("keeps PENDING rows (settlement can take days)", () => {
     const csv = [HEADER, makeRow({ State: "PENDING" })].join("\n");
+    const { transactions } = parseRevolutCSV(csv);
+    expect(transactions).toHaveLength(1);
+  });
+
+  it("skips DECLINED, FAILED, and REVERTED rows", () => {
+    const csv = [HEADER, makeRow({ State: "DECLINED" }), makeRow({ State: "FAILED" }), makeRow({ State: "REVERTED" })].join("\n");
     const { transactions } = parseRevolutCSV(csv);
     expect(transactions).toHaveLength(0);
   });
