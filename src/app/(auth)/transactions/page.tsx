@@ -457,6 +457,7 @@ export default function TransactionsPage() {
             )}
           </CardContent>
         </Card>
+        {selectMode && <div className="h-32 md:hidden" aria-hidden />}
       </div>
 
       {/* Selection action bar */}
