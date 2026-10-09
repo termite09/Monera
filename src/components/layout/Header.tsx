@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getMonthLabel } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ interface HeaderProps {
 export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
   const monthLabel = getMonthLabel(month, paydayOfMonth);
+  const reduceMotion = useReducedMotion();
 
   const prevMonth = () => {
     const d = new Date(year, monthNum - 2, 1);
@@ -36,13 +37,17 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
       {/* Top loading bar */}
       <AnimatePresence>
         {isLoading && (
-          <div className="absolute top-0 inset-x-0 h-0.5 overflow-hidden">
-            <motion.div
-              className="h-full bg-primary"
-              initial={{ x: "-100%" }}
-              animate={{ x: "100%" }}
-              transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
-            />
+          <div className="absolute top-0 inset-x-0 h-0.5 overflow-hidden" role="status" aria-label="Loading">
+            {reduceMotion ? (
+              <div className="h-full bg-primary/60" />
+            ) : (
+              <motion.div
+                className="h-full bg-primary"
+                initial={{ x: "-100%" }}
+                animate={{ x: "100%" }}
+                transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
+              />
+            )}
           </div>
         )}
       </AnimatePresence>
@@ -57,13 +62,13 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (
             <>
-              <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous month">
+              <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous pay period">
                 <ChevronLeft size={16} />
               </Button>
-              <span className="text-sm font-medium text-foreground min-w-35 text-center">
+              <span className="text-sm font-medium text-foreground min-w-35 text-center" aria-live="polite">
                 {monthLabel}
               </span>
-              <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next month">
+              <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next pay period">
                 <ChevronRight size={16} />
               </Button>
             </>

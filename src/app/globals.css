@@ -27,6 +27,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-cat-needs: var(--cat-needs);
+  --color-cat-wants: var(--cat-wants);
+  --color-cat-savings: var(--cat-savings);
+  --color-status-ok: var(--status-ok);
+  --color-status-ok-bg: var(--status-ok-bg);
+  --color-status-warn: var(--status-warn);
+  --color-status-warn-bg: var(--status-warn-bg);
+  --color-status-over-bg: var(--status-over-bg);
+  --color-chart-bar: var(--chart-bar);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -53,6 +62,18 @@
   --border: #E4E2DC;
   --input: #E4E2DC;
   --ring: #1C3557;
+
+  /* Categories: one navy family, told apart by lightness and always labelled. */
+  --cat-needs: #1C3557;
+  --cat-wants: #4A7EC7;
+  --cat-savings: #8FA9CC;
+  /* Budget status: the only job green/amber/red have in the product. */
+  --status-ok: #047857;
+  --status-ok-bg: #E8F5EF;
+  --status-warn: #B45309;
+  --status-warn-bg: #FEF3E2;
+  --status-over-bg: #FDECEC;
+  --chart-bar: #DDD9D0;
 }
 
 .dark {
@@ -74,6 +95,16 @@
   --border: #2A2A27;
   --input: #2A2A27;
   --ring: #4A7EC7;
+
+  --cat-needs: #A9C3E8;
+  --cat-wants: #5E8FD4;
+  --cat-savings: #3E5A80;
+  --status-ok: #34D399;
+  --status-ok-bg: rgba(52, 211, 153, 0.12);
+  --status-warn: #FBBF24;
+  --status-warn-bg: rgba(251, 191, 36, 0.12);
+  --status-over-bg: rgba(239, 68, 68, 0.14);
+  --chart-bar: #34342F;
 }
 
 html {
@@ -92,6 +123,16 @@ html, body {
 * {
   -webkit-tap-highlight-color: transparent;
   border-color: var(--border);
+}
+
+/* A visible keyboard focus everywhere by default; components that draw their own
+   ring opt out with focus-visible:outline-none. Unlayered rules beat utilities,
+   so this lives in the base layer. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 body {
@@ -115,18 +156,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-@keyframes progress-pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-[role="progressbar"] {
-  animation: progress-pulse 1.5s ease-in-out infinite;
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
 }

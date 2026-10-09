@@ -11,6 +11,15 @@ colors:
   border-warm: "#E4E2DC"
   muted-gray: "#6B7280"
   destructive-red: "#DC2626"
+  cat-needs: "#1C3557"
+  cat-wants: "#4A7EC7"
+  cat-savings: "#8FA9CC"
+  status-ok: "#047857"
+  status-ok-bg: "#E8F5EF"
+  status-warn: "#B45309"
+  status-warn-bg: "#FEF3E2"
+  status-over-bg: "#FDECEC"
+  chart-bar: "#DDD9D0"
 typography:
   display:
     fontFamily: "DM Serif Display, Georgia, serif"
@@ -135,8 +144,25 @@ A single saturated navy anchors an otherwise warm-neutral field. One primary, se
 - **Muted Gray** (`#6B7280`): Secondary text, placeholder text, inactive navigation labels, supporting metadata. Passes 4.5:1 contrast against both Card White and Off-White.
 - **Destructive Red** (`#DC2626`): Error states, over-budget indicators, destructive action buttons. Semantic-only — never used decoratively.
 
+### Categories
+Needs, Wants and Savings share one navy family, told apart by lightness and always shown with their label (a small square swatch beside the word, never coloured text alone):
+- **Needs** (`#1C3557`, token `--cat-needs`) — Anchor Navy.
+- **Wants** (`#4A7EC7`, `--cat-wants`) — Steel Blue.
+- **Savings** (`#8FA9CC`, `--cat-savings`) — pale navy.
+Dark mode inverts the ramp (Needs lightest) so the most essential category stays the most prominent.
+
+### Budget status
+The only job green, amber and red have in the product: answering "am I within budget?". Each always travels with an icon and words, never colour alone.
+- **On track / target met** — `--status-ok` (`#047857`) on `--status-ok-bg`.
+- **Close to limit** (≥85% of a spending budget) — `--status-warn` (`#B45309`) on `--status-warn-bg`.
+- **Over budget** — Destructive Red on `--status-over-bg`.
+Income is not a status: it is shown in ink with a "+" sign. Savings is a target, so passing it is "met", never a warning.
+
+### Charts
+Bars are `--chart-bar` (`#DDD9D0`, warm); the one bar that matters (the peak) is Anchor Navy. Every chart carries a one-line plain-language takeaway, and its labels are buttons so it works from the keyboard.
+
 ### Named Rules
-**The One Anchor Rule.** Anchor Navy is the only saturated color used on neutral UI. Budget status colors (emerald OK / amber warning / destructive over) are semantic signals, not accent colors. If a new component wants "more color," the answer is Anchor Navy — there is no secondary accent.
+**The One Anchor Rule.** Anchor Navy is the only saturated color used on neutral UI. Category colours are shades of navy; budget status colours (ok / warning / over) are semantic signals, not accent colors. If a new component wants "more color," the answer is Anchor Navy — there is no secondary accent.
 
 **The Tonal Stack Rule.** Surfaces are layered in one direction: Off-White (page) → Card White (surface) → Warm Surface (hover/muted/track). Never invert this order. Never place a Warm Surface card on a Card White background — the contrast is imperceptible and breaks the stack's logic.
 
@@ -202,7 +228,7 @@ Components in Monera are **clean and confident** — crisp defaults, visible hie
 
 ### Navigation — Sidebar (desktop)
 - **Layout:** Fixed left, 224px wide, Card White bg, 1px border-right.
-- **Logo:** "Monera" in DM Serif Display `text-2xl`, "Personal Finance" in `text-xs` Muted Gray beneath.
+- **Logo:** "Monera" in DM Serif Display `text-2xl`, "Your money, your Drive" in `text-xs` Muted Gray beneath.
 - **Item default:** Muted Gray text, 8px radius, transparent bg. Hover: Warm Surface bg + Near-Black text.
 - **Item active:** `bg-primary/8` (Anchor Navy at 8% opacity) + Anchor Navy text, label weight 500. The active bg is a whisper — sufficient to orient without dominating the sidebar.
 
@@ -211,16 +237,19 @@ Components in Monera are **clean and confident** — crisp defaults, visible hie
 - **Tabs:** 5 equal-width items; icon (20px) + label (10px caption).
 - **Active:** Anchor Navy icon (`strokeWidth: 2.5`) + Anchor Navy label. Inactive: Muted Gray icon (`strokeWidth: 1.5`) + Muted Gray label.
 
-### Progress / Budget Bar
-- **Track:** Warm Surface bg, 6px tall, rounded-full.
-- **Fill — OK** (< 80%): Emerald 500 (`#10B981`).
-- **Fill — Warning** (≥ 80%, under budget): Amber 500 (`#F59E0B`).
-- **Fill — Over:** Destructive Red (`#DC2626`).
-- **Amounts:** DM Mono, tabular-nums. Color matches fill state (emerald / amber / destructive).
-- **Rule:** These three colors are semantic status indicators. Using emerald, amber, or destructive-red anywhere outside budget/error states is prohibited.
+### Budget status (circles and bars)
+- **Track:** Warm Surface (`--secondary`).
+- **Fill:** the category colour (`--cat-needs` / `--cat-wants` / `--cat-savings`); Destructive Red only when over budget.
+- **Close to limit** (spending budget ≥ 85% used): an amber "N% used" chip with a warning icon — the fill keeps its category colour.
+- **Over budget:** red fill, red amount and an "Over budget" chip. **Savings** is a target: passing it shows a green "Target met" chip, never red.
+- **Amounts:** DM Mono, tabular-nums. Ink by default; red only when over.
+- **Rule:** The status colours are semantic indicators. Using them anywhere outside budget/error states is prohibited — including for income, categories, or period-over-period change.
 
 ### Budget Donut
-Signature component — circular progress for Needs / Wants / Savings categories. Each donut is tappable and drills down to the transactions that compose it. Focus ring required; cursor: pointer. The amount shown inside uses DM Mono. Each category carries its own named color class (defined per the budget configuration); the donut color is not drawn from the primary palette.
+Signature component — circular progress for Needs / Wants / Savings. Each donut is a button that opens the transactions behind it, with a spoken label giving the amount left. The amount inside uses DM Mono; the arc uses the category token, with a small square swatch beside the label.
+
+### Type scale in the product
+Caption 12px · Label 14px · Body 16px · Title 18px · Hero figure 30–36px. No in-between sizes (13px, 15px, 22px): pick the nearest step. The 10px bottom-bar label is the single exception.
 
 ### Badges / Chips
 - **Shape:** Pill (`rounded-full`), `px-2.5 py-0.5`, 12px caption font.
@@ -238,13 +267,13 @@ Signature component — circular progress for Needs / Wants / Savings categories
 - **Do** use payday-period framing throughout the product UI: "this pay period," "since [payday date]." Never "this month" — calendar months are not how this product works.
 - **Do** apply `text-wrap: balance` to h1–h3 headings to prevent awkward breaks on narrow viewports.
 - **Do** include `:focus-visible` with a visible 2px Anchor Navy ring on every interactive element. Hidden focus states are an accessibility failure.
-- **Do** use emerald / amber / destructive-red exclusively for budget status (OK / Warning / Over). These colors mean specific things; diluting them breaks the language.
+- **Do** use the status colours exclusively for budget status (OK / Warning / Over), always with an icon and words. These colors mean specific things; diluting them breaks the language.
 
 ### Don't:
 - **Don't** use DM Serif Display inside the product app for anything except the "Monera" wordmark. All app headings use DM Sans. The serif is a brand mark, not a product heading.
 - **Don't** add `box-shadow` to cards, inputs, drawers, or containers. Flat-by-default is a system rule.
 - **Don't** apply `backdrop-filter: blur` outside the sticky app header. Glass-card patterns are prohibited.
-- **Don't** use emerald, amber, or destructive-red decoratively. Their meaning is fixed: budget status signals. Breaking this semantic contract makes the UI misleading.
+- **Don't** use the status colours decoratively, for income, or for categories. Their meaning is fixed: budget status signals. Breaking this semantic contract makes the UI misleading.
 - **Don't** let the design look like YNAB or classic budgeting spreadsheet apps — utilitarian, US-centric, functional-but-uninviting. If the interface communicates "tool" before "product," it has failed.
 - **Don't** badge-stamp privacy claims. No shield icons as decorative surface elements. Privacy is architectural; the copy states the mechanism once, and the design is simply clean.
 - **Don't** use calendar-month language inside the product: "this month" is wrong. "This pay period" or "since [payday]" is correct. This is product substance, not copy polish.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency, roundMoney, getCategoryTextClass } from "@/lib/utils";
+import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency, roundMoney, getCategoryTextClass, currencySymbol, dominantCurrency, setDisplayCurrency } from "@/lib/utils";
 
 describe("roundMoney", () => {
   it("eliminates floating-point accumulation drift to clean cents", () => {
@@ -80,13 +80,64 @@ describe("formatCurrency", () => {
   it("uses provided currency symbol", () => {
     expect(formatCurrency(100, "$")).toBe("$100.00");
   });
+
+  it("maps ISO codes to symbols", () => {
+    expect(formatCurrency(12.5, "GBP")).toBe("£12.50");
+    expect(formatCurrency(12.5, "EUR")).toBe("€12.50");
+    expect(formatCurrency(12.5, "CHF")).toBe("CHF 12.50");
+  });
+
+  it("falls back to the display currency set from statements", () => {
+    setDisplayCurrency("GBP");
+    try {
+      expect(formatCurrency(3)).toBe("£3.00");
+    } finally {
+      setDisplayCurrency("€");
+    }
+  });
+});
+
+describe("currencySymbol / dominantCurrency", () => {
+  it("passes symbols through unchanged", () => {
+    expect(currencySymbol("€")).toBe("€");
+  });
+
+  it("picks the most common statement currency and ignores recurring rows", () => {
+    const rows = [
+      { currency: "GBP", source: "revolut" },
+      { currency: "GBP", source: "revolut" },
+      { currency: "EUR", source: "revolut" },
+      { currency: "EUR", source: "recurring" },
+      { currency: "EUR", source: "recurring" },
+    ];
+    expect(dominantCurrency(rows)).toBe("GBP");
+    expect(dominantCurrency([])).toBeNull();
+  });
 });
 
 describe("getCategoryTextClass", () => {
-  it("returns correct Tailwind text classes for each category", () => {
-    expect(getCategoryTextClass("Needs")).toBe("text-blue-600 dark:text-blue-400");
-    expect(getCategoryTextClass("Wants")).toBe("text-amber-600 dark:text-amber-400");
-    expect(getCategoryTextClass("Savings")).toBe("text-emerald-600 dark:text-emerald-400");
+  it("keeps category labels in ink; only Uncategorized is muted", () => {
+    expect(getCategoryTextClass("Needs")).toBe("text-foreground");
+    expect(getCategoryTextClass("Wants")).toBe("text-foreground");
+    expect(getCategoryTextClass("Savings")).toBe("text-foreground");
     expect(getCategoryTextClass("Uncategorized")).toBe("text-muted-foreground");
+  });
+});
+
+describe("paydays on the 29th–31st", () => {
+  it("falls back to the last day of shorter months", () => {
+    // Paid on the 31st: the January period runs 31 Jan – 27 Feb 2026 (Feb has 28 days).
+    const { start, end } = getPeriodBounds("2026-01", 31);
+    expect([start.getMonth() + 1, start.getDate()]).toEqual([1, 31]);
+    expect([end.getMonth() + 1, end.getDate()]).toEqual([2, 27]);
+    const feb = getPeriodBounds("2026-02", 31);
+    expect([feb.start.getMonth() + 1, feb.start.getDate()]).toEqual([2, 28]);
+    expect([feb.end.getMonth() + 1, feb.end.getDate()]).toEqual([3, 30]);
+  });
+
+  it("assigns the last day of a short month to the new period", () => {
+    expect(getMonthKey("2026-02-28", 31)).toBe("2026-02");
+    expect(getMonthKey("2026-02-27", 31)).toBe("2026-01");
+    expect(getMonthKey("2026-03-31", 31)).toBe("2026-03");
   });
 });

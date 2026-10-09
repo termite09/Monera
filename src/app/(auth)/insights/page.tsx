@@ -21,11 +21,11 @@ import { YearTab } from "./_tabs/YearTab";
 const REPORTS_SLIDES = [
   {
     title: "Your insights",
-    body: "Insights help you understand your money. Overview shows your savings rate, projected spending, and how this period compares to the last.",
+    body: "Overview shows how much of your pay you kept, where you'll be by payday, and how this period compares with the last.",
   },
   {
     title: "Dig into the detail",
-    body: "Merchants shows where your money actually went — tap any to see the transactions. Subscriptions tracks recurring bills, and Year zooms out to the whole year.",
+    body: "Merchants shows where your money went. Subscriptions lists the regular charges Monera found, and Year shows the whole year by pay period.",
   },
 ];
 
@@ -120,14 +120,17 @@ export default function ReportsPage() {
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Sub-tab switcher */}
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
+        <div role="tablist" aria-label="Insights sections" className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
           {REPORT_TABS.map((t) => (
             <button
               key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={cn(
                 "h-9 rounded-md text-xs font-medium transition-colors",
-                tab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                tab === t.id ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
               )}
             >
               {t.label}

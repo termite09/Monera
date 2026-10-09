@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Transaction, Category, RecurringPayment } from "@/types";
-import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey, ordinal } from "@/lib/utils";
+import { Transaction, RecurringPayment } from "@/types";
+import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey, ordinal, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, CalendarClock, CreditCard, EyeOff } from "lucide-react";
 import type { detectSubscriptions } from "@/lib/reports";
@@ -21,12 +21,6 @@ function getPeriodRangeBadge(startMonth?: string, endMonth?: string): string | n
   return `Until ${formatPeriodKey(endMonth!)}`;
 }
 
-const CAT_CHIP: Record<Category, string> = {
-  Needs: "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300",
-  Wants: "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300",
-  Savings: "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300",
-  Uncategorized: "bg-secondary text-muted-foreground",
-};
 
 function countBillPeriods(p: RecurringPayment, currentMonth: string, fallbackStart: string): number {
   const start = p.startMonth ?? fallbackStart;
@@ -60,14 +54,14 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
 
   return (
     <>
-      <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <Card>
         <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            <CalendarClock size={13} /> Your Recurring Bills
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CalendarClock size={13} aria-hidden /> <h2>Your regular bills</h2>
           </CardTitle>
           {recurringPayments.length > 0 && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {formatCurrency(recurringPayments.reduce((s, p) => s + p.amount, 0))}/mo
+            <span className="text-xs text-muted-foreground">
+              <span className="font-mono tabular-nums">{formatCurrency(recurringPayments.reduce((s, p) => s + p.amount, 0))}</span> per period
             </span>
           )}
         </CardHeader>
@@ -76,7 +70,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             <p className="text-sm text-muted-foreground py-2">No recurring bills set up yet. Add them in Settings → Bills.</p>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground mb-3">Added in Settings — paid outside Revolut, so they won&apos;t show up in your imported transactions.</p>
+              <p className="text-xs text-muted-foreground mb-3">Bills you added in Settings, usually paid from another account.</p>
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = getPeriodRangeBadge(p.startMonth, p.endMonth);
@@ -87,17 +81,18 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm text-foreground wrap-break-word min-w-0">{p.name}</p>
-                          <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded-md shrink-0", CAT_CHIP[p.category])}>
+                          <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-1.5 py-0.5 rounded-md shrink-0 bg-secondary", getCategoryTextClass(p.category))}>
+                            <span className={cn("size-2 rounded-sm", getCategorySwatchClass(p.category))} aria-hidden />
                             {p.category}
                           </span>
                           {badge && (
-                            <span className="text-[11px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
+                            <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
                               {badge}
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {ordinal(p.dayOfMonth)} of the month · {formatCurrency(p.amount)}/mo · {count} time{count === 1 ? "" : "s"}
+                          {ordinal(p.dayOfMonth)} of the month · {formatCurrency(p.amount)} per period · {count} time{count === 1 ? "" : "s"}
                         </p>
                       </div>
                       <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(total)}</span>
@@ -110,23 +105,25 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <Card>
         <CardHeader className="pb-2 pt-4 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <CreditCard size={13} /> Detected Subscriptions
-              {excludedSubCount > 0 && (
-                <button
-                  onClick={onRestore}
-                  className="ml-auto text-[10px] normal-case font-normal text-primary hover:underline tracking-normal"
-                >
-                  Show all ({excludedSubCount} hidden)
-                </button>
-              )}
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <CreditCard size={13} aria-hidden /> <h2>Subscriptions we found</h2>
             </CardTitle>
-            {subscriptions.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">~{formatCurrency(subsMonthly)}/mo</span>}
+            {subscriptions.length > 0 && <span className="text-sm text-muted-foreground"><span className="font-medium text-foreground font-mono tabular-nums">~{formatCurrency(subsMonthly)}</span> per period</span>}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">Repeat payments to the same place with a similar amount, appearing at least twice roughly a month apart.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Optional things you pay for about once a month, like streaming, apps and the gym. Hide anything that isn&apos;t a subscription.
+            {excludedSubCount > 0 && (
+              <>
+                {" "}
+                <button type="button" onClick={onRestore} className="text-primary hover:underline">
+                  Show hidden ({excludedSubCount})
+                </button>
+              </>
+            )}
+          </p>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           {subscriptions.length === 0 ? (
@@ -141,38 +138,41 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       .sort((a, b) => b.date.localeCompare(a.date))
                   : [];
                 return (
-                  <div key={s.name} className="border-b border-border/50 last:border-0">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setExpandedSub(isOpen ? null : s.name)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpandedSub(isOpen ? null : s.name); }}
-                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left cursor-pointer"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground wrap-break-word">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {s.months} month{s.months === 1 ? "" : "s"} · ~{formatCurrency(s.amount)}/charge · last {formatDate(s.lastDate)}
-                        </p>
-                      </div>
-                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(s.total)}</span>
-                      <ChevronDown
-                        size={14}
-                        className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
-                      />
+                  <div key={s.name} className="border-b border-border last:border-0">
+                    <div className="flex items-center gap-1 pr-2">
                       <button
-                        onClick={(e) => { e.stopPropagation(); onExclude(s.name); }}
-                        className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0"
-                        aria-label={`Hide ${s.name} from this view`}
-                        title="Hide from this view (won't affect your data)"
+                        type="button"
+                        onClick={() => setExpandedSub(isOpen ? null : s.name)}
+                        aria-expanded={isOpen}
+                        className="flex-1 min-w-0 flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
                       >
-                        <EyeOff size={14} />
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm text-foreground wrap-break-word">{s.name}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Seen in {s.months} months · last {formatDate(s.lastDate)}
+                          </span>
+                        </span>
+                        <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">~{formatCurrency(s.amount)}</span>
+                        <ChevronDown
+                          size={14}
+                          aria-hidden
+                          className={cn("text-muted-foreground shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onExclude(s.name)}
+                        className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+                        aria-label={`${s.name} isn't a subscription — hide it`}
+                        title="Not a subscription? Hide it (won't change your numbers)"
+                      >
+                        <EyeOff size={14} aria-hidden />
                       </button>
                     </div>
                     {isOpen && (
-                      <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
-                        <p className="px-3 py-2 text-[11px] text-muted-foreground bg-secondary/50 border-b border-border">
-                          {subTxs.length} charge{subTxs.length === 1 ? "" : "s"} across all history
+                      <div className="mx-4 mb-3 rounded-lg bg-secondary/50">
+                        <p className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
+                          <span className="font-mono tabular-nums">{formatCurrency(s.total)}</span> across {subTxs.length} charge{subTxs.length === 1 ? "" : "s"} so far
                         </p>
                         <div className="divide-y divide-border">
                           {subTxs.length === 0 ? (

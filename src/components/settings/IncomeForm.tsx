@@ -29,12 +29,12 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
   };
 
   return (
-    <Card className="shadow-none border-border">
+    <Card>
       <CardHeader className="pb-3 pt-4 px-4">
-        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</CardTitle>
+        <CardTitle className="text-sm font-semibold text-foreground">{label}</CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 flex flex-col gap-3">
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="text-xs text-muted-foreground max-w-[65ch]">{hint}</p>
         {keywords.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {keywords.map((kw) => (
@@ -120,37 +120,37 @@ export function IncomeForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Sources</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Teach Monera which deposits are your salary and which are transfers between your own accounts, so they&apos;re handled correctly.
+        <h1 className="text-xl font-semibold text-foreground">Income</h1>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
+          Tell Monera which payments are your pay and which are just money moving between your own accounts, so nothing is counted twice.
         </p>
-        <p className="text-xs text-muted-foreground mt-2">Your default salary amount is in the <strong>Setup</strong> tab.</p>
+        <p className="text-xs text-muted-foreground mt-2">The pay you expect each period is under <strong>Basics</strong>.</p>
       </div>
 
       <KeywordEditor
-        label="Salary keywords"
-        hint="If a deposit description contains one of these words, it will be labelled 'Salary' in your income breakdown. Add your employer's name or the text that appears on your payslip."
+        label="Pay keywords"
+        hint="Words from your pay's description, like your employer's name. Matching payments count as your pay, replacing the expected amount from Basics."
         placeholder="e.g. employer name"
         keywords={salary}
         onChange={setSalary}
       />
       <KeywordEditor
-        label="Internal transfer keywords"
-        hint="Transfers between your own accounts (for example, moving money to a savings account). These are removed entirely so they don't show up as income or spending."
+        label="Your own transfers"
+        hint="Money moved between your own accounts. Matching transactions are ignored, so they don't count as income or spending."
         placeholder="e.g. your full name"
         keywords={selfTransfer}
         onChange={setSelfTransfer}
       />
       <KeywordEditor
-        label="Revolut savings keywords"
-        hint="When you move money into a Revolut Savings Vault, it appears twice — once as an outgoing (counted as Savings) and once as an incoming. Add keywords from those incoming descriptions here to remove the duplicate."
+        label="Revolut savings"
+        hint="Moving money into a Revolut Savings vault shows up twice: once going out (counted as Savings) and once coming in. Add words from the incoming one so it isn't counted as income."
         placeholder="e.g. eur savings"
         keywords={savingsVault}
         onChange={setSavingsVault}
       />
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty} className={cn("w-full", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}>
-        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Income Settings"}
+      <Button onClick={handleSave} disabled={isSaving || !dirty} className={cn("w-full sm:w-auto sm:self-start sm:px-8", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}>
+        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}
       </Button>
     </div>
   );

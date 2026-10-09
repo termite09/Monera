@@ -16,7 +16,11 @@ export function useBudget(
     return d >= start && d <= end;
   };
 
-  const monthIncomeTxs = transactions.filter((tx) => inPeriod(tx) && tx.type === "income");
+  // Money in this period. Refunds are income tagged to a spending category and are
+  // already netted against that category's spend, so they are not income too.
+  const monthIncomeTxs = transactions.filter(
+    (tx) => inPeriod(tx) && tx.type === "income" && tx.category === "Uncategorized"
+  );
 
   const monthBudget = settings.monthlyBudgets[month];
   const budgetRule = monthBudget?.budgetRule ?? settings.defaultBudgetRule;
@@ -30,27 +34,22 @@ export function useBudget(
   const defaultIncome = settings.defaultIncome ?? 0;
   const salaryKeywords = settings.salaryKeywords ?? [];
 
-  // Planned salary: per-period override > standing default > 0
+  // Expected pay: per-period override > standing default > 0. This is what the
+  // user told us they earn — a stand-in until the real deposit shows up.
   const salaryBasis = configuredIncome > 0 ? configuredIncome : defaultIncome > 0 ? defaultIncome : 0;
 
   const detectedIncome = roundMoney(monthIncomeTxs.reduce((s, t) => s + t.amount, 0));
+  const salaryTxs = findSalaryTxs(monthIncomeTxs, salaryKeywords, salaryBasis);
+  const detectedSalary = roundMoney(salaryTxs.reduce((s, t) => s + t.amount, 0));
 
-  // Non-salary income: transactions that don't match any salary keyword.
-  // Used by the dashboard income card to show the breakdown of other income sources.
-  const additionalIncome = roundMoney(
-    monthIncomeTxs
-      .filter((t) =>
-        salaryKeywords.length === 0 ||
-        !salaryKeywords.some((k) => t.description.toLowerCase().includes(k.toLowerCase()))
-      )
-      .reduce((s, t) => s + t.amount, 0)
-  );
+  // Everything that isn't pay: freelance, transfers from friends, interest...
+  const additionalIncome = roundMoney(detectedIncome - detectedSalary);
 
-  // salaryBasis is a planned/configured income (e.g. primary job paid via a
-  // different account, or a standing retainer). It combines with ALL detected
-  // bank-statement income — salary-keyword transactions included — so that
-  // multiple salary sources from different employers are all counted.
-  const income = roundMoney(salaryBasis > 0 ? salaryBasis + detectedIncome : detectedIncome);
+  // Pay is counted once: the real deposit when the statement has it, otherwise
+  // the expected amount. Other income always adds on top.
+  const salaryFromStatement = detectedSalary > 0;
+  const salaryUsed = salaryFromStatement ? detectedSalary : salaryBasis;
+  const income = roundMoney(salaryUsed + additionalIncome);
   const incomeIsDetected = detectedIncome > 0;
 
   // Single source of truth for period spend / refund-netting — shared with the
@@ -77,5 +76,36 @@ export function useBudget(
     savings: roundMoney((summary.income * budgetRule.savings) / 100),
   };
 
-  return { paydayOfMonth, summary, budgetAllocations, budgetRule, incomeIsDetected, salaryBasis, additionalIncome };
+  return {
+    paydayOfMonth, summary, budgetAllocations, budgetRule, incomeIsDetected,
+    salaryBasis, additionalIncome, salaryUsed, salaryFromStatement,
+    salaryTxIds: salaryTxs.map((t) => t.id),
+    /** The deposit we took to be pay, when it wasn't matched by a saved keyword — worth confirming. */
+    unconfirmedSalaryTx: salaryBasis > 0 && salaryFromStatement && !salaryTxs.some((t) => matchesKeyword(t, salaryKeywords)) ? salaryTxs[0] : null,
+  };
+}
+
+function matchesKeyword(tx: Transaction, keywords: string[]): boolean {
+  const desc = tx.description.toLowerCase();
+  return keywords.some((k) => k.trim() !== "" && desc.includes(k.toLowerCase()));
+}
+
+/**
+ * Which of the period's deposits are the user's pay.
+ *  1. Deposits matching a saved salary keyword (several employers all count).
+ *  2. Otherwise, when we know roughly what they earn, the largest deposit that's
+ *     at least half of it — so typing your pay AND importing the statement that
+ *     contains it never counts it twice.
+ *  3. Otherwise, with no expected pay, the largest deposit (labelling only — all
+ *     deposits count as income either way).
+ */
+export function findSalaryTxs(incomeTxs: Transaction[], keywords: string[], expectedPay: number): Transaction[] {
+  const byKeyword = incomeTxs.filter((t) => matchesKeyword(t, keywords));
+  if (byKeyword.length > 0) return byKeyword;
+  const largestFirst = [...incomeTxs].sort((a, b) => b.amount - a.amount);
+  if (expectedPay > 0) {
+    const likely = largestFirst.find((t) => t.amount >= expectedPay * 0.5);
+    return likely ? [likely] : [];
+  }
+  return largestFirst.slice(0, 1);
 }

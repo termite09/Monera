@@ -1,24 +1,41 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { InfoIcon } from "@/components/ui/InfoIcon";
 import { cn, formatCurrency } from "@/lib/utils";
 
 interface SummaryCardProps {
   label: string;
-  amount: number;
-  colorClass: string;
+  /** null = no figure to show yet (e.g. no statement for this period). */
+  amount: number | null;
   index: number;
-  secondaryText?: string;
-  accent?: string;
-  info?: string;
+  /** "hero" is the one tile that answers the screen's question (safe to spend). */
+  variant?: "hero" | "default";
+  /** Prefix shown before the amount, e.g. "+" for money coming in. */
+  sign?: string;
+  /** Plain-language line under the amount (hero only). */
+  sentence?: ReactNode;
+  /** Small supporting line under the sentence, e.g. how current the data is (hero only). */
+  note?: ReactNode;
+  /** Red when the figure means "over" — the only colour a tile ever takes. */
+  negative?: boolean;
+  className?: string;
   onClick?: () => void;
 }
 
-export function SummaryCard({ label, amount, colorClass, index, secondaryText, accent = "#94a3b8", info, onClick }: SummaryCardProps) {
+export function SummaryCard({
+  label,
+  amount,
+  index,
+  variant = "default",
+  sign = "",
+  sentence,
+  note,
+  negative = false,
+  className,
+  onClick,
+}: SummaryCardProps) {
   const shouldReduceMotion = useReducedMotion();
   const [animated, setAnimated] = useState(0);
   const rafRef = useRef<number>(0);
@@ -31,51 +48,53 @@ export function SummaryCard({ label, amount, colorClass, index, secondaryText, a
     const tick = (now: number) => {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setAnimated(amount * eased);
+      setAnimated((amount ?? 0) * eased);
       if (progress < 1) rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [amount, shouldReduceMotion]);
 
-  const displayed = shouldReduceMotion ? amount : animated;
-
-  const cardContent = (
-    <Card className={cn(
-      "rounded-2xl border-border/70",
-      onClick && "cursor-pointer active:scale-[0.98] transition-transform"
-    )}>
-      <CardContent className="p-4 h-27 flex flex-col">
-        <div className="flex items-center gap-1.5 mb-2.5">
-          <span className="size-1.5 rounded-full shrink-0" style={{ background: accent }} />
-          <p className="text-xs font-semibold text-foreground flex-1">
-            {label}
-          </p>
-          {info && <InfoIcon content={info} side="bottom" />}
-          {onClick && <ChevronRight size={13} className="text-muted-foreground/50 shrink-0" />}
-        </div>
-        <p className={cn("text-xl sm:text-2xl leading-none font-medium tabular-nums font-mono", colorClass)}>
-          {formatCurrency(displayed)}
-        </p>
-        {secondaryText && (
-          <span className="mt-auto">
-            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
-              {secondaryText}
-            </span>
-          </span>
-        )}
-      </CardContent>
-    </Card>
-  );
+  const displayed = shouldReduceMotion ? (amount ?? 0) : animated;
+  const hero = variant === "hero";
+  // The full figure for screen readers — the visible one counts up.
+  const prefix = amount !== null && amount < 0 ? "−" : sign;
+  const spoken = amount === null ? label : `${label}: ${prefix}${formatCurrency(Math.abs(amount))}`;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: shouldReduceMotion ? 0 : index * 0.06, duration: shouldReduceMotion ? 0 : 0.3, ease: "easeOut" }}
-      onClick={onClick}
+    <div
+      className={cn("motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:fill-mode-backwards", className)}
+      style={{ animationDelay: `${index * 60}ms` }}
     >
-      {cardContent}
-    </motion.div>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={onClick ? `${spoken}. Show details` : spoken}
+        className={cn(
+          "w-full h-full text-left rounded-xl border border-border bg-card flex flex-col transition-colors",
+          "hover:bg-secondary/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          hero ? "p-5 gap-1.5 md:px-6" : "p-3 gap-1.5 sm:p-4 md:p-5"
+        )}
+      >
+        <span className={cn("flex items-center w-full font-semibold text-foreground", hero ? "text-sm" : "text-sm sm:text-sm")}>
+          {label}
+          {onClick && <ChevronRight size={14} className="ml-auto text-muted-foreground shrink-0" aria-hidden />}
+        </span>
+        <span
+          aria-hidden
+          className={cn(
+            "font-mono tabular-nums font-medium leading-tight",
+            hero ? "text-3xl sm:text-4xl tracking-[-0.01em]" : "text-sm sm:text-xl md:text-2xl",
+            negative ? "text-destructive" : "text-foreground"
+          )}
+        >
+          {amount === null ? "—" : <>{prefix}{formatCurrency(Math.abs(displayed))}</>}
+        </span>
+        {hero && sentence && (
+          <span className="text-base leading-relaxed text-foreground/80 max-w-[52ch]">{sentence}</span>
+        )}
+        {hero && note && <span className="text-xs text-muted-foreground">{note}</span>}
+      </button>
+    </div>
   );
 }

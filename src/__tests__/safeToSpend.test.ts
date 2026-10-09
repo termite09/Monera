@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeSafeToSpend } from "@/lib/safeToSpend";
+import { computeSafeToSpend, dailyAllowance, nextPayday } from "@/lib/safeToSpend";
 import { Transaction, Settings, MonthSummary } from "@/types";
 
 const baseSettings: Settings = {
@@ -54,6 +54,22 @@ describe("computeSafeToSpend", () => {
     expect(r.daysLeft).toBeGreaterThan(0);
   });
 
+  it("holds back the rest of the savings target, counting scheduled savings transfers", () => {
+    const txs = [
+      tx({ amount: 80, type: "expense", category: "Savings", date: "2024-06-08" }), // saved so far
+      tx({ amount: 100, type: "expense", category: "Savings", date: "2024-06-25", source: "recurring" }), // scheduled
+    ];
+    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 300);
+    expect(r.savingsSetAside).toBe(120); // 300 target − 80 saved − 100 scheduled
+    expect(r.safe).toBe(1700); // 2000 − 80 saved − 100 due − 120 set aside
+  });
+
+  it("holds nothing back once the savings target is reached", () => {
+    const txs = [tx({ amount: 400, type: "expense", category: "Savings", date: "2024-06-08" })];
+    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 300);
+    expect(r.savingsSetAside).toBe(0);
+  });
+
   it("is not applicable for a period that doesn't contain today", () => {
     const r = computeSafeToSpend([], baseSettings, "2024-06", summaryWith(2000), new Date("2024-08-15T12:00:00"));
     expect(r.applicable).toBe(false);
@@ -75,5 +91,29 @@ describe("computeSafeToSpend", () => {
     expect(r.spentSoFar).toBe(40);
     expect(r.billsDue).toBe(60);
     expect(r.safe).toBe(900); // 1000 − 40 − 0 − 60
+  });
+});
+
+describe("dailyAllowance", () => {
+  it("spreads what is safe across the days left, rounding down to the cent", () => {
+    expect(dailyAllowance(420.63, 15)).toBe(28.04);
+  });
+
+  it("returns null when there is nothing to spread", () => {
+    expect(dailyAllowance(0, 10)).toBeNull();
+    expect(dailyAllowance(-20, 10)).toBeNull();
+    expect(dailyAllowance(100, 0)).toBeNull();
+  });
+});
+
+describe("nextPayday", () => {
+  it("is the day after the period ends", () => {
+    const d = nextPayday("2026-09", 24);
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2026, 10, 24]);
+  });
+
+  it("rolls over the year for a December period", () => {
+    const d = nextPayday("2026-12", 1);
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2027, 1, 1]);
   });
 });

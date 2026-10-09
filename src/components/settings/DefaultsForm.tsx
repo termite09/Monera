@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAppData } from "@/contexts/AppDataContext";
-import { ordinal } from "@/lib/utils";
+import { ordinal, cn, getDisplayCurrency } from "@/lib/utils";
 
 export function DefaultsForm({ settings, updateSettings }: {
   settings: ReturnType<typeof useAppData>["settings"];
@@ -36,7 +36,7 @@ export function DefaultsForm({ settings, updateSettings }: {
     if (total !== 100) return;
     setIsSaving(true);
     setError(false);
-    const paydayNum = Math.min(28, Math.max(1, parseInt(payday) || 1));
+    const paydayNum = Math.min(31, Math.max(1, parseInt(payday) || 1));
     try {
       await updateSettings({
         ...settings,
@@ -69,29 +69,29 @@ export function DefaultsForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Setup</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Your pay cycle, default salary, and how to split your budget. Applied every month unless you override in Monthly.</p>
+        <h1 className="text-xl font-semibold text-foreground">Basics</h1>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Your payday, your pay, and how you&apos;d like to split it. Every pay period uses these unless you change one under Period.</p>
       </div>
 
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pay Cycle</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground"><h2>Payday</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-          <Label htmlFor="payday">Payday (day of month)</Label>
-          <Input id="payday" type="number" min={1} max={28} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11" />
-          <p className="text-xs text-muted-foreground">
-            Period starts on the {ordinal(paydayNum)}. Capped at 28 for shorter months.
+          <Label htmlFor="payday">Day of the month you get paid</Label>
+          <Input id="payday" type="number" inputMode="numeric" min={1} max={31} value={payday} onChange={(e) => setPayday(e.target.value)} placeholder="e.g. 24" className="h-11 max-w-48" />
+          <p className="text-xs text-muted-foreground max-w-[65ch]">
+            Each pay period starts on the {ordinal(paydayNum)}{paydayNum > 28 ? ", or the last day of shorter months" : ""}.
           </p>
         </CardContent>
       </Card>
 
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Default Monthly Salary (€)</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground"><h2>Your pay</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-          <Label htmlFor="default-income">Amount</Label>
+          <Label htmlFor="default-income">Pay per period ({getDisplayCurrency().trim()})</Label>
           <Input
             id="default-income"
             type="number"
@@ -100,45 +100,42 @@ export function DefaultsForm({ settings, updateSettings }: {
             value={defaultIncome}
             onChange={(e) => setDefaultIncome(e.target.value)}
             placeholder="e.g. 2000"
-            className="h-11"
+            className="h-11 max-w-48"
           />
-          <p className="text-xs text-muted-foreground">
-            Used as your income for every period unless a specific month has its own planned income (set in the Monthly tab). Leave blank to use the income detected from your statement.
+          <p className="text-xs text-muted-foreground max-w-[65ch]">
+            Your usual take-home pay. It&apos;s used until your statement shows the real payment, then the real amount is used instead. Leave it blank to count only what arrives.
           </p>
         </CardContent>
       </Card>
 
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Default Budget Split (%)</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-needs">Needs %</Label>
-            <Input id="d-needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="30" className="h-11" />
+            <Label htmlFor="d-needs">Needs % <span className="font-normal text-muted-foreground">· rent, groceries, bills, transport</span></Label>
+            <Input id="d-needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="50" className="h-11 max-w-28" />
           </div>
           <Separator />
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-wants">Wants %</Label>
-            <Input id="d-wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="60" className="h-11" />
+            <Label htmlFor="d-wants">Wants % <span className="font-normal text-muted-foreground">· eating out, shopping, subscriptions</span></Label>
+            <Input id="d-wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="30" className="h-11 max-w-28" />
           </div>
           <Separator />
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-savings">Savings %</Label>
-            <Input id="d-savings" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="10" className="h-11" />
+            <Label htmlFor="d-savings">Savings % <span className="font-normal text-muted-foreground">· money you put aside or invest</span></Label>
+            <Input id="d-savings" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="20" className="h-11 max-w-28" />
           </div>
-          <p className="text-xs text-muted-foreground">
-            These percentages set your spending targets. Needs covers essentials, Wants covers lifestyle, Savings covers the future.
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Total: <span className={total !== 100 ? "text-destructive font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
-            {total !== 100 && <span className="ml-1 text-destructive">— must equal 100%</span>}
+          <p className="text-xs text-muted-foreground max-w-[65ch]" aria-live="polite">
+            Adds up to <span className={cn("font-mono tabular-nums font-medium", total !== 100 ? "text-destructive" : "text-foreground")}>{total}%</span>
+            {total !== 100 && <span className="text-destructive">. It needs to be 100%.</span>}
           </p>
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
-        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Defaults"}
+      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={`w-full sm:w-auto sm:self-start sm:px-8 ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}
       </Button>
     </div>
   );

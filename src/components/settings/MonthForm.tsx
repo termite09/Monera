@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAppData } from "@/contexts/AppDataContext";
-import { getMonthLabel } from "@/lib/utils";
+import { getMonthLabel, cn, getDisplayCurrency } from "@/lib/utils";
 
 export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
   month: string;
@@ -83,63 +83,62 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Budget Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+          <h1 className="text-xl font-semibold text-foreground">This pay period</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">{label}</p>
         </div>
         {hasCustom ? (
-          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300 dark:border-emerald-800">Custom</Badge>
+          <Badge variant="outline" className="text-xs">Changed</Badge>
         ) : (
-          <Badge variant="outline" className="text-xs text-muted-foreground">Using defaults</Badge>
+          <Badge variant="outline" className="text-xs text-muted-foreground max-w-[65ch]">Using Basics</Badge>
         )}
       </div>
 
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Planned Income</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground"><h2>Pay this period</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
-          <Label htmlFor="income">Amount (€)</Label>
-          <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11" />
-          <p className="text-xs text-muted-foreground">
-            Your expected income for this period. Leave blank to use the income detected in your statement. Drives the budget split and remaining balance.
+          <Label htmlFor="income">Amount ({getDisplayCurrency().trim()})</Label>
+          <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11 max-w-48" />
+          <p className="text-xs text-muted-foreground max-w-[65ch]">
+            What you expect to be paid this period. Once the payment shows up in your statement, the real amount is used instead.
           </p>
         </CardContent>
       </Card>
 
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4 flex-row items-center justify-between">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget Split (%)</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
           {!hasCustom && (
-            <button onClick={handleCopyDefaults} className="text-xs text-primary hover:underline">
-              Copy defaults
+            <button type="button" onClick={handleCopyDefaults} className="text-xs text-primary hover:underline">
+              Start from Basics
             </button>
           )}
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="needs">Needs %</Label>
-            <Input id="needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="30" className="h-11" />
+            <Input id="needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="50" className="h-11 max-w-28" />
           </div>
           <Separator />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="wants">Wants %</Label>
-            <Input id="wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="60" className="h-11" />
+            <Input id="wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="30" className="h-11 max-w-28" />
           </div>
           <Separator />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="savings-pct">Savings %</Label>
-            <Input id="savings-pct" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="10" className="h-11" />
+            <Input id="savings-pct" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="20" className="h-11 max-w-28" />
           </div>
-          <p className="text-xs text-muted-foreground">Override the budget percentages for just this month. Other months still use your defaults.</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Total: <span className={total !== 100 ? "text-destructive font-medium" : "text-emerald-600 dark:text-emerald-400 font-medium"}>{total}%</span>
-            {total !== 100 && <span className="ml-1 text-destructive">— must equal 100%</span>}
+          <p className="text-xs text-muted-foreground max-w-[65ch]" aria-live="polite">
+            Adds up to <span className={cn("font-mono tabular-nums font-medium", total !== 100 ? "text-destructive" : "text-foreground")}>{total}%</span>
+            {total !== 100 && <span className="text-destructive">. It needs to be 100%.</span>}
           </p>
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving || total !== 100} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
-        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : `Save for ${label}`}
+      <Button onClick={handleSave} disabled={isSaving || total !== 100} className={`w-full sm:w-auto sm:self-start sm:px-8 ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : `Save for ${label}`}
       </Button>
     </div>
   );

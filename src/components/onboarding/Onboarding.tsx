@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { Check, Upload, Loader2, ArrowRight, AlertCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,37 +10,42 @@ import { useAuth } from "@/hooks/useAuth";
 import { uploadCSV } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { readSpreadsheetAsCsv, csvFileName } from "@/lib/spreadsheet";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, getDisplayCurrency, ordinal } from "@/lib/utils";
 import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
+import { markOnboardedThisSession } from "@/components/onboarding/AppTour";
 
-function StepBadge({ done, n }: { done: boolean; n: number }) {
-  return (
-    <span
-      className={cn(
-        "flex items-center justify-center size-7 rounded-full text-xs font-semibold shrink-0",
-        done ? "bg-emerald-500 text-white" : "bg-secondary text-muted-foreground"
-      )}
-    >
-      {done ? <Check size={15} /> : n}
-    </span>
-  );
-}
+const STEPS = ["payday", "pay", "split", "statement"] as const;
+type Step = (typeof STEPS)[number];
+
+const SPLIT_ROWS = [
+  { key: "needs", label: "Needs", hint: "Rent, groceries, bills, transport", swatch: "bg-cat-needs" },
+  { key: "wants", label: "Wants", hint: "Eating out, shopping, subscriptions", swatch: "bg-cat-wants" },
+  { key: "savings", label: "Savings", hint: "Money you put aside or invest", swatch: "bg-cat-savings" },
+] as const;
 
 export function Onboarding() {
   const { structure, settings, transactions, updateSettings, refetch } = useAppData();
   const { accessToken } = useAuth();
 
+  const [step, setStep] = useState<Step>("payday");
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [uploadMsg, setUploadMsg] = useState("");
-  const [payday, setPayday] = useState(String(settings.paydayOfMonth ?? 1));
+  // A fresh account's payday is the default 1; leave it empty so it's a real choice.
+  const [payday, setPayday] = useState(settings.onboarded || (settings.paydayOfMonth ?? 1) > 1 ? String(settings.paydayOfMonth) : "");
   const [salary, setSalary] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
-  const [split, setSplit] = useState(settings.defaultBudgetRule ?? { needs: 50, wants: 30, savings: 20 });
+  // New accounts start from the 50 / 30 / 20 split the copy recommends.
+  const [split, setSplit] = useState(settings.onboarded && settings.defaultBudgetRule ? settings.defaultBudgetRule : { needs: 50, wants: 30, savings: 20 });
   const [finishing, setFinishing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const index = STEPS.indexOf(step);
   const uploaded = uploadState === "done" || transactions.length > 0;
   const splitTotal = split.needs + split.wants + split.savings;
   const splitValid = splitTotal === 100;
+  const paydayNum = parseInt(payday);
+  const paydayValid = paydayNum >= 1 && paydayNum <= 31;
+  const pay = Math.max(0, parseFloat(salary) || 0);
+  const symbol = getDisplayCurrency().trim();
 
   const handleFile = async (file?: File | null) => {
     if (!file || !accessToken || !structure) return;
@@ -49,29 +53,36 @@ export function Onboarding() {
     setUploadMsg("");
     try {
       const content = await readSpreadsheetAsCsv(file);
-      const { transactions: parsed, errors } = parseCSV(content);
+      const { transactions: parsed } = parseCSV(content);
+      // Don't save a file we can't read anything from.
+      if (parsed.length === 0) {
+        setUploadState("error");
+        setUploadMsg("We couldn't find any transactions in this file. Is it a statement export from Revolut?");
+        return;
+      }
       await uploadCSV(accessToken, csvFileName(file.name), structure.revolutExportsId, content);
       setUploadState("done");
-      setUploadMsg(`Found ${parsed.length} transaction${parsed.length === 1 ? "" : "s"}${errors.length ? ` — ${errors.length} rows skipped (unrecognised format)` : ""}.`);
+      setUploadMsg(`Added ${parsed.length} transaction${parsed.length === 1 ? "" : "s"}.`);
       refetch();
-    } catch (err) {
+    } catch {
       setUploadState("error");
-      setUploadMsg(err instanceof Error ? err.message : "Upload failed");
+      setUploadMsg("We couldn't add this file. Check it's a CSV or Excel export and try again.");
     }
   };
 
   const finish = async () => {
     if (!splitValid) return;
     setFinishing(true);
-    const day = Math.min(28, Math.max(1, parseInt(payday) || 1));
-    const income = Math.max(0, parseFloat(salary) || 0);
+    const day = Math.min(31, Math.max(1, paydayNum || 1));
     try {
-      // Persist payday, standing salary, budget split, and mark onboarding
-      // complete in one write.
+      // Persist payday, standing pay, budget split, and mark onboarding complete
+      // in one write. Tours wait until the next visit so the first look at the
+      // dashboard isn't covered by a sheet.
+      markOnboardedThisSession();
       await updateSettings({
         ...settings,
         paydayOfMonth: day,
-        defaultIncome: income,
+        defaultIncome: pay,
         defaultBudgetRule: split,
         onboarded: true,
       });
@@ -80,163 +91,211 @@ export function Onboarding() {
     }
   };
 
+  const canContinue =
+    step === "payday" ? paydayValid :
+    step === "split" ? splitValid :
+    true;
+
+  const next = () => {
+    if (!canContinue) return;
+    if (index < STEPS.length - 1) setStep(STEPS[index + 1]);
+  };
+
   return (
-    <div className="p-4 max-w-md mx-auto flex flex-col gap-6 pt-10">
-      <div className="text-center">
-        <h1 className="text-3xl font-serif text-foreground">Welcome to Monera</h1>
-        <p className="text-sm text-muted-foreground mt-1">A few quick steps and you&apos;re set up.</p>
+    <div className="p-4 max-w-md mx-auto flex flex-col pt-6 min-h-[calc(100dvh-8rem)]">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">Setting up Monera</span>
+        <span className="text-sm text-muted-foreground">Step {index + 1} of {STEPS.length}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Setup progress"
+        aria-valuemin={1}
+        aria-valuemax={STEPS.length}
+        aria-valuenow={index + 1}
+        className="mt-3 grid grid-cols-4 gap-1"
+      >
+        {STEPS.map((s, i) => (
+          <span key={s} className={cn("h-1 rounded-full transition-colors", i <= index ? "bg-primary" : "bg-border")} />
+        ))}
       </div>
 
-      <Card className="rounded-2xl border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <CardContent className="p-5 flex flex-col gap-5">
-          {/* Step 1 — Drive (already done by signing in) */}
-          <div className="flex items-start gap-3">
-            <StepBadge done n={1} />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Google Drive connected</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Your data is stored in a private Monera folder in your Drive.</p>
-            </div>
-          </div>
+      <form
+        className="flex flex-col flex-1 mt-8"
+        onSubmit={(e) => { e.preventDefault(); if (step === "statement") finish(); else next(); }}
+      >
+        {step === "payday" && (
+          <section className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">When do you get paid?</h1>
+            <p className="text-base leading-relaxed text-foreground/80">
+              Monera follows your pay, not the calendar: each pay period runs from one payday to the next. Your data stays in a private Monera folder in your Google Drive.
+            </p>
+            <Label htmlFor="ob-payday" className="mt-4">Day of the month</Label>
+            <Input
+              id="ob-payday"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={31}
+              placeholder="e.g. 24"
+              value={payday}
+              onChange={(e) => setPayday(e.target.value)}
+              className="h-12 w-32 text-base font-mono tabular-nums"
+            />
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {payday === ""
+                ? "Your pay periods will run from one payday to the next."
+                : !paydayValid
+                  ? "Enter a day between 1 and 31."
+                  : paydayNum > 28
+                    ? `Your pay periods will start on the ${ordinal(paydayNum)}, or the last day of shorter months.`
+                    : `Your pay periods will start on the ${ordinal(paydayNum)}.`}
+            </p>
+          </section>
+        )}
 
-          {/* Step 2 — Upload */}
-          <div className="flex items-start gap-3">
-            <StepBadge done={uploaded} n={2} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">Upload your first statement</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Export a CSV or Excel file from Revolut, then add it here. Takes ~2 minutes — once per pay period is enough.</p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv,text/csv,.xlsx,.xls"
-                className="hidden"
-                onChange={(e) => handleFile(e.target.files?.[0])}
-              />
-              {uploaded ? (
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                  <Check size={13} /> {uploadMsg || "Statement uploaded."}
-                </p>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    className="mt-2"
-                    disabled={uploadState === "uploading"}
-                    onClick={() => fileRef.current?.click()}
-                  >
-                    {uploadState === "uploading" ? (
-                      <><Loader2 size={15} className="mr-1.5 animate-spin" /> Uploading…</>
-                    ) : (
-                      <><Upload size={15} className="mr-1.5" /> Choose file (CSV or Excel)</>
-                    )}
-                  </Button>
-                  {uploadState === "error" && (
-                    <p className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
-                      <AlertCircle size={13} /> {uploadMsg}
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Don&apos;t have one yet?{" "}
-                    <span className="text-muted-foreground/60">Skip for now — you can upload from the Upload tab later.</span>
-                  </p>
-                  <RevolutExportHelp />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Step 3 — Payday */}
-          <div className="flex items-start gap-3">
-            <StepBadge done={false} n={3} />
-            <div className="min-w-0 flex-1">
-              <Label htmlFor="ob-payday" className="text-sm font-medium text-foreground">When do you get paid?</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">Day of the month (1–28) — your budget periods run from one payday to the next. Enter 28 if you&apos;re paid on the 29th, 30th, or 31st.</p>
+        {step === "pay" && (
+          <section className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">How much do you get paid?</h1>
+            <p className="text-base leading-relaxed text-foreground/80">
+              Roughly what lands in your account each payday, after tax. Monera uses it until your statement shows the real payment, then uses that instead, so it&apos;s never counted twice. Not sure? Leave it blank.
+            </p>
+            <Label htmlFor="ob-salary" className="mt-4">Pay per period</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-base text-muted-foreground font-mono">{symbol}</span>
               <Input
-                id="ob-payday"
+                id="ob-salary"
                 type="number"
-                min={1}
-                max={28}
-                placeholder="e.g. 24"
-                value={payday}
-                onChange={(e) => setPayday(e.target.value)}
-                className="mt-2 h-11 w-28"
+                min={0}
+                inputMode="decimal"
+                placeholder="e.g. 2400"
+                value={salary}
+                onChange={(e) => setSalary(e.target.value)}
+                className="h-12 w-40 text-base font-mono tabular-nums"
               />
-              {parseInt(payday) > 28 && (
-                <p className="mt-1 text-xs text-muted-foreground">We cap at 28 to handle all months reliably — your budget will start on the 28th.</p>
-              )}
             </div>
-          </div>
+          </section>
+        )}
 
-          {/* Step 4 — Salary */}
-          <div className="flex items-start gap-3">
-            <StepBadge done={false} n={4} />
-            <div className="min-w-0 flex-1">
-              <Label htmlFor="ob-salary" className="text-sm font-medium text-foreground">What&apos;s your monthly salary?</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">Used as your income each period. Leave it blank and Monera will use the largest single credit in your statement as your income. You can override this for any period later.</p>
-              <div className="mt-2 flex items-center gap-1.5">
-                <span className="text-sm text-muted-foreground font-mono">{settings.currency ?? "EUR"}</span>
-                <Input
-                  id="ob-salary"
-                  type="number"
-                  min={0}
-                  inputMode="decimal"
-                  placeholder="e.g. 2000"
-                  value={salary}
-                  onChange={(e) => setSalary(e.target.value)}
-                  className="h-11 w-36"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Step 5 — Budget split */}
-          <div className="flex items-start gap-3">
-            <StepBadge done={splitValid} n={5} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">How do you want to split your budget?</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Percent of income for each category. Must add up to 100%.</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(["needs", "wants", "savings"] as const).map((k) => (
-                  <div key={k} className="flex flex-col gap-1">
-                    <Label htmlFor={`ob-${k}`} className="text-xs capitalize text-muted-foreground">{k}</Label>
-                    <div className="relative">
+        {step === "split" && (
+          <section className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">How would you like to split your pay?</h1>
+            <p className="text-base leading-relaxed text-foreground/80">
+              Monera checks your spending against this each pay period. Most people start with 50 / 30 / 20 and adjust later.
+            </p>
+            <div className="mt-4 rounded-xl border border-border bg-card divide-y divide-border">
+              {SPLIT_ROWS.map(({ key, label, hint, swatch }) => (
+                <div key={key} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor={`ob-${key}`} className="flex items-center gap-2 text-base font-semibold">
+                      <span className={cn("size-2.5 rounded-sm", swatch)} aria-hidden />
+                      {label}
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-0.5">{hint}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1">
                       <Input
-                        id={`ob-${k}`}
+                        id={`ob-${key}`}
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={100}
-                        value={String(split[k])}
-                        onChange={(e) => setSplit((s) => ({ ...s, [k]: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) }))}
-                        className="h-11 pr-6"
+                        value={String(split[key])}
+                        onChange={(e) => setSplit((s) => ({ ...s, [key]: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) }))}
+                        className="h-11 w-16 text-right font-mono tabular-nums"
                       />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                      <span className="text-sm text-muted-foreground">%</span>
                     </div>
+                    {pay > 0 && (
+                      <p className="text-xs text-muted-foreground font-mono tabular-nums mt-1">
+                        {formatCurrency((pay * split[key]) / 100)}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-              <p className={cn("text-xs mt-1.5", splitValid ? "text-muted-foreground" : "text-destructive")}>
-                {splitValid ? "Adds up to 100%." : `Currently ${splitTotal}% — adjust to total 100%.`}
-              </p>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground/70">
-                <span>Rent, groceries, transport</span>
-                <span>Eating out, subscriptions</span>
-                <span>Savings transfers, investments</span>
-              </div>
-              <p className="mt-1.5 text-xs text-muted-foreground/60">The 50/30/20 rule is a popular starting point — adjust to fit your life.</p>
+                </div>
+              ))}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <p className={cn("text-sm flex items-center gap-1.5", splitValid ? "text-muted-foreground" : "text-destructive")} aria-live="polite">
+              {splitValid ? (
+                <><Check size={14} className="text-foreground" aria-hidden />Adds up to 100%{pay > 0 && <> of your <span className="font-mono tabular-nums">{formatCurrency(pay)}</span> pay</>}</>
+              ) : (
+                <><AlertCircle size={14} aria-hidden />Adds up to {splitTotal}%. It needs to be 100%.</>
+              )}
+            </p>
+          </section>
+        )}
 
-      <Button onClick={finish} disabled={finishing || !splitValid} className="w-full h-12" size="lg">
-        {finishing ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : null}
-        Go to my dashboard
-        {!finishing && <ArrowRight size={16} className="ml-1.5" />}
-      </Button>
-      {!uploaded && (
-        <p className="text-center text-xs text-muted-foreground -mt-3">
-          No statement yet? You can upload one anytime from the Upload tab.
-        </p>
-      )}
+        {step === "statement" && (
+          <section className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Add your first statement</h1>
+            <p className="text-base leading-relaxed text-foreground/80">
+              Export a CSV or Excel statement from Revolut and add it here. It takes about two minutes, and once per pay period is enough.
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv,.xlsx,.xls"
+              className="hidden"
+              onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ""; }}
+            />
+            {uploaded ? (
+              <p className="mt-4 flex items-center gap-2 text-sm text-foreground" role="status">
+                <Check size={16} className="text-status-ok" aria-hidden /> {uploadMsg || "Statement added."}
+              </p>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 h-12 self-start"
+                  disabled={uploadState === "uploading"}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploadState === "uploading" ? (
+                    <><Loader2 size={16} className="mr-1.5 animate-spin" aria-hidden /> Adding…</>
+                  ) : (
+                    <><Upload size={16} className="mr-1.5" aria-hidden /> Choose a file</>
+                  )}
+                </Button>
+                {uploadState === "error" && (
+                  <p className="flex items-start gap-1.5 text-sm text-destructive" role="alert">
+                    <AlertCircle size={15} className="mt-0.5 shrink-0" aria-hidden /> {uploadMsg}
+                  </p>
+                )}
+                <RevolutExportHelp />
+              </>
+            )}
+          </section>
+        )}
+
+        <div className="mt-auto pt-8 flex flex-col gap-3">
+          {step === "statement" && !uploaded && (
+            <p className="text-center text-sm text-muted-foreground">
+              No statement yet? You can add one later from Statements.
+            </p>
+          )}
+          <div className={cn("grid gap-2", index > 0 ? "grid-cols-[1fr_2fr]" : "grid-cols-1")}>
+            {index > 0 && (
+              <Button type="button" variant="outline" className="h-12" onClick={() => setStep(STEPS[index - 1])}>
+                Back
+              </Button>
+            )}
+            {step === "statement" ? (
+              <Button type="submit" className="h-12" disabled={finishing || !splitValid}>
+                {finishing && <Loader2 size={16} className="mr-1.5 animate-spin" aria-hidden />}
+                {uploaded ? "Go to my dashboard" : "Skip for now"}
+                {!finishing && <ArrowRight size={16} className="ml-1.5" aria-hidden />}
+              </Button>
+            ) : (
+              <Button type="submit" className="h-12" disabled={!canContinue}>
+                Continue
+                <ArrowRight size={16} className="ml-1.5" aria-hidden />
+              </Button>
+            )}
+          </div>
+        </div>
+      </form>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { useSettings } from "@/hooks/useSettings";
 import { useRules } from "@/hooks/useRules";
 import { SetupScreen } from "@/components/layout/SetupScreen";
-import { getCurrentMonth } from "@/lib/utils";
+import { getCurrentMonth, dominantCurrency, setDisplayCurrency } from "@/lib/utils";
 
 interface AppDataContextValue {
   month: string;
@@ -65,6 +65,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     toggleExclude,
     refetch,
   } = useTransactions(accessToken, structure, rules, settings);
+
+  // Show amounts in the currency the user's statements are actually in (a GBP
+  // account shows £), falling back to the settings default. Set during render —
+  // before any child renders — so every formatCurrency() call agrees.
+  const currency = useMemo(
+    () => dominantCurrency(transactions) ?? settings.currency ?? "€",
+    [transactions, settings.currency]
+  );
+  setDisplayCurrency(currency);
 
   const isLoading = isDriveLoading || isTxLoading;
   const ready = !!structure && settingsLoaded && txLoaded;

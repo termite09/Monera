@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/AppDataContext";
-import { generateId, formatCurrency, ordinal, getMonthKey } from "@/lib/utils";
+import { generateId, formatCurrency, ordinal, getMonthKey, getDisplayCurrency } from "@/lib/utils";
 import { Category, RecurringPayment } from "@/types";
 import { Trash2, Plus, Search, Pencil } from "lucide-react";
 
@@ -140,8 +140,8 @@ export function RecurringForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Payments</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Fixed payments made from another bank or account — rent, insurance, gym, savings transfers. These won&apos;t appear in your imported CSV files, so Monera adds them automatically to each period.</p>
+        <h1 className="text-xl font-semibold text-foreground">Bills</h1>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Bills you pay from another account, like rent, insurance or the gym. Monera adds them to every pay period, so Safe to spend sets that money aside.</p>
       </div>
 
       {/* Search — only shown when there are entries */}
@@ -158,7 +158,7 @@ export function RecurringForm({ settings, updateSettings }: {
       )}
 
       {/* List */}
-      <Card className="shadow-none border-border">
+      <Card>
         <CardContent className="p-3 flex flex-col">
           {items.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No recurring payments yet</p>
@@ -179,7 +179,7 @@ export function RecurringForm({ settings, updateSettings }: {
                           <Input value={draft.name} onChange={(e) => setEditDraft((d) => d && { ...d, name: e.target.value })} className="h-9" />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Amount ({settings.currency ?? "€"})</Label>
+                          <Label className="text-xs">Amount ({getDisplayCurrency().trim()})</Label>
                           <Input type="number" value={String(draft.amount)} onChange={(e) => setEditDraft((d) => d && { ...d, amount: parseFloat(e.target.value) || 0 })} className="h-9" />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -219,9 +219,9 @@ export function RecurringForm({ settings, updateSettings }: {
                   <div key={item.id} className="flex items-center gap-3 py-2.5 px-1">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground break-words">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground max-w-[65ch]">
                         {ordinal(item.dayOfMonth)} · {item.category}
-                        {rangeLabel && <span className="ml-1 text-muted-foreground/70">· {rangeLabel}</span>}
+                        {rangeLabel && <span className="ml-1 text-muted-foreground">· {rangeLabel}</span>}
                       </p>
                     </div>
                     <span className="text-sm tabular-nums text-foreground font-mono">{formatCurrency(item.amount)}</span>
@@ -261,9 +261,9 @@ export function RecurringForm({ settings, updateSettings }: {
       )}
 
       {/* Add form */}
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Add Payment</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Add a bill</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -272,7 +272,7 @@ export function RecurringForm({ settings, updateSettings }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="r-amount">Amount ({settings.currency ?? "€"})</Label>
+              <Label htmlFor="r-amount">Amount ({getDisplayCurrency().trim()})</Label>
               <Input id="r-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="45" className="h-11" />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -295,7 +295,7 @@ export function RecurringForm({ settings, updateSettings }: {
             <MonthYearPicker id="r-start" label="From period" value={startMonth} onChange={setStartMonth} />
             <MonthYearPicker id="r-end" label="Until period (opt.)" value={endMonth} onChange={setEndMonth} />
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground max-w-[65ch]">
             Leave &quot;From period&quot; blank to apply to all periods including past ones. Leave &quot;Until&quot; blank for no end date.
           </p>
           <Button onClick={handleAddItem} variant="outline" className="w-full">
@@ -305,8 +305,8 @@ export function RecurringForm({ settings, updateSettings }: {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty} className={`w-full ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
-        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Recurring Payments"}
+      <Button onClick={handleSave} disabled={isSaving || !dirty} className={`w-full sm:w-auto sm:self-start sm:px-8 ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save bills"}
       </Button>
     </div>
   );

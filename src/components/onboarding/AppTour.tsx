@@ -15,13 +15,30 @@ interface AppTourProps {
   slides: TourSlide[];
 }
 
+const ONBOARDED_SESSION_KEY = "monera-onboarded-this-session";
+
+/**
+ * Called when the setup wizard finishes. Tours then hold off for the rest of this
+ * browser session, so the user's first look at their numbers isn't covered by a
+ * sheet; they appear on the next visit instead.
+ */
+export function markOnboardedThisSession() {
+  try { sessionStorage.setItem(ONBOARDED_SESSION_KEY, "1"); } catch { /* storage blocked — tours just show */ }
+}
+
+function onboardedThisSession(): boolean {
+  try { return sessionStorage.getItem(ONBOARDED_SESSION_KEY) === "1"; } catch { return false; }
+}
+
 export function AppTour({ pageKey, slides }: AppTourProps) {
   const { settings, updateSettings } = useAppData();
   const [slide, setSlide] = useState(0);
   const [open, setOpen] = useState(true);
+  const [deferred] = useState(onboardedThisSession);
 
-  // Don't show if: not onboarded yet (first-run wizard handles that), or already seen
-  if (!settings.onboarded || settings.tourPages?.[pageKey]) return null;
+  // Don't show if: not onboarded yet (first-run wizard handles that), just
+  // onboarded this session, or already seen.
+  if (!settings.onboarded || deferred || settings.tourPages?.[pageKey]) return null;
 
   const isLast = slide === slides.length - 1;
 

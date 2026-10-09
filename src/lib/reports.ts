@@ -1,6 +1,6 @@
 import { Transaction, Category } from "@/types";
 import { getPeriodBounds, cleanDescription, getPrevMonthKey, roundMoney, MS_PER_DAY } from "@/lib/utils";
-import { getPeriodSpend } from "@/lib/finance";
+import { getPeriodSpend, netExpenseByCategory } from "@/lib/finance";
 
 export interface MonthlyTotals {
   needs: number;
@@ -48,9 +48,12 @@ interface ReportData {
   avgPerDay: number;
   avgPerTx: number;
   daysElapsed: number;
+  /** Spending (savings excluded) you'll have reached by payday at this pace. */
   projectedTotal: number;
   prevTotal: number;
   prevByCategory: Record<Category, number>;
+  /** True when "prev" covers last period only up to the same day as today. */
+  comparedToSamePoint: boolean;
   changePct: number | null;
   topMerchants: MerchantStat[];
   frequentMerchants: MerchantStat[];
@@ -108,6 +111,13 @@ function median(values: number[]): number {
  * history, independent of the selected period.
  */
 export function detectSubscriptions(transactions: Transaction[]): Subscription[] {
+  // Subscriptions are optional spending (streaming, gym, apps). Rent, fuel and
+  // savings transfers repeat too, but they aren't subscriptions.
+  return detectRecurring(transactions.filter((t) => t.category === "Wants")).map(({ sub }) => sub);
+}
+
+/** Merchants charged a consistent amount on a monthly rhythm, whatever their category. */
+function detectRecurring(transactions: Transaction[]): { key: string; sub: Subscription }[] {
   const groups = new Map<string, { name: string; amounts: number[]; months: Set<string>; dates: string[]; lastDate: string }>();
 
   for (const t of transactions) {
@@ -131,8 +141,8 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     }
   }
 
-  const subs: Subscription[] = [];
-  for (const g of groups.values()) {
+  const subs: { key: string; sub: Subscription }[] = [];
+  for (const [key, g] of groups) {
     // Require strong evidence: 3+ distinct months and 3+ charges
     if (g.months.size < 3 || g.amounts.length < 3) continue;
 
@@ -162,16 +172,17 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
 
     const rawTotal = g.amounts.reduce((s, a) => s + a, 0);
     const total = roundMoney(rawTotal);
-    subs.push({ name: g.name, amount: mid, total, months: g.months.size, lastDate: g.lastDate });
+    subs.push({ key, sub: { name: g.name, amount: mid, total, months: g.months.size, lastDate: g.lastDate } });
   }
 
-  return subs.sort((a, b) => b.months - a.months || b.amount - a.amount);
+  return subs.sort((a, b) => b.sub.months - a.sub.months || b.sub.amount - a.sub.amount);
 }
 
 export function buildReport(
   transactions: Transaction[],
   monthKey: string,
-  paydayOfMonth: number
+  paydayOfMonth: number,
+  now: Date = new Date()
 ): ReportData {
   const expenses = periodExpenses(transactions, monthKey, paydayOfMonth);
 
@@ -180,9 +191,26 @@ export function buildReport(
   // still used below for merchant grouping and biggest-purchase rankings (which
   // are per-transaction views, not netted totals).
   const spend = getPeriodSpend(transactions, monthKey, paydayOfMonth);
-  const prevSpend = getPeriodSpend(transactions, getPrevMonthKey(monthKey), paydayOfMonth);
   const totalSpent = spend.total;
-  const prevTotal = prevSpend.total;
+
+  // Compare like with like: while a period is still running, set it against last
+  // period only up to the same day, not against last period's full total.
+  const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
+  const comparedToSamePoint = now >= start && now <= end;
+  let prevByCategory: Record<Category, number>;
+  if (comparedToSamePoint) {
+    const { start: prevStart } = getPeriodBounds(getPrevMonthKey(monthKey), paydayOfMonth);
+    const cutoff = new Date(prevStart.getTime() + (now.getTime() - start.getTime()));
+    prevByCategory = netExpenseByCategory(
+      transactions.filter((t) => {
+        const d = new Date(t.date + "T00:00:00");
+        return d >= prevStart && d <= cutoff;
+      })
+    );
+  } else {
+    prevByCategory = getPeriodSpend(transactions, getPrevMonthKey(monthKey), paydayOfMonth).byCategory;
+  }
+  const prevTotal = roundMoney(Object.values(prevByCategory).reduce((s, v) => s + v, 0));
 
   // Group by merchant
   const groups = new Map<string, MerchantStat>();
@@ -216,8 +244,6 @@ export function buildReport(
     .sort((a, b) => b.total - a.total);
 
   // Pace metrics — how far into the period we are
-  const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
-  const now = new Date();
   const periodMs = end.getTime() - start.getTime();
   const totalDays = Math.max(1, Math.round(periodMs / MS_PER_DAY));
   const elapsedMs = Math.min(Math.max(now.getTime() - start.getTime(), 0), periodMs);
@@ -225,7 +251,18 @@ export function buildReport(
 
   const avgPerDay = totalSpent / daysElapsed;
   const avgPerTx = expenses.length > 0 ? totalSpent / expenses.length : 0;
-  const projectedTotal = avgPerDay * totalDays;
+
+  // Projection: only day-to-day spending carries on at the current pace. Rent and
+  // other regular charges happen once a period, and savings aren't spending, so
+  // extrapolating them (a day-1 rent payment × 30) wildly overstates the total.
+  const recurringKeys = new Set(detectRecurring(transactions).map(({ key }) => key));
+  const dayToDay = netExpenseByCategory(
+    expenses.filter((t) => t.category !== "Savings" && t.source !== "recurring" && !recurringKeys.has(merchantKey(t.description) || "other"))
+  );
+  const variableSoFar = dayToDay.Needs + dayToDay.Wants + dayToDay.Uncategorized;
+  const spentSoFar = totalSpent - spend.byCategory.Savings;
+  const daysLeft = Math.max(0, totalDays - daysElapsed);
+  const projectedTotal = roundMoney(spentSoFar + (variableSoFar / daysElapsed) * daysLeft);
 
   const changePct = prevTotal > 0 ? ((totalSpent - prevTotal) / prevTotal) * 100 : null;
 
@@ -237,7 +274,8 @@ export function buildReport(
     daysElapsed,
     projectedTotal,
     prevTotal,
-    prevByCategory: prevSpend.byCategory,
+    prevByCategory,
+    comparedToSamePoint,
     changePct,
     topMerchants,
     frequentMerchants,

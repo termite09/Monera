@@ -89,3 +89,24 @@ describe("buildInsights", () => {
     expect(ins.some((i) => i.id === "subs")).toBe(false);
   });
 });
+
+describe("buildInsights — same-point comparison", () => {
+  it("compares with last period up to the same day while the period is running", () => {
+    const txs = [
+      tx({ amount: 60, type: "expense", category: "Wants", date: "2024-06-05" }),
+      tx({ amount: 100, type: "expense", category: "Wants", date: "2024-05-05" }),
+      tx({ amount: 900, type: "expense", category: "Wants", date: "2024-05-28" }),
+    ];
+    const summary = summaryOf({ income: 1000, wants: 60, totalExpenses: 60, remaining: 940 });
+    const ins = buildInsights(txs, settings, "2024-06", summary, { needs: 300, wants: 600, savings: 100 }, new Date(2024, 5, 10, 12));
+    const vs = ins.find((i) => i.id === "vs-last");
+    expect(vs?.text).toContain("by this point last period");
+    expect(vs?.text).toContain("40.00 less");
+  });
+
+  it("says nothing about last period when nothing has been spent yet", () => {
+    const txs = [tx({ amount: 100, type: "expense", category: "Wants", date: "2024-05-05" })];
+    const ins = buildInsights(txs, settings, "2024-06", summaryOf({ income: 1000 }), { needs: 300, wants: 600, savings: 100 }, new Date(2024, 5, 10, 12));
+    expect(ins.some((i) => i.id === "vs-last")).toBe(false);
+  });
+});

@@ -3,12 +3,12 @@
 import { useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { LogOut } from "lucide-react";
+import { LogOut, ExternalLink } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { useAppData } from "@/contexts/AppDataContext";
-import { cn } from "@/lib/utils";
+import { cn, getMonthLabel } from "@/lib/utils";
 import { MonthForm } from "@/components/settings/MonthForm";
 import { DefaultsForm } from "@/components/settings/DefaultsForm";
 import { RecurringForm } from "@/components/settings/RecurringForm";
@@ -18,24 +18,16 @@ import { AppTour } from "@/components/onboarding/AppTour";
 
 const SETTINGS_SLIDES = [
   {
-    title: "Setup — your defaults",
-    body: "Start here. Enter your monthly salary, payday, and how you want to split your budget between Needs, Wants, and Savings. Every period uses these unless you override them.",
+    title: "Basics",
+    body: "Your payday, your pay, and how you split it between Needs, Wants and Savings. Every pay period uses these.",
   },
   {
-    title: "Monthly — period overrides",
-    body: "Need to adjust just one month? Set a different income or budget split here without touching your defaults. Useful for months with a bonus or unusual expenses.",
+    title: "One-off changes",
+    body: "Got a bonus or an unusual month? Use Period to change the pay or split for just that pay period.",
   },
   {
-    title: "Payments — recurring",
-    body: "Add fixed payments you make from another account — rent, insurance, gym, savings transfers. Monera uses these to show your committed spending and flag missing payments.",
-  },
-  {
-    title: "Sources — income detection",
-    body: "Tell Monera your employer name so it can identify your salary in your statement. You can also set keywords to detect transfers between your own accounts and exclude them from spending.",
-  },
-  {
-    title: "Mappings — auto-categorisation",
-    body: "Mappings link keywords in transaction descriptions to categories automatically. The more you categorise, the smarter it gets over time.",
+    title: "Bills and rules",
+    body: "Add regular bills paid from other accounts, and teach Monera which shops belong in which category.",
   },
 ];
 
@@ -45,7 +37,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const { month, setMonth, settings, rules, isLoading, txError, refetch, updateSettings, updateRules } = useAppData();
+  const { month, setMonth, settings, rules, isLoading, txError, refetch, updateSettings, updateRules, structure } = useAppData();
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
   const [tab, setTab] = useState<Tab>(() => {
     const t = searchParams.get("tab");
@@ -63,16 +55,24 @@ export default function SettingsPage() {
   }, [settings, updateSettings, router]);
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "setup", label: "Setup" },
-    { id: "monthly", label: "Monthly" },
-    { id: "bills", label: "Payments" },
-    { id: "sources", label: "Sources" },
-    { id: "rules", label: "Mappings" },
+    { id: "setup", label: "Basics" },
+    { id: "monthly", label: "Period" },
+    { id: "bills", label: "Bills" },
+    { id: "sources", label: "Income" },
+    { id: "rules", label: "Rules" },
   ];
+  const periodLabel = getMonthLabel(month, paydayOfMonth);
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+      {/* The period picker only matters on the Period tab; elsewhere it just distracts. */}
+      <Header
+        month={month}
+        onMonthChange={setMonth}
+        paydayOfMonth={paydayOfMonth}
+        isLoading={isLoading}
+        navLabel={tab === "monthly" ? undefined : "Settings"}
+      />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5 md:max-w-none md:px-6">
         {/* Account row — mobile only, always at the top */}
@@ -116,16 +116,19 @@ export default function SettingsPage() {
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Tab switcher */}
-        <div className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-secondary">
+        <div role="tablist" aria-label="Settings sections" className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-secondary">
           {tabs.map((t) => (
             <button
               key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "h-9 rounded-md text-xs font-medium transition-colors",
+                "h-9 rounded-md text-sm font-medium transition-colors",
                 tab === t.id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-card text-foreground border border-border"
+                  : "text-muted-foreground hover:text-foreground border border-transparent"
               )}
             >
               {t.label}
@@ -137,7 +140,10 @@ export default function SettingsPage() {
 
         {tab === "monthly" && (
           <>
-            <p className="text-xs text-muted-foreground -mt-2">Override income or budget percentages for this period only. All other months use your <button onClick={() => setTab("setup")} className="text-primary underline underline-offset-2">Setup</button> defaults.</p>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Change your pay or budget split for <span className="font-medium text-foreground">{periodLabel}</span> only. Use the arrows at the top to pick another pay period. Every other period uses your{" "}
+              <button type="button" onClick={() => setTab("setup")} className="text-primary underline underline-offset-2">Basics</button>.
+            </p>
             <MonthForm
               key={month}
               month={month}
@@ -156,10 +162,30 @@ export default function SettingsPage() {
 
         <AppTour pageKey="settings" slides={SETTINGS_SLIDES} />
 
+        {/* Your data — make the privacy claim checkable from inside the app */}
+        {structure?.rootId && (
+          <section aria-labelledby="your-data" className="mt-2 pt-4 border-t border-border">
+            <h2 id="your-data" className="text-sm font-semibold text-foreground">Your data</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-[60ch]">
+              Everything Monera saves lives in one folder in your Google Drive. Nothing is stored anywhere else. Delete the folder at any time to remove all of it.
+            </p>
+            <a
+              href={`https://drive.google.com/drive/folders/${structure.rootId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-2 text-sm text-primary underline underline-offset-2"
+            >
+              Open my Monera folder in Drive
+              <ExternalLink size={13} aria-hidden />
+            </a>
+          </section>
+        )}
+
         {/* Replay guide */}
-        <div className="mt-2 pt-4 border-t border-border">
+        <div className="pt-4 border-t border-border">
           <button
             onClick={replayGuide}
+            type="button"
             className="text-sm text-primary hover:underline"
           >
             Replay app guide

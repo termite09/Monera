@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Repeat, Loader2, Trash2, Pencil } from "lucide-react";
-import { Transaction, Category } from "@/types";
-import { formatCurrency, cleanDescription, cn, getCategoryTextClass } from "@/lib/utils";
+import { Repeat, Loader2, Trash2, Pencil, X } from "lucide-react";
+import { Transaction } from "@/types";
+import { formatCurrency, cleanDescription, cn, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -11,23 +11,20 @@ interface TransactionRowProps {
   onEdit?: (id: string) => void;
   selectMode?: boolean;
   checked?: boolean;
-  onCheck?: (id: string) => void;
+  /** `range` is true for shift-click, to select everything since the last pick. */
+  onCheck?: (id: string, range?: boolean) => void;
   showCategory?: boolean;
 }
 
-// Shown on small screens so category is never conveyed by color alone (a11y).
-const catShort: Record<Category, string> = {
-  Needs: "Needs",
-  Wants: "Wants",
-  Savings: "Savings",
-  Uncategorized: "Uncat.",
-};
+const THIS_YEAR = new Date().getFullYear();
 
-function parseDateParts(dateStr: string): { dayMonth: string; year: string } {
+function parseDateParts(dateStr: string): { dayMonth: string; year: string | null } {
   const d = new Date(dateStr + "T00:00:00");
   return {
-    dayMonth: d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
-    year: String(d.getFullYear()),
+    // en-GB writes "Sept"; three letters keeps the date column narrow and even.
+    dayMonth: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }).replace("Sept", "Sep"),
+    // Only worth the space when it isn't this year.
+    year: d.getFullYear() === THIS_YEAR ? null : String(d.getFullYear()),
   };
 }
 
@@ -54,16 +51,16 @@ export function TransactionRow({
   return (
     <div
       className={cn(
-        "flex w-full items-start gap-2 sm:gap-3 py-2.5 px-2 transition-colors",
+        "flex w-full items-start gap-1.5 sm:gap-3 py-2.5 px-1.5 sm:px-2 transition-colors",
         excluded ? "opacity-50 bg-muted/30" : selectMode ? "cursor-pointer hover:bg-secondary/30" : "hover:bg-secondary/50",
         checked && "bg-primary/5"
       )}
-      onClick={selectMode && !excluded ? () => onCheck?.(tx.id) : undefined}
+      onClick={selectMode && !excluded ? (e) => onCheck?.(tx.id, e.shiftKey) : undefined}
     >
       {/* Date — day+month on top, year below in muted smaller text */}
-      <div className="shrink-0 w-14 pt-0.5 flex flex-col leading-tight">
+      <div className="shrink-0 w-12 sm:w-14 pt-0.5 flex flex-col leading-tight">
         <span className="text-xs text-muted-foreground tabular-nums font-mono">{dayMonth}</span>
-        <span className="text-[10px] text-muted-foreground/50 tabular-nums font-mono">{year}</span>
+        {year && <span className="text-xs text-muted-foreground tabular-nums font-mono">{year}</span>}
       </div>
 
       {/* Description + optional notes */}
@@ -74,30 +71,21 @@ export function TransactionRow({
         </span>
         {tx.notes && <span className="text-xs text-muted-foreground break-words">{tx.notes}</span>}
         {tx.source === "manual" && (
-          <span className="text-[9px] font-medium text-muted-foreground bg-secondary px-1 py-0.5 rounded self-start leading-tight">manual</span>
+          <span className="text-xs text-muted-foreground">Added by you</span>
         )}
       </div>
 
-      {/* Category — always rendered to keep column layout stable; hidden via
-          visibility when showCategory is false so width is preserved. */}
-      <div className={cn("shrink-0 w-10 sm:w-24 pt-0.5 flex justify-end", !showCategory && "invisible pointer-events-none")}>
-        {!isIncome && (
-          <span className={cn("text-xs font-medium whitespace-nowrap flex items-center gap-0.5", getCategoryTextClass(tx.category))}>
-            <span className="sm:hidden">{catShort[tx.category as Category]}</span>
-            <span className="hidden sm:inline">{tx.category}</span>
-            {tx.categorySource === "override" && (
-              <span className="text-[9px] leading-none opacity-50" title="Category was set manually — rule changes won't affect this transaction">✎</span>
-            )}
-          </span>
-        )}
+      {/* Category — a fixed, left-aligned column so every swatch lines up. Always
+          rendered (invisible when hidden) to keep the columns stable. */}
+      <div className={cn("flex shrink-0 w-15 sm:w-24 pt-0.5 justify-start", !showCategory && "invisible pointer-events-none")}>
+        {!isIncome && <CategoryLabel tx={tx} />}
       </div>
 
-      {/* Amount — hugs content (min floor for short amounts) so it sits tight
-          against the category instead of reserving a wide fixed column. */}
+      {/* Amount — fixed width, right-aligned, so the column edge is straight. */}
       <span
         className={cn(
-          "shrink-0 min-w-14 pt-0.5 text-sm tabular-nums text-right font-mono whitespace-nowrap",
-          excluded ? "line-through text-muted-foreground" : isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+          "shrink-0 w-18 sm:w-24 pt-0.5 text-sm tabular-nums text-right font-mono whitespace-nowrap",
+          excluded ? "line-through text-muted-foreground" : "text-foreground"
         )}
       >
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
@@ -105,23 +93,22 @@ export function TransactionRow({
 
       {/* Right action: checkbox when selection is available, otherwise eye/edit+delete/exclude */}
       {onCheck ? (
-        <div
-          className="shrink-0 w-6 flex items-center justify-center"
-          onClick={(e) => { e.stopPropagation(); onCheck(tx.id); }}
-        >
-          <div className={cn(
-            "size-4 rounded-full border-2 flex items-center justify-center transition-colors",
-            checked ? "border-primary bg-primary" : selectMode ? "border-input" : "border-input/30 hover:border-input"
-          )}>
-            {checked && <div className="size-2 rounded-full bg-white" />}
-          </div>
-        </div>
+        <span className="shrink-0 w-11 sm:w-12 flex items-center justify-center pt-0.5" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => { /* handled in onClick so shift-click works */ }}
+            onClick={(e) => onCheck(tx.id, e.shiftKey)}
+            aria-label={`Select ${cleanDescription(tx.description)}, ${isIncome ? "+" : "−"}${formatCurrency(tx.amount)}`}
+            className="size-4 cursor-pointer accent-primary rounded-sm"
+          />
+        </span>
       ) : onDelete ? (
-        <div className="shrink-0 flex items-center gap-0.5">
+        <div className="shrink-0 w-11 sm:w-12 flex items-center justify-end gap-0.5">
           {onEdit && !confirmDelete && (
             <button
               onClick={() => onEdit(tx.id)}
-              className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-primary hover:bg-secondary"
+              className="p-1 rounded-md text-muted-foreground transition-colors hover:text-primary hover:bg-secondary"
               aria-label="Edit transaction"
               title="Edit manual transaction"
             >
@@ -153,10 +140,10 @@ export function TransactionRow({
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="p-1 rounded-md text-muted-foreground/40 transition-colors hover:text-foreground hover:bg-secondary"
+                className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary"
                 aria-label="Cancel delete"
               >
-                ×
+                <X size={14} />
               </button>
             </div>
           ) : (
@@ -167,7 +154,7 @@ export function TransactionRow({
                 if (autoHideRef.current) clearTimeout(autoHideRef.current);
                 autoHideRef.current = setTimeout(() => setConfirmDelete(false), 4000);
               }}
-              className="p-1 rounded-md text-muted-foreground/30 transition-colors hover:text-destructive hover:bg-secondary"
+              className="p-1 rounded-md text-muted-foreground transition-colors hover:text-destructive hover:bg-secondary"
               aria-label="Delete transaction"
               title="Delete manual transaction"
             >
@@ -177,5 +164,19 @@ export function TransactionRow({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function CategoryLabel({ tx }: { tx: Transaction }) {
+  return (
+    <span className={cn("text-xs font-medium whitespace-nowrap inline-flex items-center gap-1 sm:gap-1.5", getCategoryTextClass(tx.category))}>
+      <span className={cn("size-2 rounded-sm shrink-0", getCategorySwatchClass(tx.category))} aria-hidden />
+      {tx.category === "Uncategorized" ? (
+        <><span className="sm:hidden">None</span><span className="hidden sm:inline">No category</span></>
+      ) : tx.category}
+      {tx.categorySource === "override" && (
+        <Pencil size={10} className="hidden sm:inline text-muted-foreground" aria-label="Set by you — rules won't change it" role="img" />
+      )}
+    </span>
   );
 }

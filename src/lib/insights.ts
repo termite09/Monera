@@ -1,11 +1,10 @@
 import { Transaction, Settings, MonthSummary, Category } from "@/types";
-import { getPeriodSpend } from "@/lib/finance";
-import { detectSubscriptions } from "@/lib/reports";
-import { formatCurrency, getPrevMonthKey } from "@/lib/utils";
+import { buildReport, detectSubscriptions } from "@/lib/reports";
+import { formatCurrency } from "@/lib/utils";
 
-type InsightTone = "good" | "warn" | "info";
+export type InsightTone = "good" | "warn" | "info";
 
-interface Insight {
+export interface Insight {
   id: string;
   text: string;
   tone: InsightTone;
@@ -22,9 +21,10 @@ export function buildInsights(
   settings: Settings,
   monthKey: string,
   summary: MonthSummary,
-  budgetAllocations: { needs: number; wants: number; savings: number }
+  budgetAllocations: { needs: number; wants: number; savings: number },
+  now: Date = new Date()
 ): Insight[] {
-  const money = (n: number) => formatCurrency(n, settings.currency);
+  const money = (n: number) => formatCurrency(n);
   const payday = settings.paydayOfMonth ?? 1;
   const out: Insight[] = [];
 
@@ -41,7 +41,7 @@ export function buildInsights(
       out.push({
         id: `near-${c.key}`,
         tone: "warn",
-        text: `You've used ${Math.round((c.spent / c.alloc) * 100)}% of your ${c.key} budget — ${money(c.alloc - c.spent)} left.`,
+        text: `You've used ${Math.round((c.spent / c.alloc) * 100)}% of your ${c.key} budget, with ${money(c.alloc - c.spent)} left.`,
       });
     }
   }
@@ -56,15 +56,21 @@ export function buildInsights(
     out.push({ id: "savings-target", tone: "good", text: `You hit your savings target of ${money(budgetAllocations.savings)}.` });
   }
 
-  // Spending vs the previous period.
-  const prevTotal = getPeriodSpend(transactions, getPrevMonthKey(monthKey), payday).total;
-  if (prevTotal > 0) {
-    const change = Math.round(((summary.totalExpenses - prevTotal) / prevTotal) * 100);
-    if (change !== 0) {
+  // Spending vs last period — while a period is running, only up to the same day,
+  // so day 16 is never weighed against a whole month. Savings aren't spending.
+  const report = buildReport(transactions, monthKey, payday, now);
+  const spentNow = report.totalSpent - (report.byCategory.find((c) => c.category === "Savings")?.total ?? 0);
+  const spentBefore = report.prevTotal - report.prevByCategory.Savings;
+  if (spentNow > 0 && spentBefore > 0) {
+    const diff = spentNow - spentBefore;
+    const when = report.comparedToSamePoint ? "by this point last period" : "last period";
+    if (Math.abs(diff) / spentBefore < 0.05) {
+      out.push({ id: "vs-last", tone: "info", text: `You've spent about the same as ${when}.` });
+    } else {
       out.push({
         id: "vs-last",
-        tone: change > 0 ? "warn" : "good",
-        text: `Spending is ${Math.abs(change)}% ${change > 0 ? "higher" : "lower"} than last period.`,
+        tone: diff < 0 ? "good" : "warn",
+        text: `You've spent ${money(Math.abs(diff))} ${diff < 0 ? "less" : "more"} than ${when}.`,
       });
     }
   }
@@ -85,7 +91,7 @@ export function buildInsights(
   );
   if (subs.length > 0) {
     const monthly = subs.reduce((s, x) => s + x.amount, 0);
-    out.push({ id: "subs", tone: "info", text: `${subs.length} subscription${subs.length === 1 ? "" : "s"} cost about ${money(monthly)}/month.` });
+    out.push({ id: "subs", tone: "info", text: `${subs.length} subscription${subs.length === 1 ? "" : "s"} cost about ${money(monthly)} each pay period.` });
   }
 
   // Warnings first, then wins, then neutral info; cap to keep it scannable.

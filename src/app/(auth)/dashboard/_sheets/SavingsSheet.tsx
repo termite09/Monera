@@ -25,7 +25,7 @@ export function SavingsSheet({ periodSavingsTxs, onSettings }: Props) {
               <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>
               <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
             </div>
-            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums font-mono shrink-0">
+            <span className="text-sm font-medium text-foreground tabular-nums font-mono shrink-0">
               {formatCurrency(tx.amount)}
             </span>
           </div>

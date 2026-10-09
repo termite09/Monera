@@ -6,7 +6,7 @@ const STEPS = [
   "Choose Excel or CSV as the format.",
   "Pick the date range you want to import.",
   "Generate the statement and save or share the file to this device.",
-  "Upload it using the button above.",
+  "Add it here using the button above.",
 ];
 
 /**
@@ -21,12 +21,12 @@ export function RevolutExportHelp() {
         <ChevronRight size={13} className="transition-transform group-open:rotate-90" />
         How do I export from Revolut?
       </summary>
-      <ol className="mt-2 ml-1 flex flex-col gap-1.5 list-decimal list-inside marker:text-muted-foreground/60">
+      <ol className="mt-2 ml-1 flex flex-col gap-1.5 list-decimal list-inside marker:text-muted-foreground">
         {STEPS.map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
-      <p className="mt-2 text-muted-foreground/80">
+      <p className="mt-2 max-w-[60ch]">
         Not on Revolut? Most banks work too — export a CSV or Excel file with date, description, and amount columns.
       </p>
     </details>

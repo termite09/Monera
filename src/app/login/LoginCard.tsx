@@ -1,7 +1,6 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,22 +18,17 @@ function errorMessage(code: string): string {
 }
 
 export function LoginCard({ error }: { error?: string }) {
-  const reduceMotion = useReducedMotion();
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-        className="w-full max-w-sm"
-      >
+      {/* CSS entrance (not JS) so the card is visible in the server HTML before hydration. */}
+      <div className="w-full max-w-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
         {/* Brand */}
         <div className="mb-12 text-center">
           <h1 className="text-5xl text-foreground tracking-tight mb-2 font-serif">
             Monera
           </h1>
-          <p className="text-sm text-muted-foreground tracking-wide uppercase">
-            Personal Finance
+          <p className="text-sm text-muted-foreground">
+            Payday budgeting for Revolut, kept in your own Google Drive
           </p>
         </div>
 
@@ -50,8 +44,8 @@ export function LoginCard({ error }: { error?: string }) {
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
-              <AlertCircle size={15} className="shrink-0 mt-0.5 text-destructive" />
+            <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
+              <AlertCircle size={15} className="shrink-0 mt-0.5 text-destructive" aria-hidden />
               <p className="text-xs text-destructive">{errorMessage(error)}</p>
             </div>
           )}
@@ -74,14 +68,18 @@ export function LoginCard({ error }: { error?: string }) {
             Google will ask you to allow Drive access — that&apos;s how your data is saved. Monera only ever sees the files it creates.
           </p>
 
-          <p className="text-xs text-center text-muted-foreground/60">
+          <p className="text-xs text-center text-muted-foreground">
             By continuing you agree to our{" "}
-            <Link href="/terms" className="underline underline-offset-2 hover:text-muted-foreground">Terms</Link>
+            <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">Terms</Link>
             {" "}and{" "}
-            <Link href="/privacy" className="underline underline-offset-2 hover:text-muted-foreground">Privacy Policy</Link>
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>
           </p>
+
+          <Link href="/" className="text-sm text-center text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+            Back to the Monera homepage
+          </Link>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

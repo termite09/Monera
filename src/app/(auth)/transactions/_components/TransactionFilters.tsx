@@ -36,11 +36,13 @@ export function TransactionFilters({
       {/* Row 1: Search + Add */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
+            type="search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search transactions..."
+            placeholder="Search transactions…"
+            aria-label="Search transactions"
             className="w-full h-11 pl-9 pr-8 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {search && (
@@ -70,10 +72,12 @@ export function TransactionFilters({
         ).map(({ value, label }) => (
           <button
             key={value}
+            type="button"
+            aria-pressed={filterType === value}
             onClick={() => onFilterTypeChange(value)}
             className={cn(
               "py-1.5 rounded-md text-xs font-medium transition-colors",
-              filterType === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              filterType === value ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
             )}
           >
             {label}
@@ -93,25 +97,30 @@ export function TransactionFilters({
               <SelectItem value="Needs">Needs</SelectItem>
               <SelectItem value="Wants">Wants</SelectItem>
               <SelectItem value="Savings">Savings</SelectItem>
+              <SelectItem value="Uncategorized">No category</SelectItem>
             </SelectContent>
           </Select>
         </div>
         {!searching && (
           <div className="flex gap-0.5 p-0.5 rounded-lg bg-secondary shrink-0">
             <button
+              type="button"
+              aria-pressed={rangeMode === "period"}
               onClick={onPeriodMode}
               className={cn(
                 "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                rangeMode === "period" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                rangeMode === "period" ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
               )}
             >
-              Period
+              This period
             </button>
             <button
+              type="button"
+              aria-pressed={rangeMode === "custom"}
               onClick={onCustomMode}
               className={cn(
                 "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                rangeMode === "custom" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                rangeMode === "custom" ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
               )}
             >
               Custom

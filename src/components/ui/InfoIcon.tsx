@@ -24,7 +24,7 @@ export function InfoIcon({ content, side = "top", onClick }: InfoIconProps) {
             setOpen((v) => !v);
             onClick?.();
           }}
-          className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+          className="inline-flex items-center rounded-full text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           aria-label="More info"
         >
           <Info size={14} />

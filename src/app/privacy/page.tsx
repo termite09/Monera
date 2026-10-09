@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         <h1 className="text-3xl font-serif text-foreground mb-2">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground mb-10">Last updated: June 2026</p>
 
-        <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed">
+        <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed max-w-lg">
           <section>
             <h2 className="font-semibold text-base mb-2">Overview</h2>
             <p>
@@ -69,15 +69,15 @@ export default function PrivacyPage() {
             <p className="mb-3">
               All financial data — imported statements, categories, settings, and manual
               transactions — is stored in a private{" "}
-              <code className="bg-secondary px-1 py-0.5 rounded text-xs">Monera/</code> folder in
+              <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">Monera/</code> folder in
               your own Google Drive. Monera requests only the{" "}
-              <code className="bg-secondary px-1 py-0.5 rounded text-xs">drive.file</code> scope,
+              <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">drive.file</code> scope,
               which limits access strictly to files the app itself created. We cannot read the rest
               of your Drive.
             </p>
             <p className="mb-2">Specifically, Monera performs the following Drive operations:</p>
             <ul className="flex flex-col gap-1 list-disc list-inside text-muted-foreground">
-              <li>Creates and maintains a <code className="bg-secondary px-1 py-0.5 rounded text-xs">Monera/</code> folder with subfolders <code className="bg-secondary px-1 py-0.5 rounded text-xs">revolut-exports/</code> and <code className="bg-secondary px-1 py-0.5 rounded text-xs">app-data/</code></li>
+              <li>Creates and maintains a <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">Monera/</code> folder with subfolders <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">revolut-exports/</code> and <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">app-data/</code></li>
               <li>Reads and writes JSON data files: transaction records, category overrides, settings, category rules, exclusions, and a parse cache</li>
               <li>Uploads CSV bank statement files you import into the app</li>
               <li>Deletes files when you remove data within the app</li>

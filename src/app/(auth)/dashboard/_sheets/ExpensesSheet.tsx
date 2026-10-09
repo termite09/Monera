@@ -13,8 +13,8 @@ interface Props {
 
 export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs, expandedCat, setExpandedCat }: Props) {
   const categories: { label: string; amount: number; dot: string; key: Category }[] = [
-    { label: "Needs", amount: summary.needs, dot: "bg-blue-500", key: "Needs" },
-    { label: "Wants", amount: summary.wants, dot: "bg-amber-500", key: "Wants" },
+    { label: "Needs", amount: summary.needs, dot: "bg-cat-needs", key: "Needs" },
+    { label: "Wants", amount: summary.wants, dot: "bg-cat-wants", key: "Wants" },
     ...(uncategorizedExpense > 0
       ? [{ label: "Uncategorized", amount: uncategorizedExpense, dot: "bg-muted-foreground/40", key: "Uncategorized" as const }]
       : []),
@@ -38,7 +38,7 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
                 <span className={cn("size-2.5 rounded-full shrink-0", cat.dot)} />
                 <span className="flex-1 text-sm font-medium">{cat.label}</span>
                 <span className="text-sm tabular-nums font-mono text-foreground mr-1">{formatCurrency(cat.amount)}</span>
-                <ChevronRight size={14} className={cn("text-muted-foreground/50 shrink-0 transition-transform duration-200", isOpen && "rotate-90")} />
+                <ChevronRight size={14} className={cn("text-muted-foreground shrink-0 transition-transform duration-200", isOpen && "rotate-90")} />
               </button>
               {isOpen && (
                 <div className="mx-3 mb-1 rounded-xl border border-border overflow-hidden">

@@ -6,36 +6,42 @@ import { LayoutDashboard, List, Upload, Settings, PieChart, LogOut } from "lucid
 import { signOut } from "next-auth/react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useAppData } from "@/contexts/AppDataContext";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: List },
   { href: "/insights", label: "Insights", icon: PieChart },
-  { href: "/upload", label: "Upload", icon: Upload },
+  { href: "/upload", label: "Statements", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { ready, settings } = useAppData();
+
+  // First-run setup is one focused flow; don't offer ways out of it half-way.
+  if (ready && !settings.onboarded) return null;
 
   return (
     <aside className="hidden lg:flex flex-col w-56 h-screen fixed left-0 top-0 bg-card border-r border-border z-30">
       <div className="px-5 py-6">
-        <h1 className="text-2xl text-foreground font-serif">
+        <p className="text-2xl text-foreground font-serif">
           Monera
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5 tracking-wide">Personal Finance</p>
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">Your money, your Drive</p>
       </div>
 
       <Separator />
 
-      <nav className="flex-1 p-3 flex flex-col gap-0.5 mt-2">
+      <nav aria-label="Main" className="flex-1 p-3 flex flex-col gap-0.5 mt-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                 active
@@ -43,7 +49,7 @@ export function Sidebar() {
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               )}
             >
-              <Icon size={16} strokeWidth={active ? 2.5 : 1.8} />
+              <Icon size={16} strokeWidth={active ? 2.5 : 1.8} aria-hidden />
               {label}
             </Link>
           );
@@ -54,6 +60,7 @@ export function Sidebar() {
 
       <div className="p-3">
         <button
+          type="button"
           onClick={() => signOut({ redirectTo: "/login" })}
           className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >

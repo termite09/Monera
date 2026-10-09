@@ -4,20 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, List, PieChart, Upload, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppData } from "@/contexts/AppDataContext";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: List },
   { href: "/insights", label: "Insights", icon: PieChart },
-  { href: "/upload", label: "Upload", icon: Upload },
+  { href: "/upload", label: "Statements", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function BottomBar() {
   const pathname = usePathname();
+  const { ready, settings } = useAppData();
+
+  // First-run setup is one focused flow; don't offer ways out of it half-way.
+  if (ready && !settings.onboarded) return null;
 
   return (
     <nav
+      aria-label="Main"
       className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
@@ -28,12 +34,13 @@ export function BottomBar() {
             <Link
               key={href}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-2 rounded-xl transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.5} />
+              <Icon size={20} strokeWidth={active ? 2.5 : 1.5} aria-hidden />
               <span className="text-[10px] font-medium">{label}</span>
             </Link>
           );

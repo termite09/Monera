@@ -15,7 +15,7 @@ export default function TermsPage() {
         <h1 className="text-3xl font-serif text-foreground mb-2">Terms of Service</h1>
         <p className="text-sm text-muted-foreground mb-10">Last updated: June 2026</p>
 
-        <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed">
+        <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed max-w-lg">
           <section>
             <h2 className="font-semibold text-base mb-2">Acceptance</h2>
             <p>
@@ -46,7 +46,7 @@ export default function TermsPage() {
             <h2 className="font-semibold text-base mb-2">Google Permissions</h2>
             <p>
               By signing in, you grant Monera access to create and read files in your Google Drive
-              under the <code className="bg-secondary px-1 py-0.5 rounded text-xs">drive.file</code> scope.
+              under the <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">drive.file</code> scope.
               You can revoke this access at any time from your{" "}
               <a
                 href="https://myaccount.google.com/permissions"

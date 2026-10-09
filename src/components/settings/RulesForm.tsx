@@ -110,16 +110,16 @@ export function RulesForm({ rules, updateRules }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Mappings</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          When a transaction description contains a keyword, it&apos;s automatically assigned that category. The first matching mapping wins.
+        <h1 className="text-xl font-semibold text-foreground">Rules</h1>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
+          Teach Monera where things belong: any transaction containing a word goes into that category. If two rules match, the first one wins.
         </p>
       </div>
 
       {/* Add new */}
-      <Card className="shadow-none border-border">
+      <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Add Mapping</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Add a rule</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -133,7 +133,7 @@ export function RulesForm({ rules, updateRules }: {
               className={cn("h-11", dupError && "border-destructive focus-visible:ring-destructive")}
             />
             {dupError && (
-              <p className="text-xs text-destructive">A mapping for this keyword already exists.</p>
+              <p className="text-xs text-destructive">There’s already a rule for this word.</p>
             )}
           </div>
           <div className="flex flex-col gap-1.5">
@@ -151,7 +151,7 @@ export function RulesForm({ rules, updateRules }: {
           </div>
           <Button onClick={handleAddRule} variant="outline" className="w-full">
             <Plus size={16} className="mr-1.5" />
-            Add mapping
+            Add rule
           </Button>
         </CardContent>
       </Card>
@@ -179,7 +179,7 @@ export function RulesForm({ rules, updateRules }: {
 
       {/* List header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{visible.length} of {items.length} mappings</p>
+        <p className="text-xs text-muted-foreground max-w-[65ch]">{visible.length} of {items.length} rules</p>
         {!selectMode ? (
           <button
             onClick={() => setSelectMode(true)}
@@ -199,7 +199,7 @@ export function RulesForm({ rules, updateRules }: {
         )}
       </div>
 
-      <Card className="shadow-none border-border overflow-hidden">
+      <Card className="overflow-hidden">
         <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
           <div className="divide-y divide-border">
             {visible.map(({ r, i }) => (
@@ -251,10 +251,10 @@ export function RulesForm({ rules, updateRules }: {
       {/* Bulk delete action bar */}
       {selectMode && selected.size > 0 && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-foreground">{selected.size} mapping{selected.size !== 1 ? "s" : ""} selected</p>
+          <p className="text-sm text-foreground">{selected.size} rule{selected.size !== 1 ? "s" : ""} selected</p>
           {confirmDelete ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">Are you sure?</p>
+              <p className="text-xs text-muted-foreground max-w-[65ch]">Are you sure?</p>
               <button onClick={handleBulkDelete} className="text-xs font-medium text-destructive hover:underline">Delete</button>
               <button onClick={() => setConfirmDelete(false)} className="text-xs text-muted-foreground hover:underline">Cancel</button>
             </div>
@@ -273,9 +273,9 @@ export function RulesForm({ rules, updateRules }: {
       <Button
         onClick={handleSave}
         disabled={isSaving || !isDirty}
-        className={cn("w-full", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
+        className={cn("w-full sm:w-auto sm:self-start sm:px-8", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
       >
-        {error ? "Save failed — sign out & back in" : saved ? "✓ Saved" : isSaving ? "Saving..." : "Save Mappings"}
+        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save rules"}
       </Button>
     </div>
   );

@@ -1,8 +1,8 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Transaction } from "@/types";
-import { getPeriodBounds, formatCurrency, formatShortDate, toDateStr } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatShortDate, toDateStr, cn } from "@/lib/utils";
 import { WEEKDAY_LABELS } from "@/config/constants";
 
 export type WeekdayChartMode = "period" | "week" | "month" | "year";
@@ -179,6 +179,29 @@ export function getChartDateRange(
   return String(y);
 }
 
+export type WeekdayPoint = ReturnType<typeof buildPeriodData>[number];
+
+export function buildWeekdayData(
+  transactions: Transaction[],
+  mode: WeekdayChartMode,
+  monthKey: string,
+  paydayOfMonth = 1
+): WeekdayPoint[] {
+  return mode === "week" ? buildWeekData(transactions) :
+    mode === "month" ? buildMonthData(transactions, monthKey) :
+    mode === "year" ? buildYearData(transactions, monthKey) :
+    buildPeriodData(transactions, monthKey, paydayOfMonth);
+}
+
+const FULL_DAY: Record<string, string> = {
+  Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday",
+};
+
+/** "Saturday" for a short weekday label — used by the chart's spoken labels and takeaways. */
+export function fullDayName(label: string): string {
+  return FULL_DAY[label] ?? label;
+}
+
 interface BarTooltipPayload {
   day: string;
   spent: number;
@@ -190,10 +213,7 @@ function BarTooltip({ active, payload }: { active?: boolean; payload?: { payload
   const { spent, received } = payload[0].payload;
   const net = spent - received;
   return (
-    <div
-      style={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-      className="bg-card px-3 py-2 shadow-sm flex flex-col gap-1 min-w-32 font-mono"
-    >
+    <div className="bg-card border border-border rounded-lg px-3 py-2 flex flex-col gap-1 min-w-32 font-mono text-xs">
       <div className="flex items-center justify-between gap-4">
         <span className="text-muted-foreground">Spent</span>
         <span className="text-foreground">{formatCurrency(spent)}</span>
@@ -201,12 +221,12 @@ function BarTooltip({ active, payload }: { active?: boolean; payload?: { payload
       {received > 0 && (
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground">Received</span>
-          <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(received)}</span>
+          <span className="text-foreground">+{formatCurrency(received)}</span>
         </div>
       )}
       <div className="flex items-center justify-between gap-4 border-t border-border pt-1 font-semibold">
         <span>Net</span>
-        <span className={net <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}>
+        <span className="text-foreground">
           {net > 0 ? "− " : net < 0 ? "+ " : ""}{formatCurrency(Math.abs(net))}
         </span>
       </div>
@@ -221,11 +241,7 @@ export function WeekdayChart({
   mode = "period",
   onDayClick,
 }: WeekdayChartProps) {
-  const data =
-    mode === "week" ? buildWeekData(transactions) :
-    mode === "month" ? buildMonthData(transactions, monthKey) :
-    mode === "year" ? buildYearData(transactions, monthKey) :
-    buildPeriodData(transactions, monthKey, paydayOfMonth);
+  const data = buildWeekdayData(transactions, mode, monthKey, paydayOfMonth);
 
   const isEmpty = data.every((d) => d.amount === 0);
 
@@ -244,19 +260,16 @@ export function WeekdayChart({
     );
   }
 
-  const hasFuture = data.some((d) => d.future);
-
   return (
     <div className="md:h-full md:flex md:flex-col">
-      <div className="h-40 md:h-auto md:flex-1 md:min-h-0">
+      <div className="h-36 md:h-auto md:flex-1 md:min-h-0" aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-            <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6B7280" }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickLine={false} axisLine={false} tickFormatter={(v) => `€${v}`} width={48} />
-            <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+          <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+            <XAxis dataKey="day" hide />
+            <Tooltip content={<BarTooltip />} cursor={{ fill: "var(--secondary)", opacity: 0.6 }} />
             <Bar
               dataKey="amount"
-              radius={[3, 3, 0, 0]}
+              radius={[4, 4, 0, 0]}
               animationDuration={600}
               style={onDayClick ? { cursor: "pointer" } : undefined}
               onClick={onDayClick ? (barData) => {
@@ -267,28 +280,35 @@ export function WeekdayChart({
               {data.map((entry) => (
                 <Cell
                   key={entry.day}
-                  fill={entry.future ? "#f1f5f9" : entry.isMax ? "#1C3557" : "#e2e8f0"}
+                  fill={entry.future ? "var(--secondary)" : entry.isMax ? "var(--primary)" : "var(--chart-bar)"}
                 />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex items-center gap-3 mt-1 px-1 justify-end md:shrink-0">
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="inline-block size-2 rounded-sm bg-[#1C3557]" />
-          Highest
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="inline-block size-2 rounded-sm bg-[#e2e8f0]" />
-          Spending
-        </span>
-        {hasFuture && (
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <span className="inline-block size-2 rounded-sm bg-[#f1f5f9]" />
-            Upcoming
-          </span>
-        )}
+      {/* Day labels double as the keyboard/screen-reader way into each bar. */}
+      <div className="grid grid-cols-7 border-t border-border pt-1 md:shrink-0">
+        {data.map((entry) => {
+          const spoken = `${fullDayName(entry.day)}: ${formatCurrency(entry.amount)} spent`;
+          const cls = cn(
+            "py-1 text-xs text-center rounded-md",
+            entry.isMax ? "font-semibold text-foreground" : "text-muted-foreground"
+          );
+          return onDayClick && !entry.future ? (
+            <button
+              key={entry.day}
+              type="button"
+              onClick={() => onDayClick(entry.day, entry.dateStr)}
+              aria-label={`${spoken}. Show transactions`}
+              className={cn(cls, "hover:text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
+            >
+              {entry.day}
+            </button>
+          ) : (
+            <span key={entry.day} className={cls} aria-label={spoken}>{entry.day}</span>
+          );
+        })}
       </div>
     </div>
   );

@@ -6,8 +6,43 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = "€"): string {
-  return `${currency}${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", GBP: "£", USD: "$" };
+
+/** Turns an ISO code ("GBP") into its symbol ("£"); symbols pass through unchanged. */
+export function currencySymbol(currency: string): string {
+  if (CURRENCY_SYMBOLS[currency]) return CURRENCY_SYMBOLS[currency];
+  return /^[A-Z]{3}$/.test(currency) ? `${currency} ` : currency;
+}
+
+// The currency every amount is shown in. Set once per render by AppDataProvider
+// from the user's statements, so formatCurrency() call sites don't each need it
+// threaded through.
+let displayCurrency = "€";
+
+export function setDisplayCurrency(currency: string): void {
+  displayCurrency = currencySymbol(currency);
+}
+
+export function getDisplayCurrency(): string {
+  return displayCurrency;
+}
+
+/** The most common currency across imported statement rows, or null if none. */
+export function dominantCurrency(transactions: { currency: string; source: string }[]): string | null {
+  const counts = new Map<string, number>();
+  for (const tx of transactions) {
+    if (tx.source === "recurring" || !tx.currency) continue;
+    counts.set(tx.currency, (counts.get(tx.currency) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [c, n] of counts) if (n > bestCount) { best = c; bestCount = n; }
+  return best;
+}
+
+export function formatCurrency(amount: number, currency?: string): string {
+  const symbol = currency ? currencySymbol(currency) : displayCurrency;
+  return `${symbol}${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function formatDate(dateStr: string): string {
@@ -23,12 +58,21 @@ export function formatShortDate(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+/**
+ * The day pay lands in a given month. Paydays on the 29th–31st fall on the
+ * month's last day when the month is shorter (e.g. the 31st → 28 Feb).
+ */
+export function paydayIn(year: number, monthIndex: number, paydayOfMonth: number): number {
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.min(paydayOfMonth, daysInMonth);
+}
+
 export function getMonthKey(date: Date | string, paydayOfMonth = 1): string {
   const d = typeof date === "string" ? new Date(date + "T00:00:00") : date;
   if (paydayOfMonth <= 1) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }
-  if (d.getDate() >= paydayOfMonth) {
+  if (d.getDate() >= paydayIn(d.getFullYear(), d.getMonth(), paydayOfMonth)) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }
   const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
@@ -37,8 +81,8 @@ export function getMonthKey(date: Date | string, paydayOfMonth = 1): string {
 
 export function getPeriodBounds(monthKey: string, paydayOfMonth = 1): { start: Date; end: Date } {
   const [year, month] = monthKey.split("-").map(Number);
-  const start = new Date(year, month - 1, paydayOfMonth);
-  const end = new Date(year, month, paydayOfMonth);
+  const start = new Date(year, month - 1, paydayIn(year, month - 1, paydayOfMonth));
+  const end = new Date(year, month, paydayIn(year, month, paydayOfMonth));
   end.setMilliseconds(-1);
   return { start, end };
 }
@@ -48,8 +92,7 @@ export function getMonthLabel(monthKey: string, paydayOfMonth = 1): string {
   if (paydayOfMonth <= 1) {
     return new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   }
-  const start = new Date(year, month - 1, paydayOfMonth);
-  const end = new Date(year, month, paydayOfMonth - 1);
+  const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
   const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   return `${fmt(start)} – ${fmt(end)}`;
 }
@@ -104,24 +147,40 @@ export function occurrenceId(baseKey: string, counts: Map<string, number>): stri
   return generateId(n === 0 ? baseKey : `${baseKey}#${n}`);
 }
 
+/**
+ * Category colour as a CSS value. Categories share one navy family told apart by
+ * lightness; green/amber/red are reserved for budget status. Resolves through
+ * theme tokens so it follows dark mode (works for SVG strokes and inline styles).
+ */
 export function getCategoryColor(category: Category): string {
   const colors: Record<Category, string> = {
-    Needs: "#1E3A5F",
-    Wants: "#D97706",
-    Savings: "#059669",
-    Uncategorized: "#6B7280",
+    Needs: "var(--cat-needs)",
+    Wants: "var(--cat-wants)",
+    Savings: "var(--cat-savings)",
+    Uncategorized: "var(--muted-foreground)",
   };
   return colors[category];
 }
 
-export function getCategoryTextClass(category: string): string {
+/** Background class for a category swatch (always shown next to its label). */
+export function getCategorySwatchClass(category: string): string {
   const classes: Record<string, string> = {
-    Needs: "text-blue-600 dark:text-blue-400",
-    Wants: "text-amber-600 dark:text-amber-400",
-    Savings: "text-emerald-600 dark:text-emerald-400",
-    Uncategorized: "text-muted-foreground",
+    Needs: "bg-cat-needs",
+    Wants: "bg-cat-wants",
+    Savings: "bg-cat-savings",
+    Uncategorized: "bg-muted-foreground/40",
   };
-  return classes[category] ?? "text-muted-foreground";
+  return classes[category] ?? "bg-muted-foreground/40";
+}
+
+/**
+ * Text class for a category label. Labels stay in readable ink — the swatch
+ * carries the category colour — so Wants never reads as a warning.
+ */
+export function getCategoryTextClass(category: string): string {
+  return category === "Uncategorized" || !["Needs", "Wants", "Savings"].includes(category)
+    ? "text-muted-foreground"
+    : "text-foreground";
 }
 
 export function clamp(value: number, min: number, max: number): number {

@@ -32,12 +32,12 @@ export function WeekdaySheet({ weekdayTxs, chartDateRange, title }: Props) {
           {received > 0 && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Received</span>
-              <span className="text-emerald-600 dark:text-emerald-400">+ {formatCurrency(received)}</span>
+              <span className="text-foreground">+ {formatCurrency(received)}</span>
             </div>
           )}
           <div className="border-t border-border pt-2 flex items-center justify-between font-semibold">
             <span>Net</span>
-            <span className={net <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}>
+            <span className={"text-foreground"}>
               {net > 0 ? "− " : net < 0 ? "+ " : ""}{formatCurrency(Math.abs(net))}
             </span>
           </div>
@@ -54,7 +54,7 @@ export function WeekdaySheet({ weekdayTxs, chartDateRange, title }: Props) {
             </div>
             <span className={cn(
               "text-sm tabular-nums font-mono shrink-0",
-              tx.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+              "text-foreground"
             )}>
               {tx.type === "income" ? "+" : "−"}{formatCurrency(tx.amount)}
             </span>

@@ -16,7 +16,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
         <div className="bg-secondary/50 rounded-xl px-6 py-5 flex flex-col gap-2 font-mono text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Income</span>
-            <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(safeInfo.income)}</span>
+            <span className="text-foreground">{formatCurrency(safeInfo.income)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Spent so far</span>
@@ -29,12 +29,18 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Payments due</span>
+            <span className="text-muted-foreground">Bills still due</span>
             <span className="text-foreground">− {formatCurrency(safeInfo.billsDue)}</span>
           </div>
+          {safeInfo.savingsSetAside > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Rest of savings target</span>
+              <span className="text-foreground">− {formatCurrency(safeInfo.savingsSetAside)}</span>
+            </div>
+          )}
           <div className="border-t border-border pt-2 flex items-center justify-between font-semibold">
             <span>Safe to spend</span>
-            <span className={safeInfo.safe >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+            <span className={safeInfo.safe >= 0 ? "text-foreground" : "text-destructive"}>
               {formatCurrency(safeInfo.safe)}
             </span>
           </div>
@@ -42,7 +48,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
 
         {safeInfo.billItems.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Payments due</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 px-1">Bills still due</p>
             <div className="rounded-xl border border-border divide-y divide-border">
               {safeInfo.billItems.map((b) => (
                 <div key={`${b.date}-${b.name}`} className="flex items-center gap-3 px-3 py-2.5">
@@ -60,8 +66,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
         )}
 
         <p className="text-xs text-muted-foreground">
-          What&apos;s left after your spending so far, money set aside for savings, and recurring bills
-          {safeInfo.daysLeft > 0 ? ` (${safeInfo.daysLeft} day${safeInfo.daysLeft === 1 ? "" : "s"} away)` : ""}.
+          What&apos;s left of your pay once your spending so far, the bills still to come before payday, and the rest of your savings target are taken out.
         </p>
       </div>
     </>

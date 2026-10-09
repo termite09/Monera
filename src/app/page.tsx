@@ -6,7 +6,6 @@ import {
   Download,
   Upload,
   PieChart,
-  ShieldCheck,
   Check,
   X,
 } from "lucide-react";
@@ -47,8 +46,8 @@ const STEPS = [
   },
   {
     icon: Upload,
-    title: "Import to Monera",
-    body: "Drop the file in. Nothing leaves your machine until it's saved to your Drive.",
+    title: "Add it to Monera",
+    body: "Drop the file in. You see what was found before anything is saved to your Drive.",
   },
   {
     icon: PieChart,
@@ -67,8 +66,8 @@ const COMPARISON: { feature: string; monera: boolean | string; emma: boolean | s
 ];
 
 function Cell({ value }: { value: boolean | string }) {
-  if (value === true) return <Check size={18} className="text-green-600 mx-auto" aria-label="Yes" />;
-  if (value === false) return <X size={18} className="text-muted-foreground/50 mx-auto" aria-label="No" />;
+  if (value === true) return <Check size={18} className="text-primary mx-auto" aria-label="Yes" />;
+  if (value === false) return <X size={18} className="text-muted-foreground mx-auto" aria-label="No" />;
   return <span className="text-xs text-muted-foreground">{value}</span>;
 }
 
@@ -135,14 +134,14 @@ export default async function Home() {
           <Button asChild size="lg" className="mt-2">
             <Link href="/login">Get started — it&apos;s free</Link>
           </Button>
-          <p className="text-xs text-muted-foreground/80 tracking-wide">
+          <p className="text-xs text-muted-foreground tracking-wide">
             Free · Open-source · No bank login
           </p>
         </section>
 
         {/* Trust strip */}
         <section className="px-6 py-4 border-y border-border/60 bg-card/40">
-          <p className="max-w-3xl mx-auto text-center text-sm text-muted-foreground">
+          <p className="max-w-[65ch] mx-auto text-center text-sm text-muted-foreground">
             <strong className="text-foreground font-medium">No backend. No database. No bank login.</strong>{" "}
             Your finances live in a private folder in your Google Drive — Monera only ever sees the files
             it creates.{" "}
@@ -157,25 +156,25 @@ export default async function Home() {
           <h2 className="text-2xl font-serif text-foreground text-center mb-10 text-balance">How it works</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {STEPS.map((s, i) => (
-              <div key={s.title} className="bg-card border border-border/60 rounded-2xl p-6 flex flex-col gap-3">
+              <div key={s.title} className="bg-card border border-border rounded-xl p-6 flex flex-col gap-3">
                 <span className="text-xs font-mono font-medium text-primary tabular-nums">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div className="flex items-center gap-2">
-                  <s.icon size={14} className="text-muted-foreground shrink-0" />
+                  <s.icon size={14} className="text-muted-foreground shrink-0" aria-hidden />
                   <p className="text-sm font-semibold text-foreground">{s.title}</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
-          <div className="mt-10 rounded-2xl border border-border/60 overflow-hidden shadow-sm">
+          <div className="mt-10 rounded-xl border border-border overflow-hidden">
             <Image
               src="/screenshot-dashboard.png"
-              alt="Monera dashboard showing income, expenses, budget progress and spending by day"
+              alt="Monera dashboard: €563.38 safe to spend, about €37.55 a day until payday, with budget progress and spending by day"
               className="w-full"
               width={2984}
-              height={1712}
+              height={2140}
             />
           </div>
         </section>
@@ -183,12 +182,10 @@ export default async function Home() {
         {/* Privacy / open-source band */}
         <section className="px-6 py-16 bg-card/40 border-y border-border/60">
           <div className="max-w-2xl mx-auto text-center flex flex-col items-center gap-4">
-            <ShieldCheck size={28} className="text-primary" />
             <h2 className="text-2xl font-serif text-foreground text-balance">
               Your money is nobody&apos;s business but yours.
             </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              A 2026 study found 60% of popular budgeting apps share your data with third parties — many with advertisers and data brokers. Monera doesn&apos;t.
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-[62ch]">
               There&apos;s no Monera server and no database — your data is written only to a private{" "}
               <code className="font-mono text-xs text-foreground">Monera/</code> folder in your own Google Drive,
               using the minimal <code className="font-mono text-xs text-foreground">drive.file</code> permission that
@@ -204,21 +201,23 @@ export default async function Home() {
         {/* Comparison */}
         <section className="px-6 py-16 max-w-3xl mx-auto w-full">
           <h2 className="text-2xl font-serif text-foreground text-center mb-10 text-balance">How Monera compares</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+          <p className="sm:hidden text-xs text-muted-foreground text-center -mt-6 mb-4">Swipe sideways to see every app.</p>
+          <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-[34rem] border-collapse text-sm">
+              <caption className="sr-only">Monera compared with Emma, Snoop and Revolut&apos;s built-in budgeting</caption>
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left font-normal text-muted-foreground py-3 pr-3"></th>
-                  <th className="text-center font-semibold text-foreground py-3 px-3">Monera</th>
-                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Emma</th>
-                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Snoop</th>
-                  <th className="text-center font-normal text-muted-foreground py-3 px-3">Revolut built-in</th>
+                  <th scope="col" className="text-left font-normal text-muted-foreground py-3 pr-3 w-40"><span className="sr-only">Feature</span></th>
+                  <th scope="col" className="text-center font-semibold text-foreground py-3 px-3">Monera</th>
+                  <th scope="col" className="text-center font-normal text-muted-foreground py-3 px-3">Emma</th>
+                  <th scope="col" className="text-center font-normal text-muted-foreground py-3 px-3">Snoop</th>
+                  <th scope="col" className="text-center font-normal text-muted-foreground py-3 px-3">Revolut built-in</th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARISON.map((row) => (
                   <tr key={row.feature} className="border-b border-border/60">
-                    <td className="py-3 pr-3 text-foreground">{row.feature}</td>
+                    <th scope="row" className="py-3 pr-3 text-left font-normal text-foreground">{row.feature}</th>
                     <td className="py-3 px-3 text-center bg-primary/3"><Cell value={row.monera} /></td>
                     <td className="py-3 px-3 text-center"><Cell value={row.emma} /></td>
                     <td className="py-3 px-3 text-center"><Cell value={row.snoop} /></td>
@@ -240,8 +239,8 @@ export default async function Home() {
             <div className="flex flex-col gap-6">
               {FAQ.map((f) => (
                 <div key={f.q} className="flex flex-col gap-1.5">
-                  <p className="text-sm font-semibold text-foreground">{f.q}</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+                  <h3 className="text-sm font-semibold text-foreground">{f.q}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-[65ch]">{f.a}</p>
                 </div>
               ))}
             </div>
@@ -256,17 +255,17 @@ export default async function Home() {
           <Button asChild size="lg">
             <Link href="/login">Get started — it&apos;s free</Link>
           </Button>
-          <p className="text-xs text-muted-foreground/80">
+          <p className="text-xs text-muted-foreground">
             No bank login. No subscription. Your data stays in your Drive.
           </p>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-6 text-center text-xs text-muted-foreground/60 flex items-center justify-center gap-4">
-        <Link href="/privacy" className="underline underline-offset-2 hover:text-muted-foreground">Privacy Policy</Link>
-        <Link href="/terms" className="underline underline-offset-2 hover:text-muted-foreground">Terms of Service</Link>
-        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-muted-foreground">GitHub</a>
+      <footer className="px-6 py-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-4">
+        <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>
+        <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">Terms of Service</Link>
+        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">GitHub</a>
       </footer>
 
       {/* Structured data */}

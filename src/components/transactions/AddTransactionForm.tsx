@@ -84,10 +84,11 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
             <button
               key={t}
               type="button"
+              aria-pressed={type === t}
               onClick={() => selectType(t)}
               className={cn(
                 "h-9 rounded-md text-sm font-medium capitalize transition-colors",
-                type === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                type === t ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
               )}
             >
               {t}

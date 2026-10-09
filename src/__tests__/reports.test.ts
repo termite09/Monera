@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { monthlyCategoryTotals, detectSubscriptions } from "@/lib/reports";
+import { monthlyCategoryTotals, detectSubscriptions, buildReport } from "@/lib/reports";
 import { Transaction } from "@/types";
 
 let seq = 0;
@@ -123,5 +123,59 @@ describe("detectSubscriptions", () => {
     ]);
     expect(subs).toHaveLength(1);
     expect(subs[0].amount).toBe(13.24);
+  });
+});
+
+describe("detectSubscriptions — only optional spending", () => {
+  it("ignores regular rent (Needs) and savings transfers, keeps a streaming charge", () => {
+    const months = ["2024-03-02", "2024-04-02", "2024-05-02"];
+    const txs = months.flatMap((date) => [
+      tx({ amount: 780, type: "expense", category: "Needs", description: "Landlord rent", date }),
+      tx({ amount: 150, type: "expense", category: "Savings", description: "To EUR Savings", date }),
+      tx({ amount: 12.99, type: "expense", category: "Wants", description: "Netflix", date }),
+    ]);
+    const names = detectSubscriptions(txs).map((s) => s.name);
+    expect(names).toEqual(["Netflix"]);
+  });
+});
+
+describe("buildReport — fair comparison and projection", () => {
+  // Payday 1: June period is 1–30 June; "now" is 10 June (day 10).
+  const now = new Date(2024, 5, 10, 12);
+
+  it("compares a running period with last period only up to the same day", () => {
+    const txs = [
+      tx({ amount: 100, type: "expense", category: "Wants", date: "2024-06-05" }),
+      tx({ amount: 80, type: "expense", category: "Wants", date: "2024-05-05" }), // same point last period
+      tx({ amount: 500, type: "expense", category: "Wants", date: "2024-05-25" }), // later in last period
+    ];
+    const report = buildReport(txs, "2024-06", 1, now);
+    expect(report.comparedToSamePoint).toBe(true);
+    expect(report.prevTotal).toBe(80);
+  });
+
+  it("compares whole periods once the period has ended", () => {
+    const txs = [
+      tx({ amount: 80, type: "expense", category: "Wants", date: "2024-05-05" }),
+      tx({ amount: 500, type: "expense", category: "Wants", date: "2024-05-25" }),
+    ];
+    const report = buildReport(txs, "2024-06", 1, new Date(2024, 6, 15));
+    expect(report.comparedToSamePoint).toBe(false);
+    expect(report.prevTotal).toBe(580);
+  });
+
+  it("projects only day-to-day spending forward, not rent or savings", () => {
+    const history = ["2024-03-01", "2024-04-01", "2024-05-01"].map((date) =>
+      tx({ amount: 780, type: "expense", category: "Needs", description: "Landlord rent", date })
+    );
+    const txs = [
+      ...history,
+      tx({ amount: 780, type: "expense", category: "Needs", description: "Landlord rent", date: "2024-06-01" }),
+      tx({ amount: 150, type: "expense", category: "Savings", description: "To EUR Savings", date: "2024-06-01" }),
+      tx({ amount: 100, type: "expense", category: "Wants", description: "Groceries", date: "2024-06-05" }),
+    ];
+    const report = buildReport(txs, "2024-06", 1, now);
+    // Spent so far excl. savings = 880; day-to-day = 100 over 10 days → +10/day × 20 days left.
+    expect(report.projectedTotal).toBe(1080);
   });
 });
