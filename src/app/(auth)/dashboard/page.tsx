@@ -317,12 +317,14 @@ export default function DashboardPage() {
 
   const summaryCards = [
     {
-      // Until the pay deposit shows up, the figure is what the user told us to expect.
-      label: salaryBasis > 0 && !salaryFromStatement ? "Income" : "Income",
-      amount: summary.income, sign: "+", onClick: () => setSheet("income"),
+      // Until the pay shows up in a statement, the figure is only what the user
+      // told us to expect — so no "+", which would read as money received.
+      label: "Income",
+      amount: summary.income, sign: salaryBasis > 0 && !salaryFromStatement ? "" : "+", onClick: () => setSheet("income"),
     },
-    { label: "Spent", amount: summary.totalExpenses - summary.savings, onClick: () => setSheet("expenses") },
-    { label: "Saved", amount: summary.savings, onClick: () => setSheet("savings") },
+    // No statement for this period yet: we don't know what was spent or saved.
+    { label: "Spent", amount: noStatement ? null : summary.totalExpenses - summary.savings, onClick: () => setSheet("expenses") },
+    { label: "Saved", amount: noStatement ? null : summary.savings, onClick: () => setSheet("savings") },
   ];
 
   // One-line takeaway so the chart reads without an axis.
@@ -441,7 +443,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex gap-2 shrink-0">
               <Button size="sm" onClick={confirmSalary}>Yes, that&apos;s my pay</Button>
-              <Button size="sm" variant="outline" onClick={() => { setSalaryPromptDismissed(true); router.push("/settings?tab=sources"); }}>
+              <Button size="sm" variant="outline" onClick={() => { setSalaryPromptDismissed(true); router.push("/settings?tab=setup"); }}>
                 No
               </Button>
             </div>
@@ -454,7 +456,6 @@ export default function DashboardPage() {
             <CardTitle className="text-lg font-semibold text-foreground">
               <h2>Budget progress</h2>
             </CardTitle>
-            <p className="text-sm text-muted-foreground">Select a category to see its transactions.</p>
           </CardHeader>
           <CardContent className="px-4 pb-5 md:px-6">
             <div className="grid grid-cols-3 gap-3 mt-2 md:max-w-2xl md:mx-auto">
@@ -533,7 +534,7 @@ export default function DashboardPage() {
               </div>
             )}
             <p className="px-4 md:px-6 text-sm text-muted-foreground pb-2 md:shrink-0">
-              {chartTakeaway ?? (weekdayMode === "month" ? "No spending in this month." : chartDateRange)}
+              {chartTakeaway ?? (weekdayMode === "month" && !noStatement ? "No spending in this month." : chartDateRange)}
             </p>
             <CardContent className="px-4 pb-4 md:px-6 md:flex-1 md:min-h-0 md:flex md:flex-col">
               <WeekdayChart
@@ -542,6 +543,7 @@ export default function DashboardPage() {
                 paydayOfMonth={paydayOfMonth}
                 mode={weekdayMode}
                 onDayClick={handleDayClick}
+                emptyLabel={noStatement ? "No statement yet" : undefined}
               />
             </CardContent>
           </Card>

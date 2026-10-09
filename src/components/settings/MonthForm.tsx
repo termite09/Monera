@@ -88,7 +88,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">This pay period</h1>
+          <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">This pay period</h2>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">{label}</p>
         </div>
         {hasCustom ? (
@@ -100,7 +100,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-lg font-semibold text-foreground"><h2>Pay this period</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h3>Pay this period</h3></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
           <Label htmlFor="income">Amount ({getDisplayCurrency().trim()})</Label>
@@ -113,7 +113,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4 flex-row items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h3>Budget split</h3></CardTitle>
           {!hasCustom && (
             <button type="button" onClick={handleCopyDefaults} className="tap-area text-xs text-primary hover:underline">
               Start from Basics

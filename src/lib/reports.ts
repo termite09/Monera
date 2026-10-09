@@ -57,8 +57,6 @@ interface ReportData {
   comparedToSamePoint: boolean;
   /** Everyday spending still to come before payday at the current pace (bills excluded). */
   projectedPace: number;
-  /** The same pace split by budget (unsorted spending counts as Wants). */
-  projectedPaceBy: { Needs: number; Wants: number };
   /** Spending excluding savings — what "spent" means everywhere in Monera. */
   spending: number;
   prevSpending: number;
@@ -294,10 +292,6 @@ export function buildReport(
     prevByCategory,
     comparedToSamePoint,
     projectedPace: comparedToSamePoint ? roundMoney((variableSoFar / daysElapsed) * daysLeft) : 0,
-    projectedPaceBy: {
-      Needs: comparedToSamePoint ? roundMoney((dayToDay.Needs / daysElapsed) * daysLeft) : 0,
-      Wants: comparedToSamePoint ? roundMoney(((dayToDay.Wants + dayToDay.Uncategorized) / daysElapsed) * daysLeft) : 0,
-    },
     spending: roundMoney(spentSoFar),
     prevSpending: roundMoney(prevTotal - prevByCategory.Savings),
     changePct,

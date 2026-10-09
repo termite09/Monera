@@ -69,8 +69,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
           {allMerchants.length > TOP_N
             ? `Your top ${TOP_N} places took ${topShare}% of your spending this period.`
-            : "Every place you spent money this period."}{" "}
-          Select one to see its transactions.
+            : "Every place you spent money this period."}
         </p>
       </CardHeader>
       <CardContent className="px-0 pb-2">

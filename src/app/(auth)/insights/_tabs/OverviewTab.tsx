@@ -1,6 +1,6 @@
 import { formatCurrency, getCategoryColor, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
+import { ArrowRight, ArrowDown, ArrowUp } from "lucide-react";
 import type { buildReport } from "@/lib/reports";
 
 type Report = ReturnType<typeof buildReport>;
@@ -8,75 +8,34 @@ type Report = ReturnType<typeof buildReport>;
 interface Props {
   report: Report;
   savingsRate: number | null;
-  /** The dashboard's Safe to spend (null outside the live period). */
-  safeToSpend: number | null;
-  /** Where Needs and Wants each land by payday at this pace (negative = over). */
-  landing: { Needs: number; Wants: number };
   /** The user's own savings target, as a % of income. */
   savingsTargetPct: number;
 }
 
-export function OverviewTab({ report, savingsRate, safeToSpend, landing, savingsTargetPct }: Props) {
+export function OverviewTab({ report, savingsRate, savingsTargetPct }: Props) {
   if (report.txCount === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-muted-foreground text-sm">No spending this period</p>
-                  </CardContent>
+        </CardContent>
       </Card>
     );
   }
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-sm font-semibold text-foreground">Savings rate</h2>
-            <p className={cn("mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground")}>
-              {savingsRate === null ? "—" : `${savingsRate}%`}
-            </p>
-            {savingsRate !== null && (
-              <p className="mt-1 text-xs text-muted-foreground">{`Target ${savingsTargetPct}%`}</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            {report.comparedToSamePoint && safeToSpend !== null ? (
-              <>
-                <h2 className="text-sm font-semibold text-foreground">At payday</h2>
-                {report.daysElapsed < 3 ? (
-                  <>
-                    <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">—</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Too early to tell</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">
-                      {safeToSpend - report.projectedPace < 0 ? "−" : "~"}{formatCurrency(Math.abs(safeToSpend - report.projectedPace))}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {safeToSpend - report.projectedPace >= 0 ? "Likely left" : "Likely over"} at this pace
-                    </p>
-                    {(["Needs", "Wants"] as const).filter((k) => landing[k] < 0).map((k) => (
-                      <p key={k} className="mt-2 flex items-start gap-1.5 text-xs text-foreground">
-                        <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
-                        <span>{k}: likely ~<span className="font-mono tabular-nums">{formatCurrency(-landing[k])}</span> over by payday</span>
-                      </p>
-                    ))}
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <h2 className="text-sm font-semibold text-foreground">Spent this period</h2>
-                <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">{formatCurrency(report.spending)}</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-sm font-semibold text-foreground">Savings rate</h2>
+          <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">
+            {savingsRate === null ? "—" : `${savingsRate}%`}
+          </p>
+          {savingsRate !== null && (
+            <p className="mt-1 text-xs text-muted-foreground">Target {savingsTargetPct}%</p>
+          )}
+        </CardContent>
+      </Card>
 
       {report.prevSpending > 0 && report.spending > 0 ? (
         <Card>

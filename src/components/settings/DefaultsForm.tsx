@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAppData } from "@/contexts/AppDataContext";
 import { ordinal, cn, getDisplayCurrency } from "@/lib/utils";
+import { RecognisingPay } from "@/components/settings/RecognisingPay";
 
 export function DefaultsForm({ settings, updateSettings }: {
   settings: ReturnType<typeof useAppData>["settings"];
@@ -18,6 +19,9 @@ export function DefaultsForm({ settings, updateSettings }: {
   const [wants, setWants] = useState(String(settings.defaultBudgetRule.wants));
   const [saving, setSaving] = useState(String(settings.defaultBudgetRule.savings));
   const [defaultIncome, setDefaultIncome] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
+  const [salary, setSalary] = useState<string[]>(settings.salaryKeywords ?? []);
+  const [selfTransfer, setSelfTransfer] = useState<string[]>(settings.selfTransferKeywords ?? []);
+  const [savingsVault, setSavingsVault] = useState<string[]>(settings.savingsVaultKeywords ?? []);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
@@ -30,6 +34,9 @@ export function DefaultsForm({ settings, updateSettings }: {
     setWants(String(settings.defaultBudgetRule.wants));
     setSaving(String(settings.defaultBudgetRule.savings));
     setDefaultIncome(settings.defaultIncome ? String(settings.defaultIncome) : "");
+    setSalary(settings.salaryKeywords ?? []);
+    setSelfTransfer(settings.selfTransferKeywords ?? []);
+    setSavingsVault(settings.savingsVaultKeywords ?? []);
   }, [settings]);
 
   const handleSave = async () => {
@@ -47,6 +54,9 @@ export function DefaultsForm({ settings, updateSettings }: {
           wants: parseFloat(wants) || 0,
           savings: parseFloat(saving) || 0,
         },
+        salaryKeywords: salary,
+        selfTransferKeywords: selfTransfer,
+        savingsVaultKeywords: savingsVault,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -64,18 +74,21 @@ export function DefaultsForm({ settings, updateSettings }: {
     needs !== String(settings.defaultBudgetRule.needs) ||
     wants !== String(settings.defaultBudgetRule.wants) ||
     saving !== String(settings.defaultBudgetRule.savings) ||
-    defaultIncome !== (settings.defaultIncome ? String(settings.defaultIncome) : "");
+    defaultIncome !== (settings.defaultIncome ? String(settings.defaultIncome) : "") ||
+    JSON.stringify(salary) !== JSON.stringify(settings.salaryKeywords ?? []) ||
+    JSON.stringify(selfTransfer) !== JSON.stringify(settings.selfTransferKeywords ?? []) ||
+    JSON.stringify(savingsVault) !== JSON.stringify(settings.savingsVaultKeywords ?? []);
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Basics</h1>
+        <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">Basics</h2>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Used for every pay period, unless you change one under Period.</p>
       </div>
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-lg font-semibold text-foreground"><h2>Payday</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h3>Payday</h3></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
           <Label htmlFor="payday">Day of the month you get paid</Label>
@@ -88,7 +101,7 @@ export function DefaultsForm({ settings, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-lg font-semibold text-foreground"><h2>Your pay</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h3>Your pay</h3></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
           <Label htmlFor="default-income">Pay per period ({getDisplayCurrency().trim()})</Label>
@@ -110,7 +123,7 @@ export function DefaultsForm({ settings, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-lg font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h3>Budget split</h3></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -133,6 +146,12 @@ export function DefaultsForm({ settings, updateSettings }: {
           </p>
         </CardContent>
       </Card>
+
+      <RecognisingPay
+        salary={salary} setSalary={setSalary}
+        selfTransfer={selfTransfer} setSelfTransfer={setSelfTransfer}
+        savingsVault={savingsVault} setSavingsVault={setSavingsVault}
+      />
 
       <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
         {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}

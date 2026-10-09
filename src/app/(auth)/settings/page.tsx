@@ -14,7 +14,6 @@ import { MonthForm } from "@/components/settings/MonthForm";
 import { DefaultsForm } from "@/components/settings/DefaultsForm";
 import { RecurringForm } from "@/components/settings/RecurringForm";
 import { RulesForm } from "@/components/settings/RulesForm";
-import { IncomeForm } from "@/components/settings/IncomeForm";
 import { AppTour } from "@/components/onboarding/AppTour";
 
 const SETTINGS_SLIDES = [
@@ -32,7 +31,7 @@ const SETTINGS_SLIDES = [
   },
 ];
 
-type Tab = "setup" | "monthly" | "bills" | "sources" | "rules";
+type Tab = "setup" | "monthly" | "bills" | "rules";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -42,7 +41,8 @@ export default function SettingsPage() {
   const paydayOfMonth = settings.paydayOfMonth ?? 1;
   const [tab, setTab] = useState<Tab>(() => {
     const t = searchParams.get("tab");
-    return (t === "setup" || t === "monthly" || t === "bills" || t === "sources" || t === "rules") ? t : "setup";
+    // "sources" was the old Income tab, now part of Basics.
+    return (t === "monthly" || t === "bills" || t === "rules") ? t : "setup";
   });
 
   const handleSignOut = useCallback(() => {
@@ -59,7 +59,6 @@ export default function SettingsPage() {
     { id: "setup", label: "Basics" },
     { id: "monthly", label: "Period" },
     { id: "bills", label: "Bills" },
-    { id: "sources", label: "Income" },
     { id: "rules", label: "Rules" },
   ];
   const periodLabel = getMonthLabel(month, paydayOfMonth);
@@ -125,7 +124,7 @@ export default function SettingsPage() {
           onChange={setTab}
           label="Settings sections"
           idPrefix="settings"
-          className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-secondary"
+          className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary"
           itemClassName="h-10 rounded-md text-sm"
         />
 
@@ -135,7 +134,7 @@ export default function SettingsPage() {
         {tab === "monthly" && (
           <>
             <p className="text-sm text-muted-foreground -mt-2">
-              Change your pay or budget split for <span className="font-medium text-foreground">{periodLabel}</span> only. Use the arrows at the top to pick another pay period. Every other period uses your{" "}
+              Only for <span className="font-medium text-foreground">{periodLabel}</span>. Other periods use{" "}
               <button type="button" onClick={() => setTab("setup")} className="text-primary underline underline-offset-2">Basics</button>.
             </p>
             <MonthForm
@@ -149,8 +148,6 @@ export default function SettingsPage() {
         )}
 
         {tab === "bills" && <RecurringForm settings={settings} updateSettings={updateSettings} />}
-
-        {tab === "sources" && <IncomeForm settings={settings} updateSettings={updateSettings} />}
 
         {tab === "rules" && <RulesForm rules={rules} updateRules={updateRules} />}
         </TabPanel>

@@ -13,6 +13,8 @@ interface WeekdayChartProps {
   paydayOfMonth?: number;
   mode?: WeekdayChartMode;
   onDayClick?: (label: string, dateStr: string | null) => void;
+  /** Shown instead of "No spending…" when an empty chart means "we don't know yet". */
+  emptyLabel?: string;
 }
 
 // Refunds are income tagged to an expense bucket (Needs/Wants/Savings). Salary
@@ -240,6 +242,7 @@ export function WeekdayChart({
   paydayOfMonth = 1,
   mode = "period",
   onDayClick,
+  emptyLabel,
 }: WeekdayChartProps) {
   const data = buildWeekdayData(transactions, mode, monthKey, paydayOfMonth);
 
@@ -248,11 +251,11 @@ export function WeekdayChart({
   // Mobile renders at a fixed 120px; on desktop the chart fills its (fixed-height)
   // card via flex, so the bars grow to use the available vertical space.
   if (isEmpty) {
-    const emptyMsg =
-      mode === "week" ? "No spending this week" :
+    const emptyMsg = emptyLabel ??
+      (mode === "week" ? "No spending this week" :
       mode === "month" ? "No spending this calendar month" :
       mode === "year" ? "No spending this year" :
-      "No spending this period";
+      "No spending this period");
     return (
       <div className="flex items-center justify-center text-sm text-muted-foreground h-40 md:h-48">
         {emptyMsg}

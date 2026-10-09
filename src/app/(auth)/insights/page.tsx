@@ -11,9 +11,6 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { buildReport, detectSubscriptions, merchantKey, displayName } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
-import { getUpcomingCharges } from "@/lib/upcomingCharges";
-import { computeSafeToSpend } from "@/lib/safeToSpend";
-import { landingByBudget } from "@/lib/forecast";
 import { getPeriodBounds, toDateStr } from "@/lib/utils";
 import { Segmented, TabPanel } from "@/components/ui/segmented";
 
@@ -25,7 +22,7 @@ import { YearTab } from "./_tabs/YearTab";
 const REPORTS_SLIDES = [
   {
     title: "Your insights",
-    body: "Overview shows how much of your pay you kept, where you'll be by payday, and how this period compares with the last.",
+    body: "Overview shows how much of your pay you kept and how this period compares with the last.",
   },
   {
     title: "Dig into the detail",
@@ -74,56 +71,11 @@ export default function ReportsPage() {
   const todayStr = useMemo(() => toDateStr(new Date()), []);
   const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= todayStr), [allTxs, todayStr]);
 
-  // Subscriptions we expect to charge before payday — the same list the
-  // dashboard's Safe to spend holds back.
-  const expectedCharges = useMemo(() => {
-    const { end } = getPeriodBounds(month, paydayOfMonth);
-    const today = new Date(todayStr + "T00:00:00");
-    const daysToPayday = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / 86400000));
-    const subs = detectSubscriptions(transactions).filter((s) => !(settings.excludedSubscriptions ?? []).includes(s.name));
-    return getUpcomingCharges([], subs, today, daysToPayday)
-      .filter((c) => c.isEstimated)
-      .map((c) => ({ name: c.name, amount: c.amount, date: c.date, lastChargeDate: c.lastChargeDate }));
-  }, [transactions, settings.excludedSubscriptions, month, paydayOfMonth, todayStr]);
-
-  // Known spending still to come before payday (bills + expected subscriptions),
-  // so "By payday" lines up with Safe to spend on the dashboard.
-  const upcomingSpend = useMemo(() => {
-    const endStr = toDateStr(getPeriodBounds(month, paydayOfMonth).end);
-    const bills = allTxs.filter((t) => !t.excluded && t.type === "expense" && t.category !== "Savings" && t.date > todayStr && t.date <= endStr);
-    const known = new Set(bills.map((b) => b.description.toLowerCase()));
-    const expected = expectedCharges.filter((c) => !known.has(c.name.toLowerCase()));
-    return bills.reduce((s, t) => s + t.amount, 0) + expected.reduce((s, c) => s + c.amount, 0);
-  }, [allTxs, expectedCharges, month, paydayOfMonth, todayStr]);
-
   const report = useMemo(
-    () => buildReport(currentTxs, month, paydayOfMonth, new Date(), upcomingSpend),
-    [currentTxs, month, paydayOfMonth, upcomingSpend]
+    () => buildReport(currentTxs, month, paydayOfMonth, new Date()),
+    [currentTxs, month, paydayOfMonth]
   );
-  const { summary, budgetAllocations } = useBudget(currentTxs, settings, month);
-  const safeInfo = useMemo(
-    () => computeSafeToSpend(allTxs, settings, month, summary, new Date(), budgetAllocations.savings, expectedCharges),
-    [allTxs, settings, month, summary, budgetAllocations.savings, expectedCharges]
-  );
-  // Where Needs and Wants each land by payday at this pace (bills still due included).
-  const landing = useMemo(() => {
-    const endStr = toDateStr(getPeriodBounds(month, paydayOfMonth).end);
-    const due = { Needs: 0, Wants: 0 };
-    const known = new Set<string>();
-    for (const t of allTxs) {
-      if (t.excluded || t.type !== "expense" || t.category === "Savings" || t.date <= todayStr || t.date > endStr) continue;
-      known.add(t.description.toLowerCase());
-      if (t.category === "Needs") due.Needs += t.amount; else due.Wants += t.amount;
-    }
-    for (const c of expectedCharges) if (!known.has(c.name.toLowerCase())) due.Wants += c.amount;
-    const cat = (c: string) => report.byCategory.find((x) => x.category === c)?.total ?? 0;
-    return landingByBudget(
-      { Needs: budgetAllocations.needs, Wants: budgetAllocations.wants },
-      { Needs: cat("Needs"), Wants: cat("Wants") + cat("Uncategorized") },
-      due,
-      report.projectedPaceBy,
-    );
-  }, [allTxs, expectedCharges, month, paydayOfMonth, todayStr, report, budgetAllocations]);
+  const { summary } = useBudget(currentTxs, settings, month);
   const savingsRate = summary.income > 0 ? Math.round((summary.savings / summary.income) * 100) : null;
 
   const periodExpenseTxs = useMemo(() => {
@@ -197,8 +149,6 @@ export default function ReportsPage() {
               <OverviewTab
                 report={report}
                 savingsRate={savingsRate}
-                safeToSpend={safeInfo.applicable ? safeInfo.safe : null}
-                landing={landing}
                 savingsTargetPct={settings.monthlyBudgets[month]?.budgetRule.savings ?? settings.defaultBudgetRule.savings}
               />
             )}

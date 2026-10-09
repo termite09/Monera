@@ -74,7 +74,6 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-2">Spent this year</p>
             <p className="text-2xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearExpenses)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Savings not included</p>
           </CardContent>
         </Card>
         <Card>

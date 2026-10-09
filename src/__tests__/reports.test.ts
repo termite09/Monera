@@ -209,16 +209,3 @@ describe("buildReport — spending and projection", () => {
     expect(buildReport(txs, "2024-06", 1, now, 129).projectedTotal).toBe(without + 129);
   });
 });
-
-describe("buildReport — pace by budget", () => {
-  it("splits the everyday pace into Needs and Wants (unsorted counts as Wants)", () => {
-    const now = new Date(2024, 5, 10, 12);
-    const txs = [
-      tx({ amount: 100, type: "expense", category: "Needs", description: "Groceries", date: "2024-06-05" }),
-      tx({ amount: 50, type: "expense", category: "Uncategorized", description: "Misc", date: "2024-06-06" }),
-    ];
-    const r = buildReport(txs, "2024-06", 1, now);
-    expect(r.projectedPaceBy.Needs + r.projectedPaceBy.Wants).toBeCloseTo(r.projectedPace, 1);
-    expect(r.projectedPaceBy.Wants).toBeGreaterThan(0);
-  });
-});

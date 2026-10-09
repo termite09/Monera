@@ -110,7 +110,7 @@ export function RulesForm({ rules, updateRules }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Rules</h1>
+        <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">Rules</h2>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
           Teach Monera where things belong: any transaction containing a word goes into that category. If two rules match, the first one wins.
         </p>

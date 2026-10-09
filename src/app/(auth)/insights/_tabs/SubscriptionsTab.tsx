@@ -47,7 +47,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <CalendarClock size={13} aria-hidden /> <h2>Your regular bills</h2>
           </CardTitle>
-          {recurringPayments.length > 0 && (
+          {recurringPayments.length > 1 && (
             <span className="text-xs text-muted-foreground">
               <span className="font-mono tabular-nums">{formatCurrency(recurringPayments.reduce((s, p) => s + p.amount, 0))}</span> a month
             </span>
@@ -58,7 +58,6 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             <p className="text-sm text-muted-foreground py-2">No recurring bills set up yet. Add them in Settings → Bills.</p>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground mb-3">Bills you added in Settings, usually paid from another account.</p>
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = getPeriodRangeBadge(p.startMonth, p.endMonth);
@@ -108,17 +107,13 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             </CardTitle>
             {subscriptions.length > 0 && <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0"><span className="font-medium text-foreground font-mono tabular-nums">~{formatCurrency(subsMonthly)}</span> a month</span>}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Optional things you pay for about once a month, like streaming, apps and the gym. Hide anything that isn&apos;t a subscription.
-            {excludedSubCount > 0 && (
-              <>
-                {" "}
-                <button type="button" onClick={onRestore} className="tap-area text-primary hover:underline">
-                  Show hidden ({excludedSubCount})
-                </button>
-              </>
-            )}
-          </p>
+          {excludedSubCount > 0 && (
+            <p className="text-sm mt-1">
+              <button type="button" onClick={onRestore} className="tap-area text-primary hover:underline">
+                Show hidden ({excludedSubCount})
+              </button>
+            </p>
+          )}
         </CardHeader>
         <CardContent className="px-4 pb-4">
           {subscriptions.length === 0 ? (

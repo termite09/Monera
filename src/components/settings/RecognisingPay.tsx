@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAppData } from "@/contexts/AppDataContext";
 import { Plus, X } from "lucide-react";
 
 function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
@@ -30,7 +29,7 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
   return (
     <Card>
       <CardHeader className="pb-3 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold text-foreground">{label}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground"><h3>{label}</h3></CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 flex flex-col gap-3">
         <p className="text-xs text-muted-foreground max-w-[65ch]">{hint}</p>
@@ -75,57 +74,20 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
   );
 }
 
-export function IncomeForm({ settings, updateSettings }: {
-  settings: ReturnType<typeof useAppData>["settings"];
-  updateSettings: ReturnType<typeof useAppData>["updateSettings"];
+/** The keyword lists that tell Monera which payments are pay, own transfers and savings moves. Saved by the Basics form. */
+export function RecognisingPay({ salary, setSalary, selfTransfer, setSelfTransfer, savingsVault, setSavingsVault }: {
+  salary: string[];
+  setSalary: (v: string[]) => void;
+  selfTransfer: string[];
+  setSelfTransfer: (v: string[]) => void;
+  savingsVault: string[];
+  setSavingsVault: (v: string[]) => void;
 }) {
-  const [salary, setSalary] = useState<string[]>(settings.salaryKeywords ?? []);
-  const [selfTransfer, setSelfTransfer] = useState<string[]>(settings.selfTransferKeywords ?? []);
-  const [savingsVault, setSavingsVault] = useState<string[]>(settings.savingsVaultKeywords ?? []);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(false);
-
-  // Intentional sync from externally-loaded settings.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSalary(settings.salaryKeywords ?? []);
-    setSelfTransfer(settings.selfTransferKeywords ?? []);
-    setSavingsVault(settings.savingsVaultKeywords ?? []);
-  }, [settings]);
-
-  const dirty =
-    JSON.stringify(salary) !== JSON.stringify(settings.salaryKeywords ?? []) ||
-    JSON.stringify(selfTransfer) !== JSON.stringify(settings.selfTransferKeywords ?? []) ||
-    JSON.stringify(savingsVault) !== JSON.stringify(settings.savingsVaultKeywords ?? []);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    setError(false);
-    try {
-      await updateSettings({
-        ...settings,
-        salaryKeywords: salary,
-        selfTransferKeywords: selfTransfer,
-        savingsVaultKeywords: savingsVault,
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setError(true);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
-    <div className="flex flex-col gap-4">
+    <section aria-labelledby="recognising-pay" className="flex flex-col gap-4 pt-2">
       <div>
-        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Income</h1>
-        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
-          Tell Monera which payments are your pay and which are just money moving between your own accounts, so nothing is counted twice.
-        </p>
-        <p className="text-xs text-muted-foreground mt-2">The pay you expect each period is under <strong>Basics</strong>.</p>
+        <h2 id="recognising-pay" className="text-xl font-semibold tracking-[-0.01em] text-foreground">Recognising your pay</h2>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">So nothing is counted twice.</p>
       </div>
 
       <KeywordEditor
@@ -149,10 +111,6 @@ export function IncomeForm({ settings, updateSettings }: {
         keywords={savingsVault}
         onChange={setSavingsVault}
       />
-
-      <Button onClick={handleSave} disabled={isSaving || !dirty} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
-        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}
-      </Button>
-    </div>
+    </section>
   );
 }

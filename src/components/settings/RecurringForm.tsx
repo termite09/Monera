@@ -141,7 +141,7 @@ export function RecurringForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Bills</h1>
+        <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">Bills</h2>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Bills you pay from another account, like rent, insurance or the gym. Monera adds them to every pay period, so Safe to spend sets that money aside.</p>
       </div>
 
