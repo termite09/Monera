@@ -43,7 +43,7 @@ export function RemainingSheet({ summary, salaryUsed, salaryFromStatement, addit
           <p className="text-xs text-muted-foreground flex-1">
             {summary.remaining >= 0 ? "Money in, minus everything that went out this period." : "More went out than came in this period."}
           </p>
-          <button type="button" onClick={onReview} className="text-xs text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded">
+          <button type="button" onClick={onReview} className="tap-area text-xs text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded">
             Review →
           </button>
         </div>

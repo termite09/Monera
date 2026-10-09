@@ -13,6 +13,7 @@ import { buildReport, detectSubscriptions, merchantKey, displayName } from "@/li
 import { getRecurringInRange } from "@/lib/recurring";
 import { getUpcomingCharges } from "@/lib/upcomingCharges";
 import { computeSafeToSpend } from "@/lib/safeToSpend";
+import { landingByBudget } from "@/lib/forecast";
 import { getPeriodBounds, toDateStr } from "@/lib/utils";
 import { Segmented, TabPanel } from "@/components/ui/segmented";
 
@@ -104,6 +105,25 @@ export default function ReportsPage() {
     () => computeSafeToSpend(allTxs, settings, month, summary, new Date(), budgetAllocations.savings, expectedCharges),
     [allTxs, settings, month, summary, budgetAllocations.savings, expectedCharges]
   );
+  // Where Needs and Wants each land by payday at this pace (bills still due included).
+  const landing = useMemo(() => {
+    const endStr = toDateStr(getPeriodBounds(month, paydayOfMonth).end);
+    const due = { Needs: 0, Wants: 0 };
+    const known = new Set<string>();
+    for (const t of allTxs) {
+      if (t.excluded || t.type !== "expense" || t.category === "Savings" || t.date <= todayStr || t.date > endStr) continue;
+      known.add(t.description.toLowerCase());
+      if (t.category === "Needs") due.Needs += t.amount; else due.Wants += t.amount;
+    }
+    for (const c of expectedCharges) if (!known.has(c.name.toLowerCase())) due.Wants += c.amount;
+    const cat = (c: string) => report.byCategory.find((x) => x.category === c)?.total ?? 0;
+    return landingByBudget(
+      { Needs: budgetAllocations.needs, Wants: budgetAllocations.wants },
+      { Needs: cat("Needs"), Wants: cat("Wants") + cat("Uncategorized") },
+      due,
+      report.projectedPaceBy,
+    );
+  }, [allTxs, expectedCharges, month, paydayOfMonth, todayStr, report, budgetAllocations]);
   const savingsRate = summary.income > 0 ? Math.round((summary.savings / summary.income) * 100) : null;
 
   const periodExpenseTxs = useMemo(() => {
@@ -144,7 +164,8 @@ export default function ReportsPage() {
 
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+      {/* Year and Subscriptions aren't about one pay period, so no period arrows there. */}
+      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} showPeriod={tab === "overview" || tab === "merchants"} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6">
         <div>
@@ -177,6 +198,7 @@ export default function ReportsPage() {
                 report={report}
                 savingsRate={savingsRate}
                 safeToSpend={safeInfo.applicable ? safeInfo.safe : null}
+                landing={landing}
                 savingsTargetPct={settings.monthlyBudgets[month]?.budgetRule.savings ?? settings.defaultBudgetRule.savings}
               />
             )}

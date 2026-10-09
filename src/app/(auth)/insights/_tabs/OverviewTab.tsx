@@ -1,6 +1,6 @@
 import { formatCurrency, getCategoryColor, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowRight, ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
 import type { buildReport } from "@/lib/reports";
 
 type Report = ReturnType<typeof buildReport>;
@@ -10,18 +10,19 @@ interface Props {
   savingsRate: number | null;
   /** The dashboard's Safe to spend (null outside the live period). */
   safeToSpend: number | null;
+  /** Where Needs and Wants each land by payday at this pace (negative = over). */
+  landing: { Needs: number; Wants: number };
   /** The user's own savings target, as a % of income. */
   savingsTargetPct: number;
 }
 
-export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct }: Props) {
+export function OverviewTab({ report, savingsRate, safeToSpend, landing, savingsTargetPct }: Props) {
   if (report.txCount === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-muted-foreground text-sm">No spending this period</p>
-          <p className="text-muted-foreground text-xs mt-1">Add a statement or a transaction to see how this period is going.</p>
-        </CardContent>
+                  </CardContent>
       </Card>
     );
   }
@@ -32,16 +33,11 @@ export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct
         <Card>
           <CardContent className="p-4">
             <h2 className="text-sm font-semibold text-foreground">Savings rate</h2>
-            <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">Share of your income moved to savings this period.</p>
             <p className={cn("mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground")}>
               {savingsRate === null ? "—" : `${savingsRate}%`}
             </p>
             {savingsRate !== null && (
-              <p className="mt-1 text-xs text-muted-foreground">{savingsRate >= savingsTargetPct
-                ? `On your ${savingsTargetPct}% target`
-                : report.comparedToSamePoint
-                  ? `So far · your target is ${savingsTargetPct}%`
-                  : `Under your ${savingsTargetPct}% target`}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{`Target ${savingsTargetPct}%`}</p>
             )}
           </CardContent>
         </Card>
@@ -49,23 +45,32 @@ export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct
           <CardContent className="p-4">
             {report.comparedToSamePoint && safeToSpend !== null ? (
               <>
-                <h2 className="text-sm font-semibold text-foreground">Until payday</h2>
-                <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">Everyday spending still to come at your current pace. Bills are already taken out of Safe to spend.</p>
-                <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">
-                  {report.daysElapsed < 3 ? "—" : <>~{formatCurrency(report.projectedPace)}</>}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {report.daysElapsed < 3
-                    ? "Needs a few more days"
-                    : report.projectedPace <= safeToSpend
-                      ? <>Leaves about <span className="font-mono tabular-nums text-foreground">{formatCurrency(safeToSpend - report.projectedPace)}</span> of your <span className="font-mono tabular-nums">{formatCurrency(safeToSpend)}</span> safe to spend</>
-                      : <>About <span className="font-mono tabular-nums text-foreground">{formatCurrency(report.projectedPace - safeToSpend)}</span> more than your <span className="font-mono tabular-nums">{formatCurrency(Math.max(0, safeToSpend))}</span> safe to spend</>}
-                </p>
+                <h2 className="text-sm font-semibold text-foreground">At payday</h2>
+                {report.daysElapsed < 3 ? (
+                  <>
+                    <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">—</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Too early to tell</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">
+                      {safeToSpend - report.projectedPace < 0 ? "−" : "~"}{formatCurrency(Math.abs(safeToSpend - report.projectedPace))}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {safeToSpend - report.projectedPace >= 0 ? "Likely left" : "Likely over"} at this pace
+                    </p>
+                    {(["Needs", "Wants"] as const).filter((k) => landing[k] < 0).map((k) => (
+                      <p key={k} className="mt-2 flex items-start gap-1.5 text-xs text-foreground">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
+                        <span>{k}: likely ~<span className="font-mono tabular-nums">{formatCurrency(-landing[k])}</span> over by payday</span>
+                      </p>
+                    ))}
+                  </>
+                )}
               </>
             ) : (
               <>
                 <h2 className="text-sm font-semibold text-foreground">Spent this period</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Needs and Wants. Savings not included.</p>
                 <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">{formatCurrency(report.spending)}</p>
               </>
             )}
@@ -79,11 +84,6 @@ export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct
             <CardTitle className="text-lg font-semibold text-foreground">
               <h2>Compared with last period</h2>
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">
-              {report.comparedToSamePoint
-                ? "Spending so far, against last pay period up to the same day."
-                : "How each category changed since last pay period."}
-            </p>
           </CardHeader>
           <CardContent className="px-4 pb-4 flex flex-col gap-0">
             <div className="flex items-center justify-between pb-1.5 text-xs font-medium text-muted-foreground">
@@ -131,7 +131,6 @@ export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct
                   {row("Total spent", report.prevSpending, report.spending, report.spending - report.prevSpending <= 0, true)}
                   {(savedNow > 0 || savedBefore > 0) && (
                     <div className="pt-3">
-                      <p className="text-xs text-muted-foreground pb-1">Not counted as spending</p>
                       {row("Moved to savings", savedBefore, savedNow, savedNow - savedBefore >= 0, false, getCategoryColor("Savings"))}
                     </div>
                   )}
@@ -144,9 +143,6 @@ export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct
         <Card>
           <CardContent className="py-10 text-center">
             <p className="text-sm text-muted-foreground">No previous period to compare yet</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-              Once the period before this one has spending, you&apos;ll see a category-by-category comparison here.
-            </p>
           </CardContent>
         </Card>
       )}

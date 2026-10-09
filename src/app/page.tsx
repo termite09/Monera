@@ -60,7 +60,7 @@ const STEPS = [
 const COMPARISON: { feature: string; monera: boolean | string; emma: boolean | string; snoop: boolean | string; revolut: boolean | string }[] = [
   { feature: "Payday-to-payday budgets", monera: true, emma: "Calendar month", snoop: "Calendar month", revolut: "Calendar month" },
   { feature: "Where your data lives", monera: "Your Google Drive", emma: "Emma's servers", snoop: "Snoop's servers", revolut: "Revolut's servers" },
-  { feature: "Bank login / Open Banking required", monera: false, emma: true, snoop: true, revolut: "Built-in" },
+  { feature: "No bank login needed", monera: true, emma: false, snoop: false, revolut: "It's your bank" },
   { feature: "Price", monera: "Free", emma: "Free – £14.99/mo", snoop: "Free / £47.99/yr", revolut: "Free" },
   { feature: "Open-source", monera: true, emma: false, snoop: false, revolut: false },
 ];
@@ -95,7 +95,9 @@ const faqLd = {
 
 export default async function Home() {
   const session = await auth();
-  if (session) redirect("/dashboard");
+  // A misconfigured auth (e.g. an untrusted host) returns an error object, not
+  // null, so only a real signed-in user counts.
+  if (session?.user) redirect("/dashboard");
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -171,7 +173,7 @@ export default async function Home() {
           {/* Phones get a phone-sized capture; the desktop one is unreadable at that width. */}
           <div className="mt-10 mx-auto max-w-72 rounded-xl border border-border overflow-hidden sm:hidden">
             <Image
-              src="/screenshot-dashboard-mobile-v4.png"
+              src="/screenshot-dashboard-mobile-v5.png"
               alt="Monera on a phone: €563.38 safe to spend, about €37.55 a day until payday"
               className="w-full"
               width={780}
@@ -180,7 +182,7 @@ export default async function Home() {
           </div>
           <div className="mt-10 rounded-xl border border-border overflow-hidden hidden sm:block">
             <Image
-              src="/screenshot-dashboard-v4.png"
+              src="/screenshot-dashboard-v5.png"
               alt="Monera dashboard: €563.38 safe to spend, about €37.55 a day until payday, with budget progress and spending by day"
               className="w-full"
               width={2984}
@@ -202,7 +204,7 @@ export default async function Home() {
               can&apos;t even see the rest of your Drive. It&apos;s open-source under AGPL, so you don&apos;t have to
               take our word for it.
             </p>
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="text-sm text-foreground underline underline-offset-2 hover:text-primary">
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="tap-area text-sm text-foreground underline underline-offset-2 hover:text-primary">
               Read the code →
             </a>
           </div>
@@ -273,9 +275,9 @@ export default async function Home() {
 
       {/* Footer */}
       <footer className="px-6 py-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-4">
-        <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>
-        <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">Terms of Service</Link>
-        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">GitHub</a>
+        <Link href="/privacy" className="tap-area underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>
+        <Link href="/terms" className="tap-area underline underline-offset-2 hover:text-foreground">Terms of Service</Link>
+        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="tap-area underline underline-offset-2 hover:text-foreground">GitHub</a>
       </footer>
 
       {/* Structured data */}

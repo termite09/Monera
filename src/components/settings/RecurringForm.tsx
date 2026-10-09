@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,15 +37,16 @@ function MonthYearPicker({ value, onChange, label, id }: { value: string; onChan
     onChange(`${newY}-${newM}`);
   };
 
+  const labelId = useId();
   return (
-    <div className="flex flex-col gap-1">
-      <Label className="text-xs">{label}</Label>
+    <div className="flex flex-col gap-1" role="group" aria-labelledby={labelId}>
+      <Label id={labelId} htmlFor={id} className="text-xs">{label}</Label>
       <div className="grid grid-cols-2 gap-1.5">
-        <select id={id} value={mm ?? ""} onChange={(e) => handleMonthYearChange(ym || String(now.getFullYear()), e.target.value)} className={SELECT_CLS}>
+        <select id={id} aria-label="Month" value={mm ?? ""} onChange={(e) => handleMonthYearChange(ym || String(now.getFullYear()), e.target.value)} className={SELECT_CLS}>
           <option value="">Month</option>
           {MONTH_NAMES.map((n, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{n}</option>)}
         </select>
-        <select value={ym ?? ""} onChange={(e) => handleMonthYearChange(e.target.value, mm || String(now.getMonth() + 1).padStart(2, "0"))} className={SELECT_CLS}>
+        <select aria-label="Year" value={ym ?? ""} onChange={(e) => handleMonthYearChange(e.target.value, mm || String(now.getMonth() + 1).padStart(2, "0"))} className={SELECT_CLS}>
           <option value="">Year</option>
           {years.map((yr) => <option key={yr} value={String(yr)}>{yr}</option>)}
         </select>
@@ -152,6 +153,7 @@ export function RecurringForm({ settings, updateSettings }: {
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search recurring payments…"
+            aria-label="Search bills"
             className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
@@ -175,20 +177,20 @@ export function RecurringForm({ settings, updateSettings }: {
                     <div key={item.id} className="py-3 px-1 flex flex-col gap-3">
                       <div className="grid grid-cols-2 gap-2">
                         <div className="col-span-2 flex flex-col gap-1">
-                          <Label className="text-xs">Name</Label>
-                          <Input value={draft.name} onChange={(e) => setEditDraft((d) => d && { ...d, name: e.target.value })} className="h-9" />
+                          <Label htmlFor={`bill-name-${item.id}`} className="text-xs">Name</Label>
+                          <Input id={`bill-name-${item.id}`} value={draft.name} onChange={(e) => setEditDraft((d) => d && { ...d, name: e.target.value })} className="h-9" />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Amount ({getDisplayCurrency().trim()})</Label>
-                          <Input type="number" value={String(draft.amount)} onChange={(e) => setEditDraft((d) => d && { ...d, amount: parseFloat(e.target.value) || 0 })} className="h-9" />
+                          <Label htmlFor={`bill-amount-${item.id}`} className="text-xs">Amount ({getDisplayCurrency().trim()})</Label>
+                          <Input id={`bill-amount-${item.id}`} type="number" value={String(draft.amount)} onChange={(e) => setEditDraft((d) => d && { ...d, amount: parseFloat(e.target.value) || 0 })} className="h-9" />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Day of month</Label>
-                          <Input type="number" min={1} max={31} value={String(draft.dayOfMonth)} onChange={(e) => setEditDraft((d) => d && { ...d, dayOfMonth: Math.min(31, Math.max(1, parseInt(e.target.value) || 1)) })} className="h-9" />
+                          <Label htmlFor={`bill-day-${item.id}`} className="text-xs">Day of month</Label>
+                          <Input id={`bill-day-${item.id}`} type="number" min={1} max={31} value={String(draft.dayOfMonth)} onChange={(e) => setEditDraft((d) => d && { ...d, dayOfMonth: Math.min(31, Math.max(1, parseInt(e.target.value) || 1)) })} className="h-9" />
                         </div>
                         <div className="col-span-2 flex flex-col gap-1">
-                          <Label className="text-xs">Category</Label>
-                          <select value={draft.category} onChange={(e) => setEditDraft((d) => d && { ...d, category: e.target.value as Category })} className="h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                          <Label htmlFor={`bill-cat-${item.id}`} className="text-xs">Category</Label>
+                          <select id={`bill-cat-${item.id}`} value={draft.category} onChange={(e) => setEditDraft((d) => d && { ...d, category: e.target.value as Category })} className="h-9 px-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
@@ -204,9 +206,9 @@ export function RecurringForm({ settings, updateSettings }: {
                         />
                       </div>
                       <div className="flex gap-2 items-center">
-                        <Button size="sm" onClick={saveEdit} className="flex-1 h-8">Save</Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit} className="flex-1 h-8">Cancel</Button>
-                        <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1.5" aria-label="Delete">
+                        <Button size="sm" onClick={saveEdit} className="flex-1 h-11 sm:h-8">Save</Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit} className="flex-1 h-11 sm:h-8">Cancel</Button>
+                        <button type="button" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors size-11 sm:size-8 flex items-center justify-center rounded-md" aria-label="Delete">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -225,10 +227,10 @@ export function RecurringForm({ settings, updateSettings }: {
                       </p>
                     </div>
                     <span className="text-sm tabular-nums text-foreground font-mono">{formatCurrency(item.amount)}</span>
-                    <button onClick={() => startEdit(item)} className="text-muted-foreground hover:text-foreground transition-colors p-1" aria-label={`Edit ${item.name}`}>
+                    <button type="button" onClick={() => startEdit(item)} className="text-muted-foreground hover:text-foreground transition-colors size-11 sm:size-8 flex items-center justify-center rounded-md shrink-0" aria-label={`Edit ${item.name}`}>
                       <Pencil size={15} />
                     </button>
-                    <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1" aria-label={`Remove ${item.name}`}>
+                    <button type="button" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors size-11 sm:size-8 flex items-center justify-center rounded-md shrink-0" aria-label={`Remove ${item.name}`}>
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -243,17 +245,19 @@ export function RecurringForm({ settings, updateSettings }: {
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <button
+            type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="h-8 px-3 rounded-md border border-input disabled:opacity-40 hover:bg-secondary transition-colors"
+            className="h-11 sm:h-8 px-3 rounded-md border border-input disabled:opacity-40 hover:bg-secondary transition-colors"
           >
             Prev
           </button>
           <span>{currentPage} / {totalPages}</span>
           <button
+            type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="h-8 px-3 rounded-md border border-input disabled:opacity-40 hover:bg-secondary transition-colors"
+            className="h-11 sm:h-8 px-3 rounded-md border border-input disabled:opacity-40 hover:bg-secondary transition-colors"
           >
             Next
           </button>

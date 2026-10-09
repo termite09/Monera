@@ -158,9 +158,9 @@ export default function UploadPage() {
     <PageShell>
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-6 md:max-w-none md:px-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Add a statement</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Statements</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-[65ch]">
-            Export your statement from Revolut and add it here — once per pay period is enough. Other banks&apos; CSV files usually work too if they have date, description and amount columns.
+            Add your Revolut statement once per pay period.
           </p>
         </div>
 
@@ -256,7 +256,7 @@ export default function UploadPage() {
               <button
                 onClick={() => updateSettings({ ...settings, recurringNudgeDismissed: true })}
                 type="button"
-                className="shrink-0 p-1 -m-1 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                className="shrink-0 size-11 -m-3 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Dismiss"
               >
                 <X size={16} />
@@ -269,7 +269,6 @@ export default function UploadPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">Your statements</h2>
-            <Button variant="ghost" size="sm" onClick={loadFiles}>Refresh</Button>
           </div>
 
           {existingFiles.length === 0 ? (
@@ -290,7 +289,7 @@ export default function UploadPage() {
                         <p className="text-xs text-muted-foreground">{formatDate(file.createdTime)}</p>
                       </div>
                       {confirmDeleteId === file.id ? (
-                        <button
+                        <button type="button"
                           onClick={() => handleDelete(file.id)}
                           disabled={deletingId === file.id}
                           className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 disabled:cursor-wait transition-colors"
@@ -299,9 +298,9 @@ export default function UploadPage() {
                           Remove
                         </button>
                       ) : (
-                        <button
+                        <button type="button"
                           onClick={() => setConfirmDeleteId(file.id)}
-                          className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
+                          className="shrink-0 size-11 sm:size-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
                           aria-label={`Remove ${file.name}`}
                         >
                           <Trash2 size={14} />

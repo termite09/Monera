@@ -69,7 +69,7 @@ export function IncomeSheet({ salaryBasis, salaryFromStatement, salaryTxIds, con
             : "Transactions you've left out don't appear here."}
           {hasRefunds && " Refunds are taken off your spending instead."}
         </p>
-        <button type="button" onClick={onManage} className="text-xs text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded">
+        <button type="button" onClick={onManage} className="tap-area text-xs text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded">
           Manage →
         </button>
       </div>

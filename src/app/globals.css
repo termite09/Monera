@@ -2,7 +2,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-sans: "DM Sans", sans-serif;
@@ -34,6 +33,7 @@
   --color-status-ok-bg: var(--status-ok-bg);
   --color-status-warn: var(--status-warn);
   --color-status-warn-bg: var(--status-warn-bg);
+  --color-status-over: var(--status-over);
   --color-status-over-bg: var(--status-over-bg);
   --color-chart-bar: var(--chart-bar);
   --radius-sm: calc(var(--radius) - 4px);
@@ -55,7 +55,7 @@
   --secondary: #F1EFE9;
   --secondary-foreground: #0C0C0B;
   --muted: #F1EFE9;
-  --muted-foreground: #6B7280;
+  --muted-foreground: #646B78;
   --accent: #F1EFE9;
   --accent-foreground: #0C0C0B;
   --destructive: #DC2626;
@@ -72,40 +72,11 @@
   --status-ok-bg: #E8F5EF;
   --status-warn: #B45309;
   --status-warn-bg: #FEF3E2;
+  --status-over: #B91C1C;
   --status-over-bg: #FDECEC;
   --chart-bar: #97928A;
 }
 
-.dark {
-  --background: #0C0C0B;
-  --foreground: #F8F7F4;
-  --card: #161614;
-  --card-foreground: #F8F7F4;
-  --popover: #161614;
-  --popover-foreground: #F8F7F4;
-  --primary: #4A7EC7;
-  --primary-foreground: #FFFFFF;
-  --secondary: #1F1F1C;
-  --secondary-foreground: #F8F7F4;
-  --muted: #1F1F1C;
-  --muted-foreground: #9CA3AF;
-  --accent: #1F1F1C;
-  --accent-foreground: #F8F7F4;
-  --destructive: #EF4444;
-  --border: #2A2A27;
-  --input: #2A2A27;
-  --ring: #4A7EC7;
-
-  --cat-needs: #A9C3E8;
-  --cat-wants: #5E8FD4;
-  --cat-savings: #3E5A80;
-  --status-ok: #34D399;
-  --status-ok-bg: rgba(52, 211, 153, 0.12);
-  --status-warn: #FBBF24;
-  --status-warn-bg: rgba(251, 191, 36, 0.12);
-  --status-over-bg: rgba(239, 68, 68, 0.14);
-  --chart-bar: #66665F;
-}
 
 html {
   scroll-behavior: smooth;
@@ -150,6 +121,16 @@ body {
 
 .font-mono, [class*="tabular"] {
   font-family: var(--font-mono);
+}
+
+/* Small text actions: a 44px-tall tap area without changing how they look. */
+@utility tap-area {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -12px -4px;
+  }
 }
 
 .safe-area-pb {

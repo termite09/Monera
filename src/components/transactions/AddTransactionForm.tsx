@@ -78,8 +78,8 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <Label>Type</Label>
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-secondary">
+        <Label id="tx-type-label">Type</Label>
+        <div role="group" aria-labelledby="tx-type-label" className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-secondary">
           {(["expense", "income"] as const).map((t) => (
             <button
               key={t}
@@ -87,7 +87,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
               aria-pressed={type === t}
               onClick={() => selectType(t)}
               className={cn(
-                "h-9 rounded-md text-sm font-medium capitalize transition-colors",
+                "h-11 sm:h-9 rounded-md text-sm font-medium capitalize transition-colors",
                 type === t ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >

@@ -41,7 +41,7 @@ export function BottomBar() {
               )}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.5} aria-hidden />
-              <span className="text-[10px] font-medium">{label}</span>
+              <span className="text-xs font-medium">{label}</span>
             </Link>
           );
         })}

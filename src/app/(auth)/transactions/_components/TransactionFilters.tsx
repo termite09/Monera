@@ -1,14 +1,17 @@
-import { Category, TransactionType } from "@/types";
+import { Category } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, X, Plus } from "lucide-react";
 
+/** Which list is showing. Savings sits apart from Expenses: it isn't spending. */
+export type ListType = "expense" | "savings" | "income" | "all";
+
 interface Props {
   search: string;
   onSearchChange: (v: string) => void;
-  filterType: TransactionType | "all";
-  onFilterTypeChange: (v: TransactionType | "all") => void;
+  filterType: ListType;
+  onFilterTypeChange: (v: ListType) => void;
   filterCat: Category | "All";
   onFilterCatChange: (v: Category | "All") => void;
   rangeMode: "period" | "custom";
@@ -46,7 +49,7 @@ export function TransactionFilters({
             className="w-full h-11 pl-9 pr-8 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {search && (
-            <button
+            <button type="button"
               onClick={() => onSearchChange("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               aria-label="Clear search"
@@ -62,13 +65,14 @@ export function TransactionFilters({
       </div>
 
       {/* Row 2: Type filter */}
-      <div className="grid grid-cols-3 gap-0.5 p-0.5 rounded-lg bg-secondary">
+      <div className="grid grid-cols-4 gap-0.5 p-0.5 rounded-lg bg-secondary">
         {(
           [
             { value: "expense" as const, label: "Expenses" },
+            { value: "savings" as const, label: "Savings" },
             { value: "income" as const, label: "Income" },
             { value: "all" as const, label: "All" },
-          ] as { value: TransactionType | "all"; label: string }[]
+          ] as { value: ListType; label: string }[]
         ).map(({ value, label }) => (
           <button
             key={value}
@@ -76,7 +80,7 @@ export function TransactionFilters({
             aria-pressed={filterType === value}
             onClick={() => onFilterTypeChange(value)}
             className={cn(
-              "py-1.5 rounded-md text-xs font-medium transition-colors",
+              "min-h-11 sm:min-h-8 rounded-md text-xs font-medium transition-colors",
               filterType === value ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
             )}
           >
@@ -87,16 +91,15 @@ export function TransactionFilters({
 
       {/* Row 3: Category + Period/Custom */}
       <div className="flex items-center gap-2">
-        <div className={cn("flex-1 min-w-0", filterType === "income" && "invisible pointer-events-none")}>
+        <div className={cn("flex-1 min-w-0", (filterType === "income" || filterType === "savings") && "invisible pointer-events-none")}>
           <Select value={filterCat} onValueChange={(v) => onFilterCatChange(v as Category | "All")}>
-            <SelectTrigger className="h-8 text-xs w-full" aria-label="Filter by category">
-              <SelectValue />
+            <SelectTrigger className="h-11 sm:h-8 text-xs w-full" aria-label="Filter by category">
+              <SelectValue>{filterCat === "All" ? "All categories" : filterCat === "Uncategorized" ? "No category" : filterCat}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All categories</SelectItem>
               <SelectItem value="Needs">Needs</SelectItem>
               <SelectItem value="Wants">Wants</SelectItem>
-              <SelectItem value="Savings">Savings</SelectItem>
               <SelectItem value="Uncategorized">No category</SelectItem>
             </SelectContent>
           </Select>
@@ -108,7 +111,7 @@ export function TransactionFilters({
               aria-pressed={rangeMode === "period"}
               onClick={onPeriodMode}
               className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+                "px-2.5 min-h-10 sm:min-h-7 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
                 rangeMode === "period" ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >
@@ -119,7 +122,7 @@ export function TransactionFilters({
               aria-pressed={rangeMode === "custom"}
               onClick={onCustomMode}
               className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+                "px-2.5 min-h-10 sm:min-h-7 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
                 rangeMode === "custom" ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >

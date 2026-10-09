@@ -17,7 +17,7 @@ const STEPS = [
 export function RevolutExportHelp() {
   return (
     <details className="group mt-2 text-xs text-muted-foreground">
-      <summary className="flex items-center gap-1 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden font-medium text-primary hover:underline focus-visible:outline-none focus-visible:underline">
+      <summary className="tap-area flex items-center gap-1 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden font-medium text-primary hover:underline rounded-sm">
         <ChevronRight size={13} className="transition-transform group-open:rotate-90" />
         How do I export from Revolut?
       </summary>

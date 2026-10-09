@@ -22,7 +22,7 @@ export default async function LoginPage({
   // back to /login, so redirecting them to /dashboard would loop forever
   // ("cannot follow more than 20 redirections").
   const session = await auth();
-  if (session && !session.error) redirect("/dashboard");
+  if (session?.user && !session.error) redirect("/dashboard");
 
   // NextAuth (and our auth layout) pass a sign-in failure reason as ?error=.
   const { error } = await searchParams;

@@ -70,7 +70,7 @@ export function DefaultsForm({ settings, updateSettings }: {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Basics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Your payday, your pay, and how you&apos;d like to split it. Every pay period uses these unless you change one under Period.</p>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Used for every pay period, unless you change one under Period.</p>
       </div>
 
       <Card>
@@ -103,7 +103,7 @@ export function DefaultsForm({ settings, updateSettings }: {
             className="h-11 max-w-48 font-mono tabular-nums"
           />
           <p className="text-xs text-muted-foreground max-w-[65ch]">
-            Your usual take-home pay. It&apos;s used until your statement shows the real payment, then the real amount is used instead. Leave it blank to count only what arrives.
+            Used until your statement shows your pay.
           </p>
         </CardContent>
       </Card>

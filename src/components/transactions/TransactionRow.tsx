@@ -80,14 +80,14 @@ export function TransactionRow({
           <span className="min-w-0 break-words">{cleanDescription(tx.description)}</span>
         </span>
         {isUpcoming && (
-          <span className="text-xs font-medium text-muted-foreground">Upcoming · not paid yet</span>
+          <span className="text-xs font-medium text-muted-foreground">Upcoming</span>
         )}
         {tx.notes && <span className="text-xs text-muted-foreground break-words">{tx.notes}</span>}
         {tx.source === "manual" && (
           <span className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2" onClick={stop}>
             Added by you
             {onEdit && !confirmDelete && (
-              <button type="button" onClick={() => onEdit(tx.id)} className="underline underline-offset-2 hover:text-foreground">
+              <button type="button" onClick={() => onEdit(tx.id)} className="tap-area underline underline-offset-2 hover:text-foreground">
                 Edit
               </button>
             )}
@@ -109,12 +109,12 @@ export function TransactionRow({
                     }
                   }}
                   disabled={deleting}
-                  className="inline-flex items-center gap-1 font-medium text-destructive underline underline-offset-2 disabled:cursor-wait"
+                  className="tap-area inline-flex items-center gap-1 font-medium text-destructive underline underline-offset-2 disabled:cursor-wait"
                 >
                   {deleting && <Loader2 size={12} className="animate-spin" aria-hidden />}
                   Delete for good
                 </button>
-                <button type="button" onClick={() => setConfirmDelete(false)} className="underline underline-offset-2 hover:text-foreground">
+                <button type="button" onClick={() => setConfirmDelete(false)} className="tap-area underline underline-offset-2 hover:text-foreground">
                   Keep
                 </button>
               </>
@@ -127,7 +127,7 @@ export function TransactionRow({
                   if (autoHideRef.current) clearTimeout(autoHideRef.current);
                   autoHideRef.current = setTimeout(() => setConfirmDelete(false), 5000);
                 }}
-                className="underline underline-offset-2 hover:text-foreground"
+                className="tap-area underline underline-offset-2 hover:text-foreground"
               >
                 Delete
               </button>
@@ -166,7 +166,7 @@ export function TransactionRow({
       </span>
 
       {/* Selection — the same column on every row */}
-      <span className="shrink-0 w-11 sm:w-12 flex items-center justify-center pt-0.5" onClick={stop}>
+      <label className="shrink-0 w-11 sm:w-12 min-h-11 -my-3 flex items-center justify-center cursor-pointer" onClick={stop}>
         {onCheck && (
           <input
             type="checkbox"
@@ -177,7 +177,7 @@ export function TransactionRow({
             className="size-4 cursor-pointer accent-primary rounded-sm"
           />
         )}
-      </span>
+      </label>
     </div>
   );
 }

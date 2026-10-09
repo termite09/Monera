@@ -164,12 +164,14 @@ export function RulesForm({ rules, updateRules }: {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search rules..."
+            aria-label="Search rules"
             className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <select
           value={catFilter}
           onChange={(e) => setCatFilter(e.target.value as Category | "")}
+          aria-label="Filter rules by category"
           className="h-11 px-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring shrink-0"
         >
           <option value="">All</option>
@@ -181,18 +183,18 @@ export function RulesForm({ rules, updateRules }: {
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground max-w-[65ch]">{visible.length} of {items.length} rules</p>
         {!selectMode ? (
-          <button
+          <button type="button"
             onClick={() => setSelectMode(true)}
-            className="text-xs text-primary hover:underline"
+            className="tap-area text-xs text-primary hover:underline"
           >
             Select
           </button>
         ) : (
           <div className="flex items-center gap-3">
-            <button onClick={toggleSelectAll} className="text-xs text-primary hover:underline">
+            <button type="button" onClick={toggleSelectAll} className="tap-area text-xs text-primary hover:underline">
               {allVisibleSelected ? "Deselect all" : "Select all"}
             </button>
-            <button onClick={exitSelectMode} className="text-xs text-muted-foreground hover:underline">
+            <button type="button" onClick={exitSelectMode} className="tap-area text-xs text-muted-foreground hover:underline">
               Cancel
             </button>
           </div>
@@ -214,20 +216,23 @@ export function RulesForm({ rules, updateRules }: {
                       else next.add(r.keyword);
                       return next;
                     })}
-                    className="size-4 rounded accent-primary shrink-0 cursor-pointer"
+                    aria-label={`Select rule ${r.keyword}`}
+                    className="size-5 rounded accent-primary shrink-0 cursor-pointer"
                   />
                 )}
                 <input
                   value={r.keyword}
                   onChange={(e) => handleRuleKeywordChange(i, e.target.value)}
                   disabled={selectMode}
-                  className="flex-1 min-w-0 h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default"
+                  aria-label="Shop name contains"
+                  className="flex-1 min-w-0 h-11 sm:h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default"
                 />
                 <select
                   value={r.category}
                   onChange={(e) => handleRuleCategoryChange(i, e.target.value as Category)}
                   disabled={selectMode}
-                  className={cn("h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", getCategoryTextClass(r.category))}
+                  aria-label={`Category for ${r.keyword || "this rule"}`}
+                  className={cn("h-11 sm:h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", getCategoryTextClass(r.category))}
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -235,8 +240,9 @@ export function RulesForm({ rules, updateRules }: {
                 </select>
                 {!selectMode && (
                   <button
+                    type="button"
                     onClick={() => handleRemoveRule(i)}
-                    className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0"
+                    className="text-muted-foreground hover:text-destructive transition-colors size-11 sm:size-8 flex items-center justify-center rounded-md shrink-0"
                     aria-label={`Remove ${r.keyword}`}
                   >
                     <Trash2 size={15} />
@@ -255,13 +261,13 @@ export function RulesForm({ rules, updateRules }: {
           {confirmDelete ? (
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground max-w-[65ch]">Are you sure?</p>
-              <button onClick={handleBulkDelete} className="text-xs font-medium text-destructive hover:underline">Delete</button>
-              <button onClick={() => setConfirmDelete(false)} className="text-xs text-muted-foreground hover:underline">Cancel</button>
+              <button type="button" onClick={handleBulkDelete} className="tap-area text-xs font-medium text-destructive hover:underline">Delete</button>
+              <button type="button" onClick={() => setConfirmDelete(false)} className="tap-area text-xs text-muted-foreground hover:underline">Cancel</button>
             </div>
           ) : (
-            <button
+            <button type="button"
               onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-1.5 text-sm font-medium text-destructive hover:underline"
+              className="tap-area flex items-center gap-1.5 text-sm font-medium text-destructive hover:underline"
             >
               <Trash2 size={14} />
               Delete {selected.size}

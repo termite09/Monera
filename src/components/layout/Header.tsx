@@ -64,13 +64,13 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (
             <>
-              <Button variant="ghost" size="icon" onClick={prevMonth} className="size-9 text-muted-foreground" aria-label="Previous pay period">
+              <Button variant="ghost" size="icon" onClick={prevMonth} className="size-11 sm:size-9 text-muted-foreground" aria-label="Previous pay period">
                 <ChevronLeft size={16} />
               </Button>
               <span className="text-sm font-medium text-foreground min-w-35 text-center" aria-live="polite">
                 {monthLabel}
               </span>
-              <Button variant="ghost" size="icon" onClick={nextMonth} className="size-9 text-muted-foreground" aria-label="Next pay period">
+              <Button variant="ghost" size="icon" onClick={nextMonth} className="size-11 sm:size-9 text-muted-foreground" aria-label="Next pay period">
                 <ChevronRight size={16} />
               </Button>
             </>

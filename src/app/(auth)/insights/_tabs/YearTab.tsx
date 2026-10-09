@@ -57,13 +57,13 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
   return (
     <>
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Spending across the year, by payday period.</p>
+        <span />
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setYear((y) => y - 1)} className="size-9" aria-label="Previous year">
+          <Button variant="ghost" size="icon" onClick={() => setYear((y) => y - 1)} className="size-11 sm:size-9" aria-label="Previous year">
             <ChevronLeft size={16} />
           </Button>
           <span className="text-sm font-medium text-foreground w-12 text-center tabular-nums">{year}</span>
-          <Button variant="ghost" size="icon" onClick={() => setYear((y) => y + 1)} className="size-9" aria-label="Next year">
+          <Button variant="ghost" size="icon" onClick={() => setYear((y) => y + 1)} className="size-11 sm:size-9" aria-label="Next year">
             <ChevronRight size={16} />
           </Button>
         </div>
@@ -74,14 +74,13 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-2">Spent this year</p>
             <p className="text-2xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearExpenses)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Needs, Wants and anything uncategorised. Savings are counted separately.</p>
+            <p className="text-xs text-muted-foreground mt-1">Savings not included</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-2">Saved this year</p>
             <p className="text-2xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearSavings)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Everything in the Savings category across the year.</p>
           </CardContent>
         </Card>
       </div>
@@ -89,7 +88,7 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-lg font-semibold text-foreground">By pay period</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">What you spent in each pay period{paydayOfMonth > 1 ? `, starting on the ${ordinal(paydayOfMonth)} of the month shown` : ""}. Savings are counted above, not in the bars. Select one to open it on the dashboard.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{paydayOfMonth > 1 ? `Each bar starts on the ${ordinal(paydayOfMonth)} · ` : ""}Savings not included</p>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           <YearBar

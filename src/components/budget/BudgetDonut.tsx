@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { AlertTriangle, AlertCircle, Check } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 import { cn, formatCurrency, getCategoryColor, getDisplayCurrency } from "@/lib/utils";
 import { InfoIcon } from "@/components/ui/InfoIcon";
 import type { Category } from "@/types";
@@ -15,13 +15,8 @@ interface BudgetDonutProps {
   expected?: boolean;
   /** Bills (or savings transfers) in this category still to come before payday. */
   due?: number;
-  /** Small line under the circle, e.g. "incl. €12 not sorted". */
-  note?: React.ReactNode;
   onClick?: () => void;
 }
-
-/** Share of a spending budget at which we flag "close to limit". */
-const NEAR_LIMIT = 0.85;
 
 function centerAmount(n: number): string {
   if (n >= 10000) return `${getDisplayCurrency()}${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
@@ -38,40 +33,38 @@ function amountFontSize(s: string): string {
 const VB = 116;
 const STROKE = 13;
 
-export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, note, onClick }: BudgetDonutProps) {
+export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, onClick }: BudgetDonutProps) {
   const router = useRouter();
   const isSavings = category === "Savings";
   const color = getCategoryColor(category);
   // "Left" means left after the bills already committed this period, so the
   // circles add up to Safe to spend instead of disagreeing with it.
-  const committed = spent + due;
+  // Savings only counts money actually moved; a scheduled transfer hasn't happened yet.
+  const committed = isSavings ? spent : spent + due;
   const ratio = allocated > 0 ? committed / allocated : 0;
   const pct = Math.min(ratio, 1);
-  const spentPct = allocated > 0 ? Math.min(spent / allocated, 1) : 0;
 
-  // Spending budgets go amber near the limit and red over it. Savings is a target,
-  // so going past it is good news, never a warning.
-  const status: "near" | "over" | "met" | null =
+  // Spending budgets go red over the limit. Savings is a target, so going past
+  // it is good news, never a warning.
+  const status: "over" | "met" | null =
     allocated <= 0 || expected ? null
     : isSavings ? (committed >= allocated ? "met" : null)
     : committed > allocated ? "over"
-    : ratio >= NEAR_LIMIT ? "near"
     : null;
 
   const r = (VB - STROKE) / 2;
   const c = 2 * Math.PI * r;
   const dash = pct * c;
-  const spentDash = spentPct * c;
   const arcColor = status === "over" ? "var(--destructive)" : color;
 
   const remaining = Math.max(0, allocated - committed);
   const display = allocated > 0
-    ? centerAmount(expected ? allocated : status === "over" ? committed - allocated : remaining)
+    ? centerAmount(expected ? allocated : status === "over" ? committed - allocated : status === "met" ? committed : remaining)
     : "—";
   const caption = allocated <= 0 ? null
     : expected ? "budget"
     : status === "over" ? "over"
-    : isSavings ? (status === "met" ? "target met" : "to go")
+    : isSavings ? (status === "met" ? "saved" : "to target")
     : "left";
 
   const spoken = (allocated <= 0
@@ -83,7 +76,7 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
       : isSavings
         ? `${category}: ${formatCurrency(spent)} saved of a ${formatCurrency(allocated)} target`
         : `${category}: ${formatCurrency(remaining)} left of ${formatCurrency(allocated)}`
-  ) + (!expected && due > 0 ? `, after ${formatCurrency(due)} ${isSavings ? "scheduled" : "in bills due"}` : "");
+  ) + (!expected && !isSavings && due > 0 ? `, after ${formatCurrency(due)} in bills due` : "");
 
   const infoText = allocated === 0 && info
     ? `${info} Go to Settings → Basics to set your budget split.`
@@ -108,31 +101,16 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
       >
         <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-full block" aria-hidden>
           <circle cx={VB / 2} cy={VB / 2} r={r} fill="none" stroke="var(--secondary)" strokeWidth={STROKE} />
-          {/* Committed-but-not-yet-paid bills: the same colour, lighter. */}
-          {!expected && allocated > 0 && pct > 0.005 && due > 0 && (
+          {!expected && allocated > 0 && pct > 0.005 && (
             <circle
               cx={VB / 2}
               cy={VB / 2}
               r={r}
               fill="none"
               stroke={arcColor}
-              strokeOpacity={0.4}
               strokeWidth={STROKE}
               strokeLinecap="round"
               strokeDasharray={`${dash} ${c - dash}`}
-              transform={`rotate(-90 ${VB / 2} ${VB / 2})`}
-            />
-          )}
-          {!expected && allocated > 0 && spentPct > 0.005 && (
-            <circle
-              cx={VB / 2}
-              cy={VB / 2}
-              r={r}
-              fill="none"
-              stroke={arcColor}
-              strokeWidth={STROKE}
-              strokeLinecap="round"
-              strokeDasharray={`${spentDash} ${c - spentDash}`}
               transform={`rotate(-90 ${VB / 2} ${VB / 2})`}
               className="motion-safe:transition-[stroke-dasharray] motion-safe:duration-500"
             />
@@ -151,20 +129,8 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
         </span>
       </button>
 
-      {!expected && due > 0 && status !== "over" && (
-        <span className="text-xs text-muted-foreground text-center">
-          <span className="font-mono tabular-nums">{formatCurrency(due)}</span> {isSavings ? "scheduled" : "bill due"}
-        </span>
-      )}
-      {note && <span className="text-xs text-muted-foreground text-center">{note}</span>}
-      {status === "near" && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-status-warn-bg px-2 py-0.5 text-xs font-medium text-status-warn">
-          <AlertTriangle size={12} aria-hidden />
-          <span className="font-mono tabular-nums">{Math.round(ratio * 100)}%</span> used
-        </span>
-      )}
       {status === "over" && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-status-over-bg px-2 py-0.5 text-xs font-medium text-destructive">
+        <span className="inline-flex items-center gap-1 rounded-full bg-status-over-bg px-2 py-0.5 text-xs font-medium text-status-over">
           <AlertCircle size={12} aria-hidden />
           Over budget
         </span>

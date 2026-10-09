@@ -105,14 +105,16 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-          <button
+          <button type="button"
             onClick={handleSignOut}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 min-h-11 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
           >
             <LogOut size={14} />
             Sign out
           </button>
         </div>
+
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Settings</h1>
 
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
@@ -166,7 +168,7 @@ export default function SettingsPage() {
               href={`https://drive.google.com/drive/folders/${structure.rootId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-2 text-sm text-primary underline underline-offset-2"
+              className="tap-area inline-flex items-center gap-1.5 mt-2 text-sm text-primary underline underline-offset-2"
             >
               Open my Monera folder in Drive
               <ExternalLink size={13} aria-hidden />
@@ -179,11 +181,11 @@ export default function SettingsPage() {
           <button
             onClick={replayGuide}
             type="button"
-            className="text-sm text-primary hover:underline"
+            className="tap-area text-sm text-primary hover:underline"
           >
             Replay app guide
           </button>
-          <p className="text-xs text-muted-foreground mt-0.5">Takes you to the dashboard and restarts the tour from the beginning.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Restarts the tour on the dashboard.</p>
         </div>
 
       </div>

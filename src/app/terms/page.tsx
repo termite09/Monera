@@ -8,7 +8,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-background px-6 py-16">
       <div className="max-w-2xl mx-auto">
-        <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground mb-10 inline-block">
+        <Link href="/login" className="tap-area text-xs text-muted-foreground hover:text-foreground mb-10 inline-block">
           ← Back
         </Link>
 

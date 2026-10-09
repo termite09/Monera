@@ -11,9 +11,11 @@ interface Props {
   setExpandedCat: (cat: string | null) => void;
   /** Opens Transactions filtered to unsorted items. */
   onSort: () => void;
+  /** This period's budgets and bills still due, to explain each circle. */
+  budget: { Needs: number; Wants: number };
 }
 
-export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs, expandedCat, setExpandedCat, onSort }: Props) {
+export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs, expandedCat, setExpandedCat, onSort, budget }: Props) {
   // Not-yet-sorted spending counts as Wants (the flexible budget), as it does on
   // the dashboard circle — so the numbers match wherever you look.
   const categories: { label: string; amount: number; dot: string; key: Category; includes: Category[] }[] = [
@@ -39,7 +41,14 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors text-left w-full"
               >
                 <span className={cn("size-2.5 rounded-sm shrink-0", cat.dot)} aria-hidden />
-                <span className="flex-1 text-sm font-medium">{cat.label}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium">{cat.label}</span>
+                  {budget[cat.key as "Needs" | "Wants"] > 0 && (
+                    <span className="block text-xs text-muted-foreground">
+                      of <span className="font-mono tabular-nums">{formatCurrency(budget[cat.key as "Needs" | "Wants"])}</span> budget
+                    </span>
+                  )}
+                </span>
                 <span className="text-sm tabular-nums font-mono text-foreground mr-1">{formatCurrency(cat.amount)}</span>
                 <ChevronRight size={14} className={cn("text-muted-foreground shrink-0 transition-transform duration-200", isOpen && "rotate-90")} />
               </button>
@@ -73,11 +82,11 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
       <p className="shrink-0 text-xs text-muted-foreground pt-2 border-t border-border">
         {uncategorizedExpense > 0 && (
           <>
-            Wants includes <span className="font-mono tabular-nums">{formatCurrency(uncategorizedExpense)}</span> not sorted yet.{" "}
-            <button type="button" onClick={onSort} className="underline underline-offset-2 hover:text-foreground">Sort now</button>.{" "}
+            <span className="font-mono tabular-nums">{formatCurrency(uncategorizedExpense)}</span> not sorted ·{" "}
+            <button type="button" onClick={onSort} className="underline underline-offset-2 hover:text-foreground">Sort</button>{" · "}
           </>
         )}
-        Savings are shown separately.
+        Savings not included
       </p>
     </>
   );

@@ -39,7 +39,7 @@ export function BulkActionBar({
           <button
             type="button"
             onClick={onClear}
-            className="text-sm text-muted-foreground hover:text-foreground px-2 py-1 -my-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-area text-sm text-muted-foreground hover:text-foreground px-2 py-1 -my-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Clear
           </button>

@@ -9,7 +9,7 @@ colors:
   card-white: "#FFFFFF"
   warm-surface: "#F1EFE9"
   border-warm: "#E4E2DC"
-  muted-gray: "#6B7280"
+  muted-gray: "#646B78"
   destructive-red: "#DC2626"
   cat-needs: "#1C3557"
   cat-wants: "#4A7EC7"
@@ -18,6 +18,7 @@ colors:
   status-ok-bg: "#E8F5EF"
   status-warn: "#B45309"
   status-warn-bg: "#FEF3E2"
+  status-over: "#B91C1C"
   status-over-bg: "#FDECEC"
   chart-bar: "#97928A"
 typography:
@@ -144,7 +145,7 @@ This system explicitly rejects the utilitarian, spreadsheet-y aesthetic of tradi
 A single saturated navy anchors an otherwise warm-neutral field. One primary, seven neutrals, three semantic statuses. The palette's restraint is the point.
 
 ### Primary
-- **Anchor Navy** (`#1C3557`): The single saturated color in the system. Used on primary CTAs, active navigation, progress fill, and focus rings. Its scarcity is intentional — every appearance is load-bearing. Dark mode variant: **Steel Blue** (`#4A7EC7`), a lighter reading that preserves the hue on dark backgrounds.
+- **Anchor Navy** (`#1C3557`): The single saturated color in the system. Used on primary CTAs, active navigation, progress fill, and focus rings. Its scarcity is intentional — every appearance is load-bearing.
 
 ### Neutral
 - **Near-Black** (`#0C0C0B`): Default body and card text. Near-black rather than pure black — softer against warm backgrounds without sacrificing contrast (passes 4.5:1 on Off-White and Card White).
@@ -152,7 +153,7 @@ A single saturated navy anchors an otherwise warm-neutral field. One primary, se
 - **Card White** (`#FFFFFF`): Elevated surfaces — cards, popovers, sidebar, bottom navigation bar. Pure white against Off-White creates clear visual layering at zero elevation cost.
 - **Warm Surface** (`#F1EFE9`): Secondary/muted surface. Hover states, input track fills, progress track, secondary button backgrounds. The middle rung of the tonal stack.
 - **Border Warm** (`#E4E2DC`): Card edges, input strokes, dividers. Warm-tinted so separators don't read as cold or clinical.
-- **Muted Gray** (`#6B7280`): Secondary text, placeholder text, inactive navigation labels, supporting metadata. Passes 4.5:1 contrast against both Card White and Off-White.
+- **Muted Gray** (`#646B78`): Secondary text, placeholder text, inactive navigation labels, supporting metadata. Passes 4.5:1 contrast against Card White, Off-White and the warm Secondary surface.
 - **Destructive Red** (`#DC2626`): Error states, over-budget indicators, destructive action buttons. Semantic-only — never used decoratively.
 
 ### Categories
@@ -160,13 +161,11 @@ Needs, Wants and Savings share one navy family, told apart by lightness and alwa
 - **Needs** (`#1C3557`, token `--cat-needs`) — Anchor Navy.
 - **Wants** (`#4A7EC7`, `--cat-wants`) — Steel Blue.
 - **Savings** (`#7891B6`, `--cat-savings`) — slate navy (≥3:1 on white, so the ring stays visible).
-Dark mode inverts the ramp (Needs lightest) so the most essential category stays the most prominent.
 
 ### Budget status
 The only job green, amber and red have in the product: answering "am I within budget?". Each always travels with an icon and words, never colour alone.
 - **On track / target met** — `--status-ok` (`#047857`) on `--status-ok-bg`.
-- **Close to limit** (≥85% of a spending budget) — `--status-warn` (`#B45309`) on `--status-warn-bg`.
-- **Over budget** — Destructive Red on `--status-over-bg`.
+- **Over budget** — `--status-over` (`#B91C1C`) on `--status-over-bg`.
 Income is not a status: it is shown in ink with a "+" sign. Savings is a target, so passing it is "met", never a warning.
 
 ### Charts
@@ -233,7 +232,7 @@ Components in Monera are **clean and confident** — crisp defaults, visible hie
 ### Inputs / Fields
 - **Style:** Card White bg, Border Warm stroke (1px), 8px radius, `h-10 px-3 py-2`.
 - **Focus:** `ring-2 ring-ring ring-offset-2` (Anchor Navy). The border does not change on focus — the ring is the sole signal.
-- **Placeholder:** Muted Gray (`#6B7280`). Must pass 4.5:1 against Card White.
+- **Placeholder:** Muted Gray (`#646B78`). Must pass 4.5:1 against Card White.
 - **Error state:** Destructive Red border + red helper text below the field.
 - **Disabled:** 50% opacity, `cursor-not-allowed`.
 
@@ -251,7 +250,6 @@ Components in Monera are **clean and confident** — crisp defaults, visible hie
 ### Budget status (circles and bars)
 - **Track:** Warm Surface (`--secondary`).
 - **Fill:** the category colour (`--cat-needs` / `--cat-wants` / `--cat-savings`); Destructive Red only when over budget.
-- **Close to limit** (spending budget ≥ 85% used): an amber "N% used" chip with a warning icon — the fill keeps its category colour.
 - **Over budget:** red fill, red amount and an "Over budget" chip. **Savings** is a target: passing it shows a green "Target met" chip, never red.
 - **Amounts:** DM Mono, tabular-nums. Ink by default; red only when over.
 - **Rule:** The status colours are semantic indicators. Using them anywhere outside budget/error states is prohibited — including for income, categories, or period-over-period change.

@@ -77,11 +77,12 @@ export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick, c
               onClick={() => onMonthClick(d.monthKey)}
               aria-label={`${spoken}. Open on the dashboard`}
               className={cn(
-                "py-1 text-xs text-center rounded-md text-muted-foreground",
+                "py-1 text-xs text-center rounded-md",
+                running ? "font-semibold text-foreground" : "text-muted-foreground",
                 "hover:text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               )}
             >
-              {d.month}{running && <span aria-hidden>*</span>}
+              {d.month}
             </button>
           ) : (
             <span key={d.monthKey} className="py-1 text-xs text-center text-muted-foreground" aria-label={spoken}>{d.month}</span>
@@ -89,9 +90,6 @@ export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick, c
         })}
       </div>
       <div className="flex flex-wrap items-center gap-3 mt-2 px-1 justify-end">
-        {currentKey && data.some((d) => d.monthKey === currentKey) && (
-          <span className="mr-auto text-xs text-muted-foreground">* Still in progress</span>
-        )}
         {SERIES.map((s) => (
           <span key={s.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} aria-hidden /> {s.name}

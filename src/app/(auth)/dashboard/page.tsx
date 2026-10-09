@@ -128,7 +128,7 @@ export default function DashboardPage() {
     salaryUsed, salaryFromStatement, salaryTxIds, unconfirmedSalaryTx,
   } = useBudget(currentTxs, settings, month);
   // Detected subscriptions expected before payday. Safe to spend holds them back,
-  // and the "Before payday" card lists exactly what Safe to spend holds back.
+  // and the "Upcoming bills" card lists exactly what Safe to spend holds back.
   const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
   const estimatedCharges = useMemo(() => {
     const today = new Date(todayStr + "T00:00:00");
@@ -272,15 +272,10 @@ export default function DashboardPage() {
   }
   // Unsorted spending counts against Wants, the flexible budget.
   const wantsSpent = summary.wants + uncategorizedExpense;
-  const needsLeft = roundMoney(budgetAllocations.needs - summary.needs - dueBy.Needs);
-  const wantsLeft = roundMoney(budgetAllocations.wants - wantsSpent - dueBy.Wants);
-  const circlesMatchSafe =
-    safeInfo.applicable && needsLeft >= 0 && wantsLeft >= 0 && Math.abs(needsLeft + wantsLeft - safeInfo.safe) < 0.01;
 
   const freshness = latestImported ? (
     <>
-      {circlesMatchSafe && <>That&apos;s {money(needsLeft)} for Needs and {money(wantsLeft)} for Wants, after bills. </>}
-      Based on your statement up to {formatShortDate(latestImported)}.
+      Statement up to {formatShortDate(latestImported)}
     </>
   ) : null;
   const noStatement = periodTiming === "current" && !periodHasStatement;
@@ -476,9 +471,6 @@ export default function DashboardPage() {
                 category="Wants"
                 spent={wantsSpent}
                 due={dueBy.Wants}
-                note={uncategorizedExpense > 0 ? (
-                  <>incl. <span className="font-mono tabular-nums">{formatCurrency(uncategorizedExpense)}</span> not sorted · <Link href="/transactions?category=Uncategorized" className="underline underline-offset-2 hover:text-foreground">Sort</Link></>
-                ) : undefined}
                 allocated={budgetAllocations.wants}
                 expected={periodTiming === "current" && !periodHasStatement}
                 info="Everything optional — eating out, shopping, subscriptions."
@@ -503,7 +495,6 @@ export default function DashboardPage() {
             charges={safeInfo.applicable ? safeInfo.billItems : []}
             periodTiming={periodTiming}
             paydayLabel={formatShortDate(toDateStr(payday))}
-            setAside={!noStatement}
           />
 
           {/* Weekday spending chart */}
@@ -525,7 +516,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => stepChartMonth(-1)}
-                  className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="flex items-center justify-center size-11 sm:size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   aria-label="Previous month"
                 >
                   <ChevronLeft size={16} aria-hidden />
@@ -534,7 +525,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => stepChartMonth(1)}
-                  className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="flex items-center justify-center size-11 sm:size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   aria-label="Next month"
                 >
                   <ChevronRight size={16} aria-hidden />
@@ -579,6 +570,7 @@ export default function DashboardPage() {
               expandedCat={expandedCat}
               setExpandedCat={setExpandedCat}
               onSort={() => { closeSheet(); router.push("/transactions?category=Uncategorized"); }}
+              budget={{ Needs: budgetAllocations.needs, Wants: budgetAllocations.wants }}
             />
           )}
           {sheet === "savings" && (

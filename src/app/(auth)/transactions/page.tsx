@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -19,7 +19,8 @@ import { BulkActionBar } from "./_components/BulkActionBar";
 import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { netExpenseTotal } from "@/lib/finance";
 import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn, toDateStr, cleanDescription } from "@/lib/utils";
-import { Category, Transaction, TransactionType } from "@/types";
+import { Category, Transaction } from "@/types";
+import type { ListType } from "./_components/TransactionFilters";
 
 const TRANSACTIONS_SLIDES = [
   {
@@ -49,13 +50,21 @@ const PAGE_SIZE = 50;
 type StoredFilters = {
   search: string;
   filterCat: Category | "All";
-  filterType: TransactionType | "all";
+  filterType: ListType;
   rangeMode: "period" | "custom";
   customFrom: string;
   customTo: string;
   sortField: SortField;
   sortDir: "asc" | "desc";
 };
+/** Expenses and Savings are kept apart: moving money to savings isn't spending. */
+function inList(t: Transaction, list: ListType): boolean {
+  if (list === "all") return true;
+  if (list === "income") return t.type === "income";
+  if (t.type === "income") return false;
+  return list === "savings" ? t.category === "Savings" : t.category !== "Savings";
+}
+
 function loadFilters(): Partial<StoredFilters> {
   if (typeof window === "undefined") return {};
   try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) ?? "{}"); }
@@ -80,10 +89,12 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState(() => loadFilters().search ?? "");
   const [filterCat, setFilterCat] = useState<Category | "All">(() => {
     const cat = searchParams.get("category");
-    if (cat && ["Needs", "Wants", "Savings", "Uncategorized"].includes(cat)) return cat as Category;
-    return loadFilters().filterCat ?? "All";
+    if (cat && ["Needs", "Wants", "Uncategorized"].includes(cat)) return cat as Category;
+    const stored = loadFilters().filterCat ?? "All";
+    return stored === "Savings" ? "All" : stored;
   });
-  const [filterType, setFilterType] = useState<TransactionType | "all">(() => loadFilters().filterType ?? "expense");
+  const [filterType, setFilterType] = useState<ListType>(() =>
+    searchParams.get("category") === "Savings" ? "savings" : loadFilters().filterType ?? "expense");
   const [rangeMode, setRangeMode] = useState<"period" | "custom">(() => loadFilters().rangeMode ?? "period");
   const [customFrom, setCustomFrom] = useState(() => loadFilters().customFrom ?? "");
   const [customTo, setCustomTo] = useState(() => loadFilters().customTo ?? "");
@@ -111,8 +122,9 @@ export default function TransactionsPage() {
   const [isBulkLoading, setIsBulkLoading] = useState(false);
   // Anchor for shift-click range selection.
   const lastPickedRef = useRef<string | null>(null);
-  // Short-lived undo for leaving transactions out / counting them again.
-  const [undo, setUndo] = useState<{ ids: string[]; excluded: boolean } | null>(null);
+  // Short-lived undo for any change made here: leave out, count again, move
+  // category, delete. `run` puts things back as they were.
+  const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null);
   useEffect(() => {
     if (!undo) return;
     const t = setTimeout(() => setUndo(null), 8000);
@@ -134,9 +146,9 @@ export default function TransactionsPage() {
     setPage(1);
   }, []);
 
-  const handleFilterTypeChange = useCallback((v: TransactionType | "all") => {
+  const handleFilterTypeChange = useCallback((v: ListType) => {
     setFilterType(v);
-    if (v === "income") setFilterCat("All");
+    if (v === "income" || v === "savings") setFilterCat("All");
     setSelected(new Set());
     setPage(1);
   }, []);
@@ -223,7 +235,7 @@ export default function TransactionsPage() {
   const filtered = useMemo(
     () =>
       scopedTxs
-        .filter((t) => filterType === "all" || t.type === filterType)
+        .filter((t) => inList(t, filterType))
         .sort((a, b) => {
           let cmp = 0;
           if (sortField === "date") cmp = a.date > b.date ? 1 : a.date < b.date ? -1 : 0;
@@ -244,23 +256,16 @@ export default function TransactionsPage() {
   const { summaryTotal, grossExpense, refunded } = useMemo(() => {
     let income = 0;
     let gross = 0;
-    let saved = 0;
-    const incurred = scopedTxs.filter((t) => t.date <= todayStr);
+    const incurred = scopedTxs.filter((t) => t.date <= todayStr && inList(t, filterType));
     for (const t of incurred) {
       if (t.excluded) continue;
       if (t.type === "income") income += t.amount;
-      else {
-        gross += t.amount;
-        if (t.category === "Savings") saved += t.amount;
-      }
+      else gross += t.amount;
     }
     const net = netExpenseTotal(incurred);
-    // "Spent" never includes savings (same as the dashboard); savings are shown
-    // beside it. Filtering to Savings itself shows what was moved to savings.
-    const spentExSavings =  roundMoney(net);
     const total =
-      filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : spentExSavings;
-    return { summaryTotal: total, grossExpense: roundMoney(gross), refunded: roundMoney(gross - net), savingsIncluded: roundMoney(saved) };
+      filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : roundMoney(net);
+    return { summaryTotal: total, grossExpense: roundMoney(gross), refunded: roundMoney(gross - net) };
   }, [scopedTxs, filterType, todayStr]);
 
   const upcomingCount = useMemo(() => filtered.filter((t) => t.date > todayStr).length, [filtered, todayStr]);
@@ -307,30 +312,98 @@ export default function TransactionsPage() {
   const handleBulkExclude = async () => {
     const ids = [...selected];
     setIsBulkLoading(true);
-    try { await bulkExclude(ids, true); exitSelect(); setUndo({ ids, excluded: true }); }
+    try {
+      await bulkExclude(ids, true); exitSelect();
+      setUndo({ message: `Left out ${ids.length} transaction${ids.length === 1 ? "" : "s"}`, run: () => bulkExclude(ids, false) });
+    }
     finally { setIsBulkLoading(false); }
   };
 
   const handleBulkInclude = async () => {
     const ids = [...selected];
     setIsBulkLoading(true);
-    try { await bulkExclude(ids, false); exitSelect(); setUndo({ ids, excluded: false }); }
+    try {
+      await bulkExclude(ids, false); exitSelect();
+      setUndo({ message: `Counted ${ids.length} transaction${ids.length === 1 ? "" : "s"} again`, run: () => bulkExclude(ids, true) });
+    }
     finally { setIsBulkLoading(false); }
   };
 
   const handleUndo = async () => {
     if (!undo) return;
-    const { ids, excluded } = undo;
+    const { run } = undo;
     setUndo(null);
-    await bulkExclude(ids, !excluded);
+    await run();
   };
 
   const handleBulkCategoryChange = async (category: Category) => {
-    const ids = [...selected].filter((id) => transactions.some((t) => t.id === id && t.type !== "income"));
+    const moved = transactions.filter((t) => selected.has(t.id) && t.type !== "income");
     exitSelect();
     setSelectCatSheet(false);
-    if (ids.length > 0) await bulkUpdateCategory(ids.map((txId) => ({ txId, category })));
+    if (moved.length === 0) return;
+    const before = moved.map((t) => ({ txId: t.id, category: t.category }));
+    await bulkUpdateCategory(moved.map((t) => ({ txId: t.id, category })));
+    setUndo({ message: `Moved ${moved.length} to ${category}`, run: () => bulkUpdateCategory(before) });
   };
+
+  const handleSingleCategory = async (tx: Transaction, category: Category) => {
+    setSingleCatTx(null);
+    if (tx.category === category) return;
+    const before = tx.category;
+    await updateCategory(tx.id, category);
+    setUndo({ message: `Moved ${cleanDescription(tx.description)} to ${category}`, run: () => updateCategory(tx.id, before) });
+  };
+
+  const handleDelete = async (id: string) => {
+    const tx = transactions.find((t) => t.id === id);
+    await deleteManualTransaction(id);
+    if (!tx) return;
+    const { date, description, amount, type, currency, category, notes, excluded } = tx;
+    setUndo({
+      message: `Deleted ${cleanDescription(description)}`,
+      run: () => addManualTransaction({ date, description, amount, type, currency, category, notes, excluded }),
+    });
+  };
+
+  // Download what's on screen (things that have happened) as a CSV file.
+  const exportCsv = () => {
+    const rows = filtered.filter((t) => t.date <= todayStr);
+    const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const lines = [
+      "Date,Description,Category,Amount,Notes,Left out",
+      ...rows.map((t) => [
+        t.date,
+        esc(cleanDescription(t.description)),
+        t.type === "income" ? "Income" : t.category,
+        (t.type === "income" ? t.amount : -t.amount).toFixed(2),
+        esc(t.notes ?? ""),
+        t.excluded ? "yes" : "",
+      ].join(",")),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `monera-transactions-${rangeLabel ? `${customFrom}-to-${customTo}` : month}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Keyboard: "/" jumps to search, Esc clears a selection.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        document.getElementById("tx-search")?.focus();
+      } else if (e.key === "Escape" && !typing && selected.size > 0) {
+        setSelected(new Set());
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected.size]);
 
   const handleBulkDefault = async () => {
     const ids = [...selected];
@@ -354,7 +427,7 @@ export default function TransactionsPage() {
       />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 md:max-w-none md:px-6">
-        <h1 className="sr-only">Transactions</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Transactions</h1>
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Controls */}
@@ -377,19 +450,31 @@ export default function TransactionsPage() {
         />
 
         {/* Row: Count / total */}
-        <p className="text-xs text-muted-foreground max-w-[70ch]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-xs text-muted-foreground max-w-[70ch] flex-1 min-w-0 inline-flex flex-wrap items-center gap-x-1">
           {filtered.length - upcomingCount} transaction{filtered.length - upcomingCount === 1 ? "" : "s"}
           {" "}·{" "}
           <span className="font-medium text-foreground tabular-nums font-mono text-sm">
             {formatCurrency(summaryTotal)}
           </span>
-          {filterType === "expense" && filterCat !== "Savings" }
+
           {showRefund && (
             <span className="ml-1 text-muted-foreground">
               (<span className="font-mono tabular-nums">{formatCurrency(grossExpense)}</span> − <span className="font-mono tabular-nums">{formatCurrency(refunded)}</span> refunded)
             </span>
           )}
         </p>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={filtered.length === 0}
+          aria-label="Export CSV"
+          title="Export CSV"
+          className="ml-auto inline-flex items-center justify-center gap-1.5 size-11 sm:size-auto sm:min-h-9 sm:px-3 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:pointer-events-none"
+        >
+          <Download size={16} aria-hidden /><span className="hidden sm:inline">Export CSV</span>
+        </button>
+        </div>
 
         <Card className="overflow-hidden">
           <CardContent className="p-0">
@@ -407,9 +492,9 @@ export default function TransactionsPage() {
             ) : (
               <>
                 <div className="flex items-center gap-1.5 sm:gap-3 px-1.5 sm:px-2 py-2 border-b border-border bg-secondary/40 text-xs font-semibold uppercase sm:tracking-wider text-muted-foreground">
-                  <button
+                  <button type="button"
                     onClick={() => handleSort("date")}
-                    className={cn("w-12 sm:w-14 shrink-0 flex items-center gap-1 transition-colors", sortField === "date" ? "text-foreground" : "hover:text-foreground")}
+                    className={cn("tap-area w-12 sm:w-14 shrink-0 flex items-center gap-1 transition-colors", sortField === "date" ? "text-foreground" : "hover:text-foreground")}
                     aria-label={`Sort by date ${sortDir === "desc" ? "oldest" : "newest"} first`}
                   >
                     Date
@@ -417,34 +502,34 @@ export default function TransactionsPage() {
                       ? (sortDir === "desc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
                       : <ArrowUpDown size={10} className="opacity-40" />}
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => handleSort("description")}
-                    className={cn("flex-1 min-w-0 flex items-center gap-1 transition-colors text-left", sortField === "description" ? "text-foreground" : "hover:text-foreground")}
+                    className={cn("tap-area flex-1 min-w-0 flex items-center gap-1 transition-colors text-left", sortField === "description" ? "text-foreground" : "hover:text-foreground")}
                   >
                     Description
                     {sortField === "description"
                       ? (sortDir === "asc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
                       : <ArrowUpDown size={10} className="opacity-40" />}
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => handleSort("category")}
-                    className={cn("flex shrink-0 w-15 sm:w-24 items-center gap-1 transition-colors", sortField === "category" ? "text-foreground" : "hover:text-foreground", filterType === "income" && "invisible pointer-events-none")}
+                    className={cn("tap-area flex shrink-0 w-15 sm:w-24 items-center gap-1 transition-colors", sortField === "category" ? "text-foreground" : "hover:text-foreground", filterType === "income" && "invisible pointer-events-none")}
                   >
                     Category
                     {sortField === "category"
                       ? (sortDir === "asc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
                       : <ArrowUpDown size={10} className="opacity-40 hidden sm:inline" />}
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => handleSort("amount")}
-                    className={cn("shrink-0 w-18 sm:w-24 flex items-center justify-end gap-1 transition-colors", sortField === "amount" ? "text-foreground" : "hover:text-foreground")}
+                    className={cn("tap-area shrink-0 w-18 sm:w-24 flex items-center justify-end gap-1 transition-colors", sortField === "amount" ? "text-foreground" : "hover:text-foreground")}
                   >
                     Amount
                     {sortField === "amount"
                       ? (sortDir === "asc" ? <ArrowDown size={10} /> : <ArrowUp size={10} />)
                       : <ArrowUpDown size={10} className="opacity-40" />}
                   </button>
-                  <span className="w-11 sm:w-12 shrink-0 flex items-center justify-center">
+                  <label className="w-11 sm:w-12 min-h-11 -my-3 shrink-0 flex items-center justify-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={filtered.length > 0 && filtered.every((t) => selected.has(t.id))}
@@ -456,14 +541,14 @@ export default function TransactionsPage() {
                       aria-label={`Select all ${filtered.length} transactions`}
                       className="size-4 cursor-pointer accent-primary"
                     />
-                  </span>
+                  </label>
                 </div>
                 <div className="divide-y divide-border">
                   {filtered.slice(0, page * PAGE_SIZE).map((tx) => (
                     <TransactionRow
                       key={tx.id}
                       transaction={tx}
-                      onDelete={selectMode || tx.source !== "manual" ? undefined : deleteManualTransaction}
+                      onDelete={selectMode || tx.source !== "manual" ? undefined : handleDelete}
                       onEdit={selectMode || tx.source !== "manual" ? undefined : (id) => setEditingTx(filtered.find((t) => t.id === id) ?? null)}
                       selectMode={selectMode}
                       checked={selected.has(tx.id)}
@@ -473,7 +558,7 @@ export default function TransactionsPage() {
                     />
                   ))}
                   {filtered.length > page * PAGE_SIZE && (
-                    <button
+                    <button type="button"
                       onClick={() => setPage((p) => p + 1)}
                       className="w-full py-3 text-sm text-primary hover:bg-secondary/50 transition-colors"
                     >
@@ -511,12 +596,12 @@ export default function TransactionsPage() {
         <div className="fixed bottom-20 md:bottom-4 left-0 right-0 md:left-56 z-40 px-4" role="status" aria-live="polite">
           <div className="max-w-2xl mx-auto md:max-w-md bg-foreground text-background rounded-xl px-4 py-3 flex items-center gap-3">
             <span className="text-sm flex-1">
-              {undo.excluded ? "Left out" : "Counted again"}: {undo.ids.length} transaction{undo.ids.length === 1 ? "" : "s"}
+              {undo.message}
             </span>
             <button
               type="button"
               onClick={handleUndo}
-              className="text-sm font-semibold underline underline-offset-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background"
+              className="tap-area text-sm font-semibold underline underline-offset-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background"
             >
               Undo
             </button>
@@ -543,9 +628,7 @@ export default function TransactionsPage() {
                 aria-current={singleCatTx?.category === cat ? "true" : undefined}
                 onClick={async () => {
                   if (singleCatTx) {
-                    const id = singleCatTx.id;
-                    setSingleCatTx(null);
-                    if (singleCatTx.category !== cat) await updateCategory(id, cat);
+                    await handleSingleCategory(singleCatTx, cat);
                   } else {
                     await handleBulkCategoryChange(cat);
                   }

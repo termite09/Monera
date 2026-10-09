@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Transaction } from "@/types";
 import { formatCurrency, formatDate, cleanDescription, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronDown, EyeOff } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { merchantKey, type buildReport } from "@/lib/reports";
 
 type Report = ReturnType<typeof buildReport>;
@@ -60,7 +60,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
             <button
               type="button"
               onClick={onResetHidden}
-              className="ml-auto text-xs text-primary hover:underline rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-area ml-auto text-xs text-primary hover:underline rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Show hidden ({hiddenMerchants.length})
             </button>
@@ -78,7 +78,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
           <p className="text-sm text-muted-foreground px-4 py-2">No spending this period.</p>
         ) : (
           <ul>
-            {visible.map((m, i) => {
+            {visible.map((m) => {
               const isOpen = expandedMerchant === m.name;
               const txs = periodExpenseTxs.filter((tx) => (merchantKey(tx.description) || "other") === m.key);
               const showAll = showAllFor.has(m.name);
@@ -108,7 +108,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
                       </span>
                       <span className="block h-1.5 rounded-full bg-secondary overflow-hidden" aria-hidden>
                         <span
-                          className={cn("block h-full rounded-full transition-all duration-500", i === 0 ? "bg-primary" : "bg-chart-bar")}
+                          className="block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-500 bg-chart-bar"
                           style={{ width: `${(m.total / maxMerchantTotal) * 100}%` }}
                         />
                       </span>
@@ -116,11 +116,11 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
                     <button
                       type="button"
                       onClick={() => onHide(m.name)}
-                      className="shrink-0 size-11 mr-1 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      className="shrink-0 min-h-11 px-3 mr-1 flex items-center justify-center rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       aria-label={`Hide ${m.name} from this list`}
                       title="Hide from this list (won't change your numbers)"
                     >
-                      <EyeOff size={14} aria-hidden />
+                      Hide
                     </button>
                   </div>
                   {isOpen && (

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomBar } from "@/components/layout/BottomBar";
 import { AppDataProvider } from "@/contexts/AppDataContext";
+import { OfflineBanner } from "@/components/layout/OfflineBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +21,12 @@ export default async function AuthLayout({
   // An errored session (e.g. an expired/revoked refresh token) is sent to /login
   // with a reason so the sign-in screen can explain why the user was signed out.
   if (session?.error) redirect("/login?error=SessionExpired");
-  if (!session) redirect("/login");
+  if (!session?.user) redirect("/login");
 
   return (
     <AppDataProvider>
       <Sidebar />
+      <OfflineBanner />
       {children}
       <BottomBar />
     </AppDataProvider>

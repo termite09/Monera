@@ -57,6 +57,8 @@ interface ReportData {
   comparedToSamePoint: boolean;
   /** Everyday spending still to come before payday at the current pace (bills excluded). */
   projectedPace: number;
+  /** The same pace split by budget (unsorted spending counts as Wants). */
+  projectedPaceBy: { Needs: number; Wants: number };
   /** Spending excluding savings — what "spent" means everywhere in Monera. */
   spending: number;
   prevSpending: number;
@@ -151,6 +153,8 @@ function detectRecurring(transactions: Transaction[]): { key: string; sub: Subsc
   for (const [key, g] of groups) {
     // Require strong evidence: 3+ distinct months and 3+ charges
     if (g.months.size < 3 || g.amounts.length < 3) continue;
+    // A subscription charges about once a month; a shop you visit often doesn't.
+    if (g.amounts.length > g.months.size * 1.25) continue;
 
     // Round the amount median to clean cents: it is both the displayed
     // representative charge and the basis for the tolerance check, so it must
@@ -290,6 +294,10 @@ export function buildReport(
     prevByCategory,
     comparedToSamePoint,
     projectedPace: comparedToSamePoint ? roundMoney((variableSoFar / daysElapsed) * daysLeft) : 0,
+    projectedPaceBy: {
+      Needs: comparedToSamePoint ? roundMoney((dayToDay.Needs / daysElapsed) * daysLeft) : 0,
+      Wants: comparedToSamePoint ? roundMoney(((dayToDay.Wants + dayToDay.Uncategorized) / daysElapsed) * daysLeft) : 0,
+    },
     spending: roundMoney(spentSoFar),
     prevSpending: roundMoney(prevTotal - prevByCategory.Savings),
     changePct,

@@ -31,9 +31,9 @@ export function SavingsSheet({ periodSavingsTxs, onSettings }: Props) {
           </div>
         ))}
       </div>
-      <button
+      <button type="button"
         onClick={onSettings}
-        className="shrink-0 mt-1.5 pt-1.5 border-t border-border text-left text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+        className="tap-area shrink-0 mt-1.5 pt-1.5 border-t border-border text-left text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
       >
         Change your Savings budget in Settings →
       </button>

@@ -40,8 +40,9 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
               <Badge key={kw} variant="secondary" className="gap-1 pr-1 text-sm font-normal">
                 {kw}
                 <button
+                  type="button"
                   onClick={() => onChange(keywords.filter((k) => k !== kw))}
-                  className="rounded-full p-0.5 hover:bg-background/60"
+                  className="rounded-full size-11 sm:size-7 -my-3 sm:-my-1 -mr-2 sm:mr-0 flex items-center justify-center hover:bg-background/60"
                   aria-label={`Remove ${kw}`}
                 >
                   <X size={13} />
@@ -61,6 +62,7 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
               }
             }}
             placeholder={placeholder}
+            aria-label={`Add to ${label}`}
             className="h-11"
           />
           <Button onClick={add} variant="outline" className="shrink-0">

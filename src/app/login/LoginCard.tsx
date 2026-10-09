@@ -75,7 +75,7 @@ export function LoginCard({ error }: { error?: string }) {
             <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</Link>
           </p>
 
-          <Link href="/" className="text-sm text-center text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+          <Link href="/" className="tap-area text-sm text-center text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
             Back to the Monera homepage
           </Link>
         </div>

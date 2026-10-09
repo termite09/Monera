@@ -115,7 +115,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
         <CardHeader className="pb-3 pt-4 px-4 flex-row items-center justify-between">
           <CardTitle className="text-lg font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
           {!hasCustom && (
-            <button type="button" onClick={handleCopyDefaults} className="text-xs text-primary hover:underline">
+            <button type="button" onClick={handleCopyDefaults} className="tap-area text-xs text-primary hover:underline">
               Start from Basics
             </button>
           )}
