@@ -241,7 +241,7 @@ export default function TransactionsPage() {
   // in the list below (so upcoming bills stay visible), but they haven't actually
   // happened yet — the total only counts what has, matching every other total in
   // the app (dashboard, insights).
-  const { summaryTotal, grossExpense, refunded, savingsIncluded } = useMemo(() => {
+  const { summaryTotal, grossExpense, refunded } = useMemo(() => {
     let income = 0;
     let gross = 0;
     let saved = 0;
