@@ -257,11 +257,11 @@ export default function TransactionsPage() {
     const net = netExpenseTotal(incurred);
     // "Spent" never includes savings (same as the dashboard); savings are shown
     // beside it. Filtering to Savings itself shows what was moved to savings.
-    const spentExSavings = filterCat === "Savings" ? net : roundMoney(net - saved);
+    const spentExSavings =  roundMoney(net);
     const total =
       filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : spentExSavings;
     return { summaryTotal: total, grossExpense: roundMoney(gross), refunded: roundMoney(gross - net), savingsIncluded: roundMoney(saved) };
-  }, [scopedTxs, filterType, filterCat, todayStr]);
+  }, [scopedTxs, filterType, todayStr]);
 
   const upcomingCount = useMemo(() => filtered.filter((t) => t.date > todayStr).length, [filtered, todayStr]);
 
@@ -383,20 +383,10 @@ export default function TransactionsPage() {
           <span className="font-medium text-foreground tabular-nums font-mono text-sm">
             {formatCurrency(summaryTotal)}
           </span>
-          {filterType === "expense" && filterCat !== "Savings" && " spent"}
+          {filterType === "expense" && filterCat !== "Savings" }
           {showRefund && (
             <span className="ml-1 text-muted-foreground">
               (<span className="font-mono tabular-nums">{formatCurrency(grossExpense)}</span> − <span className="font-mono tabular-nums">{formatCurrency(refunded)}</span> refunded)
-            </span>
-          )}
-          {filterType === "expense" && filterCat === "All" && savingsIncluded > 0 && (
-            <span className="ml-1 text-muted-foreground">
-              · plus <span className="font-mono tabular-nums">{formatCurrency(savingsIncluded)}</span> moved to savings
-            </span>
-          )}
-          {upcomingCount > 0 && (
-            <span className="ml-1 text-muted-foreground">
-              ({upcomingCount} upcoming, not in this total)
             </span>
           )}
         </p>
