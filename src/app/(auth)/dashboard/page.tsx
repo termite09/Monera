@@ -4,7 +4,8 @@ import { useState, useMemo, useCallback } from "react";
 import type { WeekdayChartMode } from "@/components/charts/WeekdayChart";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Upload, AlertTriangle, CheckCircle2, Info, ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Header } from "@/components/layout/Header";
@@ -14,14 +15,14 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Segmented } from "@/components/ui/segmented";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
 import { getRecurringTransactions } from "@/lib/recurring";
 import { computeSafeToSpend, dailyAllowance, nextPayday } from "@/lib/safeToSpend";
-import { buildInsights, type InsightTone } from "@/lib/insights";
-import { getPeriodBounds, formatDate, formatShortDate, formatCurrency, roundMoney, cn, toDateStr, getCurrentMonth, getPrevMonthKey, getMonthKey, cleanDescription } from "@/lib/utils";
+import { getPeriodBounds, formatDate, formatShortDate, formatCurrency, roundMoney, toDateStr, getCurrentMonth, getMonthKey, cleanDescription } from "@/lib/utils";
 import { getChartDateRange, buildWeekdayData, fullDayName } from "@/components/charts/WeekdayChart";
 import { WEEKDAY_LABELS } from "@/config/constants";
 import { detectSubscriptions } from "@/lib/reports";
@@ -60,12 +61,6 @@ const CHART_MODES: { value: WeekdayChartMode; label: string }[] = [
   { value: "period", label: "Period" },
   { value: "year", label: "Year" },
 ];
-
-const INSIGHT_ICON: Record<InsightTone, { Icon: typeof Info; cls: string; label: string }> = {
-  warn: { Icon: AlertTriangle, cls: "text-status-warn", label: "Heads up" },
-  good: { Icon: CheckCircle2, cls: "text-status-ok", label: "Good news" },
-  info: { Icon: Info, cls: "text-muted-foreground", label: "Note" },
-};
 
 const longDate = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
@@ -132,9 +127,22 @@ export default function DashboardPage() {
     summary, budgetAllocations, salaryBasis, additionalIncome,
     salaryUsed, salaryFromStatement, salaryTxIds, unconfirmedSalaryTx,
   } = useBudget(currentTxs, settings, month);
+  // Detected subscriptions expected before payday. Safe to spend holds them back,
+  // and the "Before payday" card lists exactly what Safe to spend holds back.
+  const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
+  const estimatedCharges = useMemo(() => {
+    const today = new Date(todayStr + "T00:00:00");
+    const end = getPeriodBounds(month, paydayOfMonth).end;
+    const daysToPayday = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / 86400000));
+    const subs = allSubscriptions.filter((s) => !(settings.excludedSubscriptions ?? []).includes(s.name));
+    return getUpcomingCharges([], subs, today, daysToPayday)
+      .filter((c) => c.isEstimated)
+      .map((c) => ({ name: c.name, amount: c.amount, date: c.date, lastChargeDate: c.lastChargeDate }));
+  }, [allSubscriptions, settings.excludedSubscriptions, todayStr, month, paydayOfMonth]);
+
   const safeInfo = useMemo(
-    () => computeSafeToSpend(allTxs, settings, month, summary, new Date(), budgetAllocations.savings),
-    [allTxs, settings, month, summary, budgetAllocations.savings]
+    () => computeSafeToSpend(allTxs, settings, month, summary, new Date(), budgetAllocations.savings, estimatedCharges),
+    [allTxs, settings, month, summary, budgetAllocations.savings, estimatedCharges]
   );
 
   // How current the numbers are: the newest transaction from an imported statement.
@@ -153,43 +161,6 @@ export default function DashboardPage() {
     const keyword = cleanDescription(unconfirmedSalaryTx.description).toLowerCase();
     await updateSettings({ ...settings, salaryKeywords: [...(settings.salaryKeywords ?? []), keyword] });
   }, [unconfirmedSalaryTx, settings, updateSettings]);
-  // Two plain-language lines, warnings first. Last period's recurring bills are
-  // included so "vs last period" compares like with like.
-  const insights = useMemo(() => {
-    const prevRecurring = getRecurringTransactions(settings.recurringPayments ?? [], getPrevMonthKey(month), paydayOfMonth, settings.currency ?? "EUR");
-    return buildInsights([...currentTxs, ...prevRecurring], settings, month, summary, budgetAllocations, new Date()).slice(0, 2);
-  }, [currentTxs, settings, month, paydayOfMonth, summary, budgetAllocations]);
-  const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
- const recurringBillItems = useMemo(
-  () =>
-    recurringTxs
-      .filter(
-        (tx) =>
-          !tx.excluded &&
-          tx.type === "expense" &&
-          tx.date > todayStr
-      )
-      .map((tx) => ({
-        name: tx.description,
-        amount: tx.amount,
-        date: tx.date,
-        source: tx.source,
-        category: tx.category,
-      })),
-  [recurringTxs, todayStr]
-);
-  const today = useMemo(() => new Date(todayStr + "T00:00:00"), [todayStr]);
-  const upcomingCharges = useMemo(
-    () =>
-      getUpcomingCharges(
-        recurringBillItems,
-        allSubscriptions.filter(
-          (s) => !(settings.excludedSubscriptions ?? []).includes(s.name)
-        ),
-        today
-      ),
-    [recurringBillItems, allSubscriptions, settings.excludedSubscriptions, today]
-  );
   const configuredIncome = settings.monthlyBudgets[month]?.income ?? 0;
 
   // Period transactions for drill-down sheets
@@ -291,8 +262,29 @@ export default function DashboardPage() {
   // The one tile that answers "can I spend?": forward-looking in the live period,
   // the final "Remaining" otherwise.
   const allowance = safeInfo.applicable ? dailyAllowance(safeInfo.safe, safeInfo.daysLeft) : null;
-  const freshness = latestImported ? <>Based on your statement up to {formatShortDate(latestImported)}.</> : null;
-  const heroCard = periodTiming === "current" && !periodHasStatement
+  // Bills still to come, by category — the circles count them so that
+  // Needs left + Wants left is exactly Safe to spend.
+  const dueBy = { Needs: 0, Wants: 0, Savings: 0 };
+  for (const b of safeInfo.applicable ? safeInfo.billItems : []) {
+    if (b.category === "Needs") dueBy.Needs += b.amount;
+    else if (b.category === "Savings") dueBy.Savings += b.amount;
+    else dueBy.Wants += b.amount; // Wants and anything not yet sorted
+  }
+  // Unsorted spending counts against Wants, the flexible budget.
+  const wantsSpent = summary.wants + uncategorizedExpense;
+  const needsLeft = roundMoney(budgetAllocations.needs - summary.needs - dueBy.Needs);
+  const wantsLeft = roundMoney(budgetAllocations.wants - wantsSpent - dueBy.Wants);
+  const circlesMatchSafe =
+    safeInfo.applicable && needsLeft >= 0 && wantsLeft >= 0 && Math.abs(needsLeft + wantsLeft - safeInfo.safe) < 0.01;
+
+  const freshness = latestImported ? (
+    <>
+      {circlesMatchSafe && <>That&apos;s {money(needsLeft)} for Needs and {money(wantsLeft)} for Wants, after bills. </>}
+      Based on your statement up to {formatShortDate(latestImported)}.
+    </>
+  ) : null;
+  const noStatement = periodTiming === "current" && !periodHasStatement;
+  const heroCard = noStatement
     ? {
         // No statement covers this period yet — a confident number would be a guess.
         label: "Safe to spend",
@@ -329,7 +321,11 @@ export default function DashboardPage() {
       };
 
   const summaryCards = [
-    { label: "Income", amount: summary.income, sign: "+", onClick: () => setSheet("income") },
+    {
+      // Until the pay deposit shows up, the figure is what the user told us to expect.
+      label: salaryBasis > 0 && !salaryFromStatement ? "Income" : "Income",
+      amount: summary.income, sign: "+", onClick: () => setSheet("income"),
+    },
     { label: "Spent", amount: summary.totalExpenses - summary.savings, onClick: () => setSheet("expenses") },
     { label: "Saved", amount: summary.savings, onClick: () => setSheet("savings") },
   ];
@@ -382,7 +378,8 @@ export default function DashboardPage() {
       <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-3 pt-4 md:max-w-none md:px-6 md:pt-3 md:pb-0">
-        <h1 className="text-base font-normal text-muted-foreground">
+        <h1 className="sr-only">Dashboard</h1>
+        <p className="text-base text-muted-foreground">
           {periodTiming === "current" ? (
             <><span className="font-semibold text-foreground">Today</span> · {longDate(new Date())}</>
           ) : periodTiming === "past" ? (
@@ -390,32 +387,50 @@ export default function DashboardPage() {
           ) : (
             <><span className="font-semibold text-foreground">Upcoming pay period</span> · starts {longDate(getPeriodBounds(month, paydayOfMonth).start)}</>
           )}
-        </h1>
+        </p>
 
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Summary: the answer first, then the three figures behind it */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-5">
+        <div className="grid gap-2 sm:gap-3 md:grid-cols-[3fr_2fr]">
           {isLoading ? (
             <>
-              <div className="col-span-3 md:col-span-2 bg-card rounded-xl border border-border p-5 h-36">
+              <div className="bg-card rounded-xl border border-border p-5 h-36">
                 <Skeleton className="h-3.5 w-24 mb-3" />
                 <Skeleton className="h-9 w-36 mb-3" />
                 <Skeleton className="h-3.5 w-full max-w-72" />
               </div>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-card rounded-xl border border-border p-4 h-24">
-                  <Skeleton className="h-3 w-14 mb-3" />
-                  <Skeleton className="h-5 w-20" />
-                </div>
-              ))}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-1">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="bg-card rounded-xl border border-border p-4 h-20 md:h-auto">
+                    <Skeleton className="h-3 w-14 mb-2" />
+                    <Skeleton className="h-5 w-20" />
+                  </div>
+                ))}
+              </div>
             </>
           ) : (
             <>
-              <SummaryCard {...heroCard} variant="hero" index={0} className="col-span-3 md:col-span-2" />
-              {summaryCards.map((card, i) => (
-                <SummaryCard key={card.label} {...card} index={i + 1} />
-              ))}
+              {noStatement ? (
+                // No statement for this period: say so plainly and offer the one
+                // action that fixes it, as a real button.
+                <section aria-labelledby="safe-heading" className="rounded-xl border border-border bg-card p-5 md:px-6 flex flex-col gap-1.5">
+                  <h2 id="safe-heading" className="text-sm font-semibold text-foreground">Safe to spend</h2>
+                  <p className="font-mono tabular-nums font-medium text-3xl sm:text-4xl leading-tight text-muted-foreground" aria-hidden>—</p>
+                  <p className="text-base leading-relaxed text-foreground/80 max-w-[52ch]">{heroCard.sentence}</p>
+                  {heroCard.note && <p className="text-xs text-muted-foreground">{heroCard.note}</p>}
+                  <Button asChild className="mt-2 self-start">
+                    <Link href="/upload"><Upload size={16} className="mr-1.5" aria-hidden />Add this period&apos;s statement</Link>
+                  </Button>
+                </section>
+              ) : (
+                <SummaryCard {...heroCard} variant="hero" index={0} />
+              )}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-1">
+                {summaryCards.map((card, i) => (
+                  <SummaryCard key={card.label} {...card} index={i + 1} />
+                ))}
+              </div>
             </>
           )}
         </div>
@@ -424,7 +439,7 @@ export default function DashboardPage() {
         {!isLoading && unconfirmedSalaryTx && !salaryPromptDismissed && (
           <section aria-labelledby="pay-heading" className="rounded-xl border border-primary/30 bg-primary/3 px-4 py-4 md:px-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex-1 min-w-0">
-              <h2 id="pay-heading" className="text-sm font-semibold text-foreground">Is this your pay?</h2>
+              <h2 id="pay-heading" className="text-base font-semibold text-foreground">Is this your pay?</h2>
               <p className="text-sm text-foreground/80 mt-0.5">
                 We found {money(unconfirmedSalaryTx.amount)} from {cleanDescription(unconfirmedSalaryTx.description)} on {formatShortDate(unconfirmedSalaryTx.date)}, and we&apos;re counting it as your pay instead of the amount you entered.
               </p>
@@ -438,30 +453,10 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* Plain-language takeaways */}
-        {!isLoading && periodHasStatement && insights.length > 0 && (
-          <section aria-labelledby="insights-heading" className="rounded-xl border border-border bg-card px-4 py-4 md:px-6">
-            <h2 id="insights-heading" className="text-sm font-semibold text-foreground mb-2.5">
-              {periodTiming === "current" ? "So far this period" : "This pay period"}
-            </h2>
-            <ul className="flex flex-col gap-2.5">
-              {insights.map((ins) => {
-                const { Icon, cls, label } = INSIGHT_ICON[ins.tone];
-                return (
-                  <li key={ins.id} className="flex items-start gap-2.5 text-base leading-relaxed text-foreground">
-                    <Icon size={16} className={cn("mt-1 shrink-0", cls)} aria-label={label} role="img" />
-                    <span>{ins.text}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-
         {/* Budget progress */}
         <Card>
           <CardHeader className="pb-1 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground">
               <h2>Budget progress</h2>
             </CardTitle>
             <p className="text-sm text-muted-foreground">Select a category to see its transactions.</p>
@@ -471,21 +466,30 @@ export default function DashboardPage() {
               <BudgetDonut
                 category="Needs"
                 spent={summary.needs}
+                due={dueBy.Needs}
                 allocated={budgetAllocations.needs}
+                expected={periodTiming === "current" && !periodHasStatement}
                 info="Essential spending — rent, groceries, bills, transport."
                 onClick={() => { setSheet("expenses"); setExpandedCat("Needs"); }}
               />
               <BudgetDonut
                 category="Wants"
-                spent={summary.wants}
+                spent={wantsSpent}
+                due={dueBy.Wants}
+                note={uncategorizedExpense > 0 ? (
+                  <>incl. <span className="font-mono tabular-nums">{formatCurrency(uncategorizedExpense)}</span> not sorted · <Link href="/transactions?category=Uncategorized" className="underline underline-offset-2 hover:text-foreground">Sort</Link></>
+                ) : undefined}
                 allocated={budgetAllocations.wants}
+                expected={periodTiming === "current" && !periodHasStatement}
                 info="Everything optional — eating out, shopping, subscriptions."
                 onClick={() => { setSheet("expenses"); setExpandedCat("Wants"); }}
               />
               <BudgetDonut
                 category="Savings"
                 spent={summary.savings}
+                due={dueBy.Savings}
                 allocated={budgetAllocations.savings}
+                expected={periodTiming === "current" && !periodHasStatement}
                 info="Money you put aside or invest."
                 onClick={() => setSheet("savings")}
               />
@@ -494,30 +498,27 @@ export default function DashboardPage() {
         </Card>
 
         {/* Support row: Upcoming + Weekday side-by-side on desktop */}
-        <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:grid-rows-1 md:items-stretch md:h-72">
-          <UpcomingChargesCard charges={upcomingCharges} />
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:items-start">
+          <UpcomingChargesCard
+            charges={safeInfo.applicable ? safeInfo.billItems : []}
+            periodTiming={periodTiming}
+            paydayLabel={formatShortDate(toDateStr(payday))}
+            setAside={!noStatement}
+          />
 
           {/* Weekday spending chart */}
-          <Card className="md:h-full md:flex md:flex-col md:overflow-hidden">
+          <Card className="md:flex md:flex-col">
             <CardHeader className="pb-1 pt-4 px-4 flex-row flex-wrap items-center justify-between gap-2 md:shrink-0 md:px-6">
-              <CardTitle className="text-sm font-semibold text-foreground"><h2>Spending by day</h2></CardTitle>
-              <div role="radiogroup" aria-label="Chart range" className="flex gap-0.5 p-0.5 rounded-lg bg-secondary">
-                {CHART_MODES.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={weekdayMode === value}
-                    onClick={() => selectWeekdayMode(value)}
-                    className={cn(
-                      "px-2.5 py-1 rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      weekdayMode === value ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <CardTitle className="text-lg font-semibold text-foreground"><h2>Spending by day</h2></CardTitle>
+              <Segmented
+                items={CHART_MODES}
+                value={weekdayMode}
+                onChange={selectWeekdayMode}
+                label="Chart range"
+                kind="radio"
+                className="flex gap-0.5 p-0.5 rounded-lg bg-secondary"
+                itemClassName="min-h-11 sm:min-h-8 px-3 rounded-md text-sm"
+              />
             </CardHeader>
             {weekdayMode === "month" && (
               <div className="px-4 md:px-6 flex items-center gap-1 md:shrink-0">
@@ -577,6 +578,7 @@ export default function DashboardPage() {
               periodExpenseTxs={periodExpenseTxs}
               expandedCat={expandedCat}
               setExpandedCat={setExpandedCat}
+              onSort={() => { closeSheet(); router.push("/transactions?category=Uncategorized"); }}
             />
           )}
           {sheet === "savings" && (

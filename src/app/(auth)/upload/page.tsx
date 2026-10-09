@@ -158,7 +158,7 @@ export default function UploadPage() {
     <PageShell>
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-6 md:max-w-none md:px-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Add a statement</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Add a statement</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-[65ch]">
             Export your statement from Revolut and add it here — once per pay period is enough. Other banks&apos; CSV files usually work too if they have date, description and amount columns.
           </p>
@@ -222,12 +222,12 @@ export default function UploadPage() {
         {/* Status */}
         {status !== "idle" && (
           <Card className={cn(
-            status === "error" ? "border-destructive/50" : status === "success" ? "border-status-ok/40" : "border-border"
+            status === "error" ? "border-destructive/50" : status === "success" ? "border-border" : "border-border"
           )}>
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 {status === "success" ? (
-                  <CheckCircle size={18} className="text-status-ok shrink-0 mt-0.5" />
+                  <CheckCircle size={18} className="text-foreground shrink-0 mt-0.5" aria-hidden />
                 ) : status === "error" ? (
                   <AlertCircle size={18} className="text-destructive shrink-0 mt-0.5" />
                 ) : (

@@ -10,11 +10,13 @@ interface HeaderProps {
   onMonthChange: (month: string) => void;
   paydayOfMonth?: number;
   isLoading?: boolean;
-  /** When set, replaces the prev/next month arrows with a plain label. */
+  /** When set, replaces the prev/next arrows with a plain label. */
   navLabel?: string;
+  /** False hides the pay-period navigator entirely (screens where it does nothing). */
+  showPeriod?: boolean;
 }
 
-export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel }: HeaderProps) {
+export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel, showPeriod = true }: HeaderProps) {
   const [year, monthNum] = month.split("-").map(Number);
   const monthLabel = getMonthLabel(month, paydayOfMonth);
   const reduceMotion = useReducedMotion();
@@ -58,7 +60,7 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
         </span>
 
         <div className="flex items-center gap-1 ml-auto lg:ml-0">
-          {navLabel ? (
+          {!showPeriod ? null : navLabel ? (
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (
             <>

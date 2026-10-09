@@ -1,6 +1,6 @@
 import { SafeToSpend } from "@/lib/safeToSpend";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatShortDate } from "@/lib/utils";
 
 interface Props {
   safeInfo: SafeToSpend;
@@ -55,7 +55,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{b.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(b.date)} · {b.category === "Savings" ? "savings transfer" : b.source === "recurring" ? "recurring bill" : "manual expense"}
+                      {formatShortDate(b.date)} · {b.estimated ? "expected subscription" : b.category === "Savings" ? "savings transfer" : b.source === "recurring" ? "regular bill" : "added by you"}
                     </p>
                   </div>
                   <span className="text-sm tabular-nums font-mono text-foreground shrink-0">{formatCurrency(b.amount)}</span>

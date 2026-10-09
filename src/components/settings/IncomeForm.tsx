@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAppData } from "@/contexts/AppDataContext";
-import { cn } from "@/lib/utils";
 import { Plus, X } from "lucide-react";
 
 function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
@@ -31,7 +30,7 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
   return (
     <Card>
       <CardHeader className="pb-3 pt-4 px-4">
-        <CardTitle className="text-sm font-semibold text-foreground">{label}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">{label}</CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 flex flex-col gap-3">
         <p className="text-xs text-muted-foreground max-w-[65ch]">{hint}</p>
@@ -120,7 +119,7 @@ export function IncomeForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Income</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Income</h1>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
           Tell Monera which payments are your pay and which are just money moving between your own accounts, so nothing is counted twice.
         </p>
@@ -149,7 +148,7 @@ export function IncomeForm({ settings, updateSettings }: {
         onChange={setSavingsVault}
       />
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty} className={cn("w-full sm:w-auto sm:self-start sm:px-8", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}>
+      <Button onClick={handleSave} disabled={isSaving || !dirty} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
         {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}
       </Button>
     </div>

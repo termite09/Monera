@@ -40,6 +40,11 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
     setSaving(String(r.savings));
   }, [month, settings]);
 
+  // Save only makes sense once something differs from what's already in effect.
+  const dirty =
+    String(monthBudget?.income ?? "") !== income ||
+    String(rule.needs) !== needs || String(rule.wants) !== wants || String(rule.savings) !== saving;
+
   const handleSave = async () => {
     if (total !== 100) return;
     setIsSaving(true);
@@ -83,7 +88,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">This pay period</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">This pay period</h1>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">{label}</p>
         </div>
         {hasCustom ? (
@@ -95,11 +100,11 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground"><h2>Pay this period</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h2>Pay this period</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
           <Label htmlFor="income">Amount ({getDisplayCurrency().trim()})</Label>
-          <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11 max-w-48" />
+          <Input id="income" type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="e.g. 2200" className="h-11 max-w-48 font-mono tabular-nums" />
           <p className="text-xs text-muted-foreground max-w-[65ch]">
             What you expect to be paid this period. Once the payment shows up in your statement, the real amount is used instead.
           </p>
@@ -108,7 +113,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4 flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
           {!hasCustom && (
             <button type="button" onClick={handleCopyDefaults} className="text-xs text-primary hover:underline">
               Start from Basics
@@ -137,7 +142,7 @@ export function MonthForm({ month, settings, paydayOfMonth, updateSettings }: {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving || total !== 100} className={`w-full sm:w-auto sm:self-start sm:px-8 ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
         {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : `Save for ${label}`}
       </Button>
     </div>

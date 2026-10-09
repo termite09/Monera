@@ -18,7 +18,7 @@ import { TransactionFilters } from "./_components/TransactionFilters";
 import { BulkActionBar } from "./_components/BulkActionBar";
 import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { netExpenseTotal } from "@/lib/finance";
-import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn, toDateStr } from "@/lib/utils";
+import { getPeriodBounds, formatCurrency, formatShortDate, roundMoney, cn, toDateStr, cleanDescription } from "@/lib/utils";
 import { Category, Transaction, TransactionType } from "@/types";
 
 const TRANSACTIONS_SLIDES = [
@@ -72,7 +72,7 @@ const CAT_DOT: Record<Category, string> = {
 export default function TransactionsPage() {
   const {
     month, setMonth, transactions, settings, isLoading, txError,
-    addManualTransaction, deleteManualTransaction, updateManualTransaction, bulkUpdateCategory,
+    addManualTransaction, deleteManualTransaction, updateManualTransaction, bulkUpdateCategory, updateCategory,
     bulkExclude, bulkResetToDefault, refetch,
   } = useAppData();
 
@@ -106,6 +106,8 @@ export default function TransactionsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const selectMode = selected.size > 0;
   const [selectCatSheet, setSelectCatSheet] = useState(false);
+  // One transaction whose category is being changed straight from its row.
+  const [singleCatTx, setSingleCatTx] = useState<Transaction | null>(null);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
   // Anchor for shift-click range selection.
   const lastPickedRef = useRef<string | null>(null);
@@ -253,10 +255,13 @@ export default function TransactionsPage() {
       }
     }
     const net = netExpenseTotal(incurred);
+    // "Spent" never includes savings (same as the dashboard); savings are shown
+    // beside it. Filtering to Savings itself shows what was moved to savings.
+    const spentExSavings = filterCat === "Savings" ? net : roundMoney(net - saved);
     const total =
-      filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : net;
+      filterType === "income" ? roundMoney(income) : filterType === "all" ? roundMoney(income - gross) : spentExSavings;
     return { summaryTotal: total, grossExpense: roundMoney(gross), refunded: roundMoney(gross - net), savingsIncluded: roundMoney(saved) };
-  }, [scopedTxs, filterType, todayStr]);
+  }, [scopedTxs, filterType, filterCat, todayStr]);
 
   const upcomingCount = useMemo(() => filtered.filter((t) => t.date > todayStr).length, [filtered, todayStr]);
 
@@ -372,12 +377,13 @@ export default function TransactionsPage() {
         />
 
         {/* Row: Count / total */}
-        <p className="text-xs text-muted-foreground">
-          {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+        <p className="text-xs text-muted-foreground max-w-[70ch]">
+          {filtered.length - upcomingCount} transaction{filtered.length - upcomingCount === 1 ? "" : "s"}
           {" "}·{" "}
           <span className="font-medium text-foreground tabular-nums font-mono text-sm">
             {formatCurrency(summaryTotal)}
           </span>
+          {filterType === "expense" && filterCat !== "Savings" && " spent"}
           {showRefund && (
             <span className="ml-1 text-muted-foreground">
               (<span className="font-mono tabular-nums">{formatCurrency(grossExpense)}</span> − <span className="font-mono tabular-nums">{formatCurrency(refunded)}</span> refunded)
@@ -385,12 +391,12 @@ export default function TransactionsPage() {
           )}
           {filterType === "expense" && filterCat === "All" && savingsIncluded > 0 && (
             <span className="ml-1 text-muted-foreground">
-              · includes <span className="font-mono tabular-nums">{formatCurrency(savingsIncluded)}</span> moved to savings
+              · plus <span className="font-mono tabular-nums">{formatCurrency(savingsIncluded)}</span> moved to savings
             </span>
           )}
           {upcomingCount > 0 && (
             <span className="ml-1 text-muted-foreground">
-              ({upcomingCount} upcoming not yet counted)
+              ({upcomingCount} upcoming, not in this total)
             </span>
           )}
         </p>
@@ -471,7 +477,8 @@ export default function TransactionsPage() {
                       onEdit={selectMode || tx.source !== "manual" ? undefined : (id) => setEditingTx(filtered.find((t) => t.id === id) ?? null)}
                       selectMode={selectMode}
                       checked={selected.has(tx.id)}
-                      onCheck={!selectMode && tx.source === "manual" ? undefined : toggleSelect}
+                      onCheck={toggleSelect}
+                      onCategory={setSingleCatTx}
                       showCategory={filterType !== "income"}
                     />
                   ))}
@@ -527,21 +534,37 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* Bulk category sheet */}
-      <Sheet open={selectCatSheet} onOpenChange={setSelectCatSheet}>
+      {/* Category sheet — for the selected rows, or for one row tapped directly */}
+      <Sheet
+        open={selectCatSheet || !!singleCatTx}
+        onOpenChange={(open) => { if (!open) { setSelectCatSheet(false); setSingleCatTx(null); } }}
+      >
         <SheetContent side="bottom" className="pb-8">
           <SheetHeader className="mb-4">
-            <SheetTitle>Move to…</SheetTitle>
+            <SheetTitle>
+              {singleCatTx ? `Move ${cleanDescription(singleCatTx.description)} to…` : `Move ${selected.size} to…`}
+            </SheetTitle>
           </SheetHeader>
           <div className="flex flex-col gap-1">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => handleBulkCategoryChange(cat)}
+                type="button"
+                aria-current={singleCatTx?.category === cat ? "true" : undefined}
+                onClick={async () => {
+                  if (singleCatTx) {
+                    const id = singleCatTx.id;
+                    setSingleCatTx(null);
+                    if (singleCatTx.category !== cat) await updateCategory(id, cat);
+                  } else {
+                    await handleBulkCategoryChange(cat);
+                  }
+                }}
                 className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary transition-colors text-left"
               >
                 <span className={cn("size-2.5 rounded-sm shrink-0", CAT_DOT[cat])} aria-hidden />
-                <span className="text-sm font-medium">{cat}</span>
+                <span className="text-sm font-medium flex-1">{cat}</span>
+                {singleCatTx?.category === cat && <span className="text-xs text-muted-foreground">Current</span>}
               </button>
             ))}
           </div>

@@ -22,15 +22,15 @@ const FAQ = [
   },
   {
     q: "Does it only work with Revolut?",
-    a: "Today, yes — and that focus is why the import and budgets fit Revolut life so well. More banks are on the roadmap.",
+    a: "Today, yes. That focus is why the import and budgets fit Revolut life so well. More banks are on the roadmap.",
   },
   {
     q: "Is it free?",
-    a: "Yes, and there's no catch. Most free finance apps make money from your data — Monera can't, because we never see it. There's no account on our side and nothing to upsell.",
+    a: "Yes, and there's no catch. Most free finance apps make money from your data. Monera can't, because we never see it. There's no account on our side. Everything you can use today stays free; if paid extras ever arrive, they'll be optional.",
   },
   {
     q: "Why does it need Google Drive access?",
-    a: "That's where your private folder lives — granting access is how your data gets saved to your account. Monera only ever sees files it creates.",
+    a: "That's where your private folder lives. Granting access is how your data gets saved to your account. Monera only ever sees files it creates.",
   },
   {
     q: "Is it open-source?",
@@ -52,7 +52,7 @@ const STEPS = [
   {
     icon: PieChart,
     title: "See where it went",
-    body: "Budgets that run payday-to-payday — not the 1st of the month. Categories, subscriptions, and plain-English insights.",
+    body: "Budgets that run payday to payday, not from the 1st of the month. Categories, subscriptions, and plain-English insights.",
   },
 ];
 
@@ -127,12 +127,12 @@ export default async function Home() {
             Finally know where your money goes.
           </h1>
           <p className="text-base text-muted-foreground max-w-md leading-relaxed">
-            Import your Revolut statement and get a clear breakdown of your spending — budgets,
+            Import your Revolut statement and get a clear breakdown of your spending: budgets,
             categories, and insights, all in one place. Your data stays in{" "}
             <strong className="text-foreground font-medium">your own Google Drive</strong>. We never see it.
           </p>
           <Button asChild size="lg" className="mt-2">
-            <Link href="/login">Get started — it&apos;s free</Link>
+            <Link href="/login">Get started, it&apos;s free</Link>
           </Button>
           <p className="text-xs text-muted-foreground tracking-wide">
             Free · Open-source · No bank login
@@ -141,9 +141,9 @@ export default async function Home() {
 
         {/* Trust strip */}
         <section className="px-6 py-4 border-y border-border/60 bg-card/40">
-          <p className="max-w-[65ch] mx-auto text-center text-sm text-muted-foreground">
+          <p className="max-w-md mx-auto text-center text-sm text-muted-foreground">
             <strong className="text-foreground font-medium">No backend. No database. No bank login.</strong>{" "}
-            Your finances live in a private folder in your Google Drive — Monera only ever sees the files
+            Your finances live in a private folder in your Google Drive, and Monera only ever sees the files
             it creates.{" "}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-2 hover:text-primary">
               View the source on GitHub →
@@ -168,13 +168,23 @@ export default async function Home() {
               </div>
             ))}
           </div>
-          <div className="mt-10 rounded-xl border border-border overflow-hidden">
+          {/* Phones get a phone-sized capture; the desktop one is unreadable at that width. */}
+          <div className="mt-10 mx-auto max-w-72 rounded-xl border border-border overflow-hidden sm:hidden">
             <Image
-              src="/screenshot-dashboard.png"
+              src="/screenshot-dashboard-mobile-v4.png"
+              alt="Monera on a phone: €563.38 safe to spend, about €37.55 a day until payday"
+              className="w-full"
+              width={780}
+              height={1688}
+            />
+          </div>
+          <div className="mt-10 rounded-xl border border-border overflow-hidden hidden sm:block">
+            <Image
+              src="/screenshot-dashboard-v4.png"
               alt="Monera dashboard: €563.38 safe to spend, about €37.55 a day until payday, with budget progress and spending by day"
               className="w-full"
               width={2984}
-              height={2140}
+              height={2000}
             />
           </div>
         </section>
@@ -185,10 +195,10 @@ export default async function Home() {
             <h2 className="text-2xl font-serif text-foreground text-balance">
               Your money is nobody&apos;s business but yours.
             </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-[62ch]">
-              There&apos;s no Monera server and no database — your data is written only to a private{" "}
-              <code className="font-mono text-xs text-foreground">Monera/</code> folder in your own Google Drive,
-              using the minimal <code className="font-mono text-xs text-foreground">drive.file</code> permission that
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+              There&apos;s no Monera server and no database. Your data is written only to a private{" "}
+              <code className="font-mono text-xs text-foreground bg-secondary rounded px-1 py-0.5">Monera/</code> folder in your own Google Drive,
+              using the minimal <code className="font-mono text-xs text-foreground bg-secondary rounded px-1 py-0.5">drive.file</code> permission that
               can&apos;t even see the rest of your Drive. It&apos;s open-source under AGPL, so you don&apos;t have to
               take our word for it.
             </p>
@@ -227,8 +237,8 @@ export default async function Home() {
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground text-center">
-            Considering YNAB, Monarch, or Copilot? Great apps — but US-focused and paid. Not ideal for Revolut/EU users.
+          <p className="mt-4 text-xs text-muted-foreground text-center max-w-sm mx-auto">
+            Considering YNAB, Monarch, or Copilot? Great apps, but US-focused and paid. Not ideal for Revolut/EU users.
           </p>
         </section>
 
@@ -240,7 +250,7 @@ export default async function Home() {
               {FAQ.map((f) => (
                 <div key={f.q} className="flex flex-col gap-1.5">
                   <h3 className="text-sm font-semibold text-foreground">{f.q}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-[65ch]">{f.a}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md">{f.a}</p>
                 </div>
               ))}
             </div>
@@ -253,7 +263,7 @@ export default async function Home() {
             Know where your money goes — without giving it away.
           </h2>
           <Button asChild size="lg">
-            <Link href="/login">Get started — it&apos;s free</Link>
+            <Link href="/login">Get started, it&apos;s free</Link>
           </Button>
           <p className="text-xs text-muted-foreground">
             No bank login. No subscription. Your data stays in your Drive.

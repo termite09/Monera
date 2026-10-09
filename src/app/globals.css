@@ -66,14 +66,14 @@
   /* Categories: one navy family, told apart by lightness and always labelled. */
   --cat-needs: #1C3557;
   --cat-wants: #4A7EC7;
-  --cat-savings: #8FA9CC;
+  --cat-savings: #7891B6;
   /* Budget status: the only job green/amber/red have in the product. */
   --status-ok: #047857;
   --status-ok-bg: #E8F5EF;
   --status-warn: #B45309;
   --status-warn-bg: #FEF3E2;
   --status-over-bg: #FDECEC;
-  --chart-bar: #DDD9D0;
+  --chart-bar: #97928A;
 }
 
 .dark {
@@ -104,7 +104,7 @@
   --status-warn: #FBBF24;
   --status-warn-bg: rgba(251, 191, 36, 0.12);
   --status-over-bg: rgba(239, 68, 68, 0.14);
-  --chart-bar: #34342F;
+  --chart-bar: #66665F;
 }
 
 html {

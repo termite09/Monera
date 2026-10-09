@@ -13,13 +13,13 @@ colors:
   destructive-red: "#DC2626"
   cat-needs: "#1C3557"
   cat-wants: "#4A7EC7"
-  cat-savings: "#8FA9CC"
+  cat-savings: "#7891B6"
   status-ok: "#047857"
   status-ok-bg: "#E8F5EF"
   status-warn: "#B45309"
   status-warn-bg: "#FEF3E2"
   status-over-bg: "#FDECEC"
-  chart-bar: "#DDD9D0"
+  chart-bar: "#97928A"
 typography:
   display:
     fontFamily: "DM Serif Display, Georgia, serif"
@@ -33,6 +33,12 @@ typography:
     fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "-0.01em"
+  page-title:
+    fontFamily: "DM Sans, system-ui, sans-serif"
+    fontSize: "1.5rem"
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: "-0.01em"
   title:
     fontFamily: "DM Sans, system-ui, sans-serif"
     fontSize: "1.125rem"
@@ -43,6 +49,11 @@ typography:
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.6
+  caption:
+    fontFamily: "DM Sans, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1.4
   label:
     fontFamily: "DM Sans, system-ui, sans-serif"
     fontSize: "0.875rem"
@@ -148,7 +159,7 @@ A single saturated navy anchors an otherwise warm-neutral field. One primary, se
 Needs, Wants and Savings share one navy family, told apart by lightness and always shown with their label (a small square swatch beside the word, never coloured text alone):
 - **Needs** (`#1C3557`, token `--cat-needs`) — Anchor Navy.
 - **Wants** (`#4A7EC7`, `--cat-wants`) — Steel Blue.
-- **Savings** (`#8FA9CC`, `--cat-savings`) — pale navy.
+- **Savings** (`#7891B6`, `--cat-savings`) — slate navy (≥3:1 on white, so the ring stays visible).
 Dark mode inverts the ramp (Needs lightest) so the most essential category stays the most prominent.
 
 ### Budget status
@@ -159,7 +170,7 @@ The only job green, amber and red have in the product: answering "am I within bu
 Income is not a status: it is shown in ink with a "+" sign. Savings is a target, so passing it is "met", never a warning.
 
 ### Charts
-Bars are `--chart-bar` (`#DDD9D0`, warm); the one bar that matters (the peak) is Anchor Navy. Every chart carries a one-line plain-language takeaway, and its labels are buttons so it works from the keyboard.
+Bars are `--chart-bar` (`#97928A`, warm grey at ≥3:1 on white); the one bar that matters (the peak) is Anchor Navy. Every chart carries a one-line plain-language takeaway, and its labels are buttons so it works from the keyboard.
 
 ### Named Rules
 **The One Anchor Rule.** Anchor Navy is the only saturated color used on neutral UI. Category colours are shades of navy; budget status colours (ok / warning / over) are semantic signals, not accent colors. If a new component wants "more color," the answer is Anchor Navy — there is no secondary accent.
@@ -249,7 +260,7 @@ Components in Monera are **clean and confident** — crisp defaults, visible hie
 Signature component — circular progress for Needs / Wants / Savings. Each donut is a button that opens the transactions behind it, with a spoken label giving the amount left. The amount inside uses DM Mono; the arc uses the category token, with a small square swatch beside the label.
 
 ### Type scale in the product
-Caption 12px · Label 14px · Body 16px · Title 18px · Hero figure 30–36px. No in-between sizes (13px, 15px, 22px): pick the nearest step. The 10px bottom-bar label is the single exception.
+Caption 12px · Label 14px · Body 16px · Title 18px (card titles) · Page title 24px (one per screen, DM Sans 600) · Hero figure 30–36px. No in-between sizes (13px, 15px, 22px): pick the nearest step. The 10px bottom-bar label is the single exception.
 
 ### Badges / Chips
 - **Shape:** Pill (`rounded-full`), `px-2.5 py-0.5`, 12px caption font.

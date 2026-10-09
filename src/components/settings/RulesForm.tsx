@@ -110,7 +110,7 @@ export function RulesForm({ rules, updateRules }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Rules</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Rules</h1>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
           Teach Monera where things belong: any transaction containing a word goes into that category. If two rules match, the first one wins.
         </p>
@@ -119,7 +119,7 @@ export function RulesForm({ rules, updateRules }: {
       {/* Add new */}
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground">Add a rule</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground">Add a rule</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -273,7 +273,7 @@ export function RulesForm({ rules, updateRules }: {
       <Button
         onClick={handleSave}
         disabled={isSaving || !isDirty}
-        className={cn("w-full sm:w-auto sm:self-start sm:px-8", error ? "bg-destructive text-white" : "bg-primary text-primary-foreground")}
+        className={"w-full sm:w-auto sm:self-start sm:px-8"}
       >
         {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save rules"}
       </Button>

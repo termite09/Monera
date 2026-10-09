@@ -45,17 +45,21 @@ export function formatCurrency(amount: number, currency?: string): string {
   return `${symbol}${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// en-GB abbreviates September as "Sept"; every other month is three letters.
+// One style everywhere: "7 Sep", "24 Sep – 23 Oct", "7 Sep 2025".
+const evenMonth = (s: string) => s.replace("Sept", "Sep");
+
 export function formatDate(dateStr: string): string {
   // Date-only strings ("YYYY-MM-DD") must be pinned to local midnight, otherwise
   // they parse as UTC and render a day early in negative-offset timezones. Full
   // ISO timestamps (e.g. Drive's createdTime) already carry a zone, so pass through.
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
   const date = new Date(isDateOnly ? dateStr + "T00:00:00" : dateStr);
-  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return evenMonth(date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
 }
 
 export function formatShortDate(dateStr: string): string {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return evenMonth(new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
 }
 
 /**
@@ -87,14 +91,30 @@ export function getPeriodBounds(monthKey: string, paydayOfMonth = 1): { start: D
   return { start, end };
 }
 
+/**
+ * Days from `now` until payday, counting today — "15 days left" on the 9th when
+ * payday is the 24th. Safe to spend and the "By payday" projection share this so
+ * they never disagree about how much of the period remains.
+ */
+export function daysToPayday(monthKey: string, paydayOfMonth: number, now: Date): number {
+  const { end } = getPeriodBounds(monthKey, paydayOfMonth);
+  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
+}
+
 export function getMonthLabel(monthKey: string, paydayOfMonth = 1): string {
   const [year, month] = monthKey.split("-").map(Number);
   if (paydayOfMonth <= 1) {
     return new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   }
   const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
-  const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  return `${fmt(start)} – ${fmt(end)}`;
+  const fmt = (d: Date) => evenMonth(d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+  // Add the year only when it isn't this year, so stepping back across January
+  // stays unambiguous without cluttering the everyday label.
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${fmt(start)} ${start.getFullYear()} – ${fmt(end)} ${end.getFullYear()}`;
+  }
+  const yearSuffix = end.getFullYear() === new Date().getFullYear() ? "" : ` ${end.getFullYear()}`;
+  return `${fmt(start)} – ${fmt(end)}${yearSuffix}`;
 }
 
 export function getCurrentMonth(paydayOfMonth = 1): string {

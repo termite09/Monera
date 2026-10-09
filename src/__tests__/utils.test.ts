@@ -141,3 +141,13 @@ describe("paydays on the 29th–31st", () => {
     expect(getMonthKey("2026-03-31", 31)).toBe("2026-03");
   });
 });
+
+describe("getMonthLabel — years", () => {
+  it("adds the years when a pay period crosses New Year", () => {
+    expect(getMonthLabel("2024-12", 24)).toBe("24 Dec 2024 – 23 Jan 2025");
+  });
+
+  it("adds the year for a past year's period", () => {
+    expect(getMonthLabel("2024-06", 24)).toBe("24 Jun – 23 Jul 2024");
+  });
+});

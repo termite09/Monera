@@ -1,5 +1,5 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodBounds, cleanDescription, getPrevMonthKey, roundMoney, MS_PER_DAY } from "@/lib/utils";
+import { getPeriodBounds, cleanDescription, getPrevMonthKey, roundMoney, MS_PER_DAY, daysToPayday } from "@/lib/utils";
 import { getPeriodSpend, netExpenseByCategory } from "@/lib/finance";
 
 export interface MonthlyTotals {
@@ -24,7 +24,8 @@ export function monthlyCategoryTotals(
     const { byCategory } = getPeriodSpend(transactions, monthKey, paydayOfMonth);
     return {
       needs: byCategory.Needs,
-      wants: byCategory.Wants,
+      // Not-yet-sorted spending counts as Wants everywhere in Monera.
+      wants: roundMoney(byCategory.Wants + byCategory.Uncategorized),
       savings: byCategory.Savings,
     };
   });
@@ -54,6 +55,11 @@ interface ReportData {
   prevByCategory: Record<Category, number>;
   /** True when "prev" covers last period only up to the same day as today. */
   comparedToSamePoint: boolean;
+  /** Everyday spending still to come before payday at the current pace (bills excluded). */
+  projectedPace: number;
+  /** Spending excluding savings — what "spent" means everywhere in Monera. */
+  spending: number;
+  prevSpending: number;
   changePct: number | null;
   topMerchants: MerchantStat[];
   frequentMerchants: MerchantStat[];
@@ -64,7 +70,7 @@ interface ReportData {
 // Collapse a raw description into a stable merchant key. Revolut descriptions
 // are mostly clean merchant names, but we lowercase + squash whitespace and
 // strip trailing reference numbers so "Wolt" and "Wolt  123" group together.
-function merchantKey(description: string): string {
+export function merchantKey(description: string): string {
   return description
     .toLowerCase()
     .replace(/\s+/g, " ")
@@ -72,7 +78,7 @@ function merchantKey(description: string): string {
     .trim();
 }
 
-function displayName(description: string): string {
+export function displayName(description: string): string {
   return cleanDescription(description);
 }
 
@@ -150,10 +156,12 @@ function detectRecurring(transactions: Transaction[]): { key: string; sub: Subsc
     // representative charge and the basis for the tolerance check, so it must
     // not carry sub-cent float drift (e.g. (12.99+13.49)/2 = 13.2399…).
     const mid = roundMoney(median(g.amounts));
-    // Treat the charge as recurring only if every amount is close to the median
-    // (small price changes are tolerated; variable spend is not).
-    const tolerance = Math.max(1, mid * 0.15);
-    const consistent = g.amounts.every((a) => Math.abs(a - mid) <= tolerance);
+    // A subscription charges the same price, or switches once to a new price
+    // (12.99 → 13.99). Shopping at the same shop varies every time, so: at most
+    // two distinct prices within 15% of the median, or every charge within 3%.
+    const distinct = new Set(g.amounts.map((a) => roundMoney(a))).size;
+    const within = (pct: number) => g.amounts.every((a) => Math.abs(a - mid) <= Math.max(0.5, mid * pct));
+    const consistent = (distinct <= 2 && within(0.15)) || within(0.03);
     if (!consistent) continue;
 
     // Interval check: gaps between consecutive charges must be monthly or bi-monthly
@@ -182,7 +190,9 @@ export function buildReport(
   transactions: Transaction[],
   monthKey: string,
   paydayOfMonth: number,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** Known spending still to come before payday (bills, expected subscriptions). */
+  upcomingSpend = 0
 ): ReportData {
   const expenses = periodExpenses(transactions, monthKey, paydayOfMonth);
 
@@ -261,8 +271,11 @@ export function buildReport(
   );
   const variableSoFar = dayToDay.Needs + dayToDay.Wants + dayToDay.Uncategorized;
   const spentSoFar = totalSpent - spend.byCategory.Savings;
-  const daysLeft = Math.max(0, totalDays - daysElapsed);
-  const projectedTotal = roundMoney(spentSoFar + (variableSoFar / daysElapsed) * daysLeft);
+  // Days still to come after today (today's spending is already in the figures).
+  const daysLeft = comparedToSamePoint ? Math.max(0, daysToPayday(monthKey, paydayOfMonth, now) - 1) : 0;
+  const projectedTotal = comparedToSamePoint
+    ? roundMoney(spentSoFar + (variableSoFar / daysElapsed) * daysLeft + upcomingSpend)
+    : roundMoney(spentSoFar);
 
   const changePct = prevTotal > 0 ? ((totalSpent - prevTotal) / prevTotal) * 100 : null;
 
@@ -276,6 +289,9 @@ export function buildReport(
     prevTotal,
     prevByCategory,
     comparedToSamePoint,
+    projectedPace: comparedToSamePoint ? roundMoney((variableSoFar / daysElapsed) * daysLeft) : 0,
+    spending: roundMoney(spentSoFar),
+    prevSpending: roundMoney(prevTotal - prevByCategory.Savings),
     changePct,
     topMerchants,
     frequentMerchants,

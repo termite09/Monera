@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import { Transaction, RecurringPayment } from "@/types";
-import { formatCurrency, formatDate, cleanDescription, cn, getMonthKey, ordinal, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
+import { formatCurrency, formatDate, cleanDescription, cn, ordinal, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, CalendarClock, CreditCard, EyeOff } from "lucide-react";
 import type { detectSubscriptions } from "@/lib/reports";
+import { getRecurringInRange } from "@/lib/recurring";
 
 type Subscription = ReturnType<typeof detectSubscriptions>[number];
 
 function formatPeriodKey(key: string): string {
   const [y, m] = key.split("-");
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" }).replace("Sept", "Sep");
 }
 
 function getPeriodRangeBadge(startMonth?: string, endMonth?: string): string | null {
@@ -21,15 +22,6 @@ function getPeriodRangeBadge(startMonth?: string, endMonth?: string): string | n
   return `Until ${formatPeriodKey(endMonth!)}`;
 }
 
-
-function countBillPeriods(p: RecurringPayment, currentMonth: string, fallbackStart: string): number {
-  const start = p.startMonth ?? fallbackStart;
-  const end = p.endMonth && p.endMonth < currentMonth ? p.endMonth : currentMonth;
-  if (start > end) return 0;
-  const [sy, sm] = start.split("-").map(Number);
-  const [ey, em] = end.split("-").map(Number);
-  return (ey - sy) * 12 + (em - sm) + 1;
-}
 
 interface Props {
   recurringPayments: RecurringPayment[];
@@ -46,17 +38,13 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
 
   const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
 
-  const todayMonth = getMonthKey(new Date(), paydayOfMonth);
-  const earliestDate = transactions.length > 0
-    ? transactions.reduce((min, t) => t.date < min ? t.date : min, transactions[0].date)
-    : null;
-  const earliestMonth = earliestDate ? getMonthKey(earliestDate, paydayOfMonth) : todayMonth;
+  const earliestDate = transactions.reduce<string | null>((min, t) => (t.source !== "recurring" && (!min || t.date < min) ? t.date : min), null);
 
   return (
     <>
       <Card>
         <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <CalendarClock size={13} aria-hidden /> <h2>Your regular bills</h2>
           </CardTitle>
           {recurringPayments.length > 0 && (
@@ -74,7 +62,8 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
               <div className="flex flex-col divide-y divide-border">
                 {recurringPayments.map((p) => {
                   const badge = getPeriodRangeBadge(p.startMonth, p.endMonth);
-                  const count = countBillPeriods(p, todayMonth, earliestMonth);
+                  // Only charges that have actually happened, since your first statement.
+                  const count = earliestDate ? getRecurringInRange([p], new Date(earliestDate + "T00:00:00"), new Date(), paydayOfMonth).length : 0;
                   const total = count * p.amount;
                   return (
                     <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
@@ -91,11 +80,14 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {ordinal(p.dayOfMonth)} of the month · {formatCurrency(p.amount)} per period · {count} time{count === 1 ? "" : "s"}
+                        <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">
+                          {ordinal(p.dayOfMonth)} of the month · <span className="font-mono tabular-nums">{formatCurrency(p.amount)}</span> per period
                         </p>
                       </div>
-                      <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">{formatCurrency(total)}</span>
+                      <span className="text-right shrink-0">
+                        <span className="block text-sm font-medium tabular-nums text-foreground font-mono">{formatCurrency(total)}</span>
+                        <span className="block text-xs text-muted-foreground">paid so far · {count} time{count === 1 ? "" : "s"}</span>
+                      </span>
                     </div>
                   );
                 })}
@@ -108,7 +100,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <CreditCard size={13} aria-hidden /> <h2>Subscriptions we found</h2>
             </CardTitle>
             {subscriptions.length > 0 && <span className="text-sm text-muted-foreground"><span className="font-medium text-foreground font-mono tabular-nums">~{formatCurrency(subsMonthly)}</span> per period</span>}
@@ -162,7 +154,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       <button
                         type="button"
                         onClick={() => onExclude(s.name)}
-                        className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+                        className="size-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
                         aria-label={`${s.name} isn't a subscription — hide it`}
                         title="Not a subscription? Hide it (won't change your numbers)"
                       >

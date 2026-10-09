@@ -64,6 +64,18 @@ describe("computeSafeToSpend", () => {
     expect(r.safe).toBe(1700); // 2000 − 80 saved − 100 due − 120 set aside
   });
 
+  it("holds back detected subscriptions due before payday, but not twice", () => {
+    const txs = [tx({ amount: 12.99, type: "expense", category: "Wants", date: "2024-06-20", description: "Netflix", source: "recurring" })];
+    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 0, [
+      { name: "Spotify", amount: 10.99, date: "2024-06-22" },
+      { name: "Netflix", amount: 12.99, date: "2024-06-20" }, // already a bill
+      { name: "Gym", amount: 30, date: "2024-07-03" }, // after payday
+    ]);
+    expect(r.billsDue).toBe(23.98);
+    expect(r.billItems.map((b) => b.name)).toEqual(["Netflix", "Spotify"]);
+    expect(r.billItems.find((b) => b.name === "Spotify")?.estimated).toBe(true);
+  });
+
   it("holds nothing back once the savings target is reached", () => {
     const txs = [tx({ amount: 400, type: "expense", category: "Savings", date: "2024-06-08" })];
     const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 300);

@@ -254,7 +254,7 @@ export function WeekdayChart({
       mode === "year" ? "No spending this year" :
       "No spending this period";
     return (
-      <div className="flex items-center justify-center text-sm text-muted-foreground h-40 md:h-full">
+      <div className="flex items-center justify-center text-sm text-muted-foreground h-40 md:h-48">
         {emptyMsg}
       </div>
     );
@@ -262,7 +262,7 @@ export function WeekdayChart({
 
   return (
     <div className="md:h-full md:flex md:flex-col">
-      <div className="h-36 md:h-auto md:flex-1 md:min-h-0" aria-hidden>
+      <div className="h-36 md:h-44" aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
             <XAxis dataKey="day" hide />

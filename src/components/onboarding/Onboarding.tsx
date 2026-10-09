@@ -241,14 +241,13 @@ export function Onboarding() {
             />
             {uploaded ? (
               <p className="mt-4 flex items-center gap-2 text-sm text-foreground" role="status">
-                <Check size={16} className="text-status-ok" aria-hidden /> {uploadMsg || "Statement added."}
+                <Check size={16} className="text-foreground" aria-hidden /> {uploadMsg || "Statement added."}
               </p>
             ) : (
               <>
                 <Button
                   type="button"
-                  variant="outline"
-                  className="mt-4 h-12 self-start"
+                  className="mt-4 h-12 self-start px-6"
                   disabled={uploadState === "uploading"}
                   onClick={() => fileRef.current?.click()}
                 >
@@ -282,7 +281,7 @@ export function Onboarding() {
               </Button>
             )}
             {step === "statement" ? (
-              <Button type="submit" className="h-12" disabled={finishing || !splitValid}>
+              <Button type="submit" variant={uploaded ? "default" : "outline"} className="h-12" disabled={finishing || !splitValid}>
                 {finishing && <Loader2 size={16} className="mr-1.5 animate-spin" aria-hidden />}
                 {uploaded ? "Go to my dashboard" : "Skip for now"}
                 {!finishing && <ArrowRight size={16} className="ml-1.5" aria-hidden />}

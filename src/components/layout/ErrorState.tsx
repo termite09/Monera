@@ -12,11 +12,11 @@ interface ErrorStateProps {
  */
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
-      <AlertCircle size={16} className="shrink-0 text-destructive" />
+    <div role="alert" className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
+      <AlertCircle size={16} className="shrink-0 text-destructive" aria-hidden />
       <p className="flex-1 text-sm text-destructive">{message}</p>
-      <button onClick={onRetry} className="flex items-center gap-1 text-xs text-destructive underline-offset-2 hover:underline">
-        <RefreshCw size={12} /> Retry
+      <button type="button" onClick={onRetry} className="flex items-center gap-1 min-h-11 px-2 -mr-2 text-sm text-destructive underline-offset-2 hover:underline">
+        <RefreshCw size={14} aria-hidden /> Try again
       </button>
     </div>
   );

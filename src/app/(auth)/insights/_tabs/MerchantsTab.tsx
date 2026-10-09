@@ -5,11 +5,12 @@ import { Transaction } from "@/types";
 import { formatCurrency, formatDate, cleanDescription, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, EyeOff } from "lucide-react";
-import type { buildReport } from "@/lib/reports";
+import { merchantKey, type buildReport } from "@/lib/reports";
 
 type Report = ReturnType<typeof buildReport>;
 
 interface Merchant {
+  key: string;
   name: string;
   total: number;
   count: number;
@@ -33,7 +34,8 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
 
   const maxMerchantTotal = Math.max(1, ...allMerchants.map((m) => m.total));
   const visible = showAllMerchants ? allMerchants : allMerchants.slice(0, TOP_N);
-  const periodTotal = allMerchants.reduce((s, m) => s + m.total, 0);
+  // Share of ALL spending this period, so hiding a place never changes the figure.
+  const periodTotal = report.spending;
   const topShare = periodTotal > 0
     ? Math.round((allMerchants.slice(0, TOP_N).reduce((s, m) => s + m.total, 0) / periodTotal) * 100)
     : 0;
@@ -53,18 +55,18 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
     <Card>
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-sm font-semibold text-foreground"><h2>Where your money went</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h2>Where your money went</h2></CardTitle>
           {hiddenMerchants.length > 0 && (
             <button
               type="button"
               onClick={onResetHidden}
-              className="ml-auto text-xs text-primary hover:underline"
+              className="ml-auto text-xs text-primary hover:underline rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Show hidden ({hiddenMerchants.length})
             </button>
           )}
         </div>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
           {allMerchants.length > TOP_N
             ? `Your top ${TOP_N} places took ${topShare}% of your spending this period.`
             : "Every place you spent money this period."}{" "}
@@ -78,11 +80,11 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
           <ul>
             {visible.map((m, i) => {
               const isOpen = expandedMerchant === m.name;
-              const txs = periodExpenseTxs.filter((tx) => tx.description === m.name);
+              const txs = periodExpenseTxs.filter((tx) => (merchantKey(tx.description) || "other") === m.key);
               const showAll = showAllFor.has(m.name);
               const displayTxs = showAll ? txs : txs.slice(0, 20);
               return (
-                <li key={m.name} className="border-b border-border last:border-0">
+                <li key={m.key} className="border-b border-border last:border-0">
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -114,7 +116,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
                     <button
                       type="button"
                       onClick={() => onHide(m.name)}
-                      className="shrink-0 p-2 mr-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      className="shrink-0 size-11 mr-1 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       aria-label={`Hide ${m.name} from this list`}
                       title="Hide from this list (won't change your numbers)"
                     >
@@ -140,7 +142,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setShowAllFor((prev) => new Set([...prev, m.name])); }}
-                          className="w-full py-2.5 text-xs text-primary font-medium text-center border-t border-border hover:bg-secondary transition-colors"
+                          className="w-full py-2.5 text-xs text-primary font-medium text-center border-t border-border hover:bg-secondary transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           Show all {txs.length} transactions
                         </button>
@@ -156,7 +158,7 @@ export function MerchantsTab({ report, allMerchants, periodExpenseTxs, hiddenMer
           <button
             type="button"
             onClick={() => setShowAllMerchants((v) => !v)}
-            className="w-full py-3 text-sm text-primary font-medium hover:bg-secondary/50 transition-colors"
+            className="w-full py-3 text-sm text-primary font-medium hover:bg-secondary/50 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {showAllMerchants ? `Show top ${TOP_N} only` : `Show all ${allMerchants.length} places`}
           </button>

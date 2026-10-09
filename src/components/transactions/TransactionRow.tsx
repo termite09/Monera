@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Repeat, Loader2, Trash2, Pencil, X } from "lucide-react";
+import { Repeat, Loader2, Pencil } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency, cleanDescription, cn, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
+import { formatCurrency, cleanDescription, cn, getCategoryTextClass, getCategorySwatchClass, toDateStr } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -13,6 +13,8 @@ interface TransactionRowProps {
   checked?: boolean;
   /** `range` is true for shift-click, to select everything since the last pick. */
   onCheck?: (id: string, range?: boolean) => void;
+  /** Opens the "Move to…" choice for this one transaction. */
+  onCategory?: (tx: Transaction) => void;
   showCategory?: boolean;
 }
 
@@ -35,6 +37,7 @@ export function TransactionRow({
   selectMode = false,
   checked = false,
   onCheck,
+  onCategory,
   showCategory = true,
 }: TransactionRowProps) {
   const [deleting, setDeleting] = useState(false);
@@ -47,6 +50,10 @@ export function TransactionRow({
   const isRecurring = tx.source === "recurring";
   const excluded = !!tx.excluded;
   const { dayMonth, year } = parseDateParts(tx.date);
+  // Future-dated rows (bills still to come) are listed but don't count yet.
+  const isUpcoming = tx.date > toDateStr(new Date());
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
     <div
@@ -55,30 +62,97 @@ export function TransactionRow({
         excluded ? "opacity-50 bg-muted/30" : selectMode ? "cursor-pointer hover:bg-secondary/30" : "hover:bg-secondary/50",
         checked && "bg-primary/5"
       )}
+      // Mouse convenience in select mode; the checkbox is the keyboard route.
       onClick={selectMode && !excluded ? (e) => onCheck?.(tx.id, e.shiftKey) : undefined}
     >
-      {/* Date — day+month on top, year below in muted smaller text */}
+      {/* Date — day+month on top, year below when it isn't this year */}
       <div className="shrink-0 w-12 sm:w-14 pt-0.5 flex flex-col leading-tight">
         <span className="text-xs text-muted-foreground tabular-nums font-mono">{dayMonth}</span>
         {year && <span className="text-xs text-muted-foreground tabular-nums font-mono">{year}</span>}
       </div>
 
-      {/* Description + optional notes */}
+      {/* Description + optional notes and, for your own entries, edit/delete */}
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 pt-0.5">
         <span className={cn("flex items-start gap-1.5 text-sm text-foreground min-w-0", excluded && "line-through")}>
-          {isRecurring && <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.5" />}
+          {isRecurring && (
+            <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.5" role="img" aria-label="Regular bill" />
+          )}
           <span className="min-w-0 break-words">{cleanDescription(tx.description)}</span>
         </span>
+        {isUpcoming && (
+          <span className="text-xs font-medium text-muted-foreground">Upcoming · not paid yet</span>
+        )}
         {tx.notes && <span className="text-xs text-muted-foreground break-words">{tx.notes}</span>}
         {tx.source === "manual" && (
-          <span className="text-xs text-muted-foreground">Added by you</span>
+          <span className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2" onClick={stop}>
+            Added by you
+            {onEdit && !confirmDelete && (
+              <button type="button" onClick={() => onEdit(tx.id)} className="underline underline-offset-2 hover:text-foreground">
+                Edit
+              </button>
+            )}
+            {onDelete && (confirmDelete ? (
+              <>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={async () => {
+                    if (deleting) return;
+                    setDeleting(true);
+                    try {
+                      await onDelete(tx.id);
+                    } catch {
+                      // Handled upstream; reset UI so the row doesn't stay spinning.
+                    } finally {
+                      setDeleting(false);
+                      setConfirmDelete(false);
+                    }
+                  }}
+                  disabled={deleting}
+                  className="inline-flex items-center gap-1 font-medium text-destructive underline underline-offset-2 disabled:cursor-wait"
+                >
+                  {deleting && <Loader2 size={12} className="animate-spin" aria-hidden />}
+                  Delete for good
+                </button>
+                <button type="button" onClick={() => setConfirmDelete(false)} className="underline underline-offset-2 hover:text-foreground">
+                  Keep
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmDelete(true);
+                  // Auto-dismiss after a few seconds if not confirmed — fallback for mobile
+                  if (autoHideRef.current) clearTimeout(autoHideRef.current);
+                  autoHideRef.current = setTimeout(() => setConfirmDelete(false), 5000);
+                }}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                Delete
+              </button>
+            ))}
+          </span>
         )}
       </div>
 
       {/* Category — a fixed, left-aligned column so every swatch lines up. Always
           rendered (invisible when hidden) to keep the columns stable. */}
       <div className={cn("flex shrink-0 w-15 sm:w-24 pt-0.5 justify-start", !showCategory && "invisible pointer-events-none")}>
-        {!isIncome && <CategoryLabel tx={tx} />}
+        {!isIncome && (
+          onCategory && !excluded && !selectMode && !isRecurring ? (
+            <button
+              type="button"
+              onClick={(e) => { stop(e); onCategory(tx); }}
+              aria-label={`Category: ${tx.category === "Uncategorized" ? "none" : tx.category}. Change`}
+              className="-mx-1 -my-0.5 px-1 py-0.5 rounded-md hover:bg-secondary transition-colors"
+            >
+              <CategoryLabel tx={tx} />
+            </button>
+          ) : (
+            <CategoryLabel tx={tx} />
+          )
+        )}
       </div>
 
       {/* Amount — fixed width, right-aligned, so the column edge is straight. */}
@@ -91,9 +165,9 @@ export function TransactionRow({
         {isIncome ? "+" : "−"}{formatCurrency(tx.amount)}
       </span>
 
-      {/* Right action: checkbox when selection is available, otherwise eye/edit+delete/exclude */}
-      {onCheck ? (
-        <span className="shrink-0 w-11 sm:w-12 flex items-center justify-center pt-0.5" onClick={(e) => e.stopPropagation()}>
+      {/* Selection — the same column on every row */}
+      <span className="shrink-0 w-11 sm:w-12 flex items-center justify-center pt-0.5" onClick={stop}>
+        {onCheck && (
           <input
             type="checkbox"
             checked={checked}
@@ -102,67 +176,8 @@ export function TransactionRow({
             aria-label={`Select ${cleanDescription(tx.description)}, ${isIncome ? "+" : "−"}${formatCurrency(tx.amount)}`}
             className="size-4 cursor-pointer accent-primary rounded-sm"
           />
-        </span>
-      ) : onDelete ? (
-        <div className="shrink-0 w-11 sm:w-12 flex items-center justify-end gap-0.5">
-          {onEdit && !confirmDelete && (
-            <button
-              onClick={() => onEdit(tx.id)}
-              className="p-1 rounded-md text-muted-foreground transition-colors hover:text-primary hover:bg-secondary"
-              aria-label="Edit transaction"
-              title="Edit manual transaction"
-            >
-              <Pencil size={13} />
-            </button>
-          )}
-          {confirmDelete ? (
-            <div className="flex items-center gap-0.5">
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={async () => {
-                  if (deleting) return;
-                  setDeleting(true);
-                  try {
-                    await onDelete(tx.id);
-                  } catch {
-                    // Handled upstream; reset UI so the row doesn't stay spinning.
-                  } finally {
-                    setDeleting(false);
-                    setConfirmDelete(false);
-                  }
-                }}
-                disabled={deleting}
-                className="p-1 rounded-md text-destructive bg-destructive/10 transition-colors disabled:cursor-wait hover:bg-destructive/20"
-                aria-label="Confirm delete"
-                title="Tap again to confirm"
-              >
-                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-              </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary"
-                aria-label="Cancel delete"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setConfirmDelete(true);
-                // Auto-dismiss after 4 seconds if not confirmed — fallback for mobile
-                if (autoHideRef.current) clearTimeout(autoHideRef.current);
-                autoHideRef.current = setTimeout(() => setConfirmDelete(false), 4000);
-              }}
-              className="p-1 rounded-md text-muted-foreground transition-colors hover:text-destructive hover:bg-secondary"
-              aria-label="Delete transaction"
-              title="Delete manual transaction"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      ) : null}
+        )}
+      </span>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Transaction, Settings, MonthSummary, TransactionSource, Category } from "@/types";
-import { getPeriodBounds, roundMoney, MS_PER_DAY } from "@/lib/utils";
+import { getPeriodBounds, roundMoney, toDateStr, daysToPayday } from "@/lib/utils";
 import { netExpenseByCategory, netExpenseTotal } from "@/lib/finance";
 
 export interface SafeToSpendBillItem {
@@ -8,6 +8,17 @@ export interface SafeToSpendBillItem {
   date: string;
   source: TransactionSource;
   category: Category;
+  /** A detected subscription whose next charge is inferred from the last one. */
+  estimated?: boolean;
+  lastChargeDate?: string;
+}
+
+/** A detected subscription expected to charge before payday. */
+export interface EstimatedCharge {
+  name: string;
+  amount: number;
+  date: string;
+  lastChargeDate?: string;
 }
 
 export interface SafeToSpend {
@@ -78,7 +89,9 @@ export function computeSafeToSpend(
   summary: MonthSummary,
   now: Date,
   /** This period's savings target (income × savings %). 0 = don't hold any back. */
-  savingsTarget = 0
+  savingsTarget = 0,
+  /** Detected subscriptions expected before payday — held back like bills. */
+  estimatedCharges: EstimatedCharge[] = []
 ): SafeToSpend {
   const payday = settings.paydayOfMonth ?? 1;
   const { start, end } = getPeriodBounds(monthKey, payday);
@@ -103,10 +116,23 @@ export function computeSafeToSpend(
   const spentSoFar = roundMoney(incurredByCat.Needs + incurredByCat.Wants + incurredByCat.Uncategorized);
   const savedSoFar = incurredByCat.Savings;
 
-  const billsDue = netExpenseTotal(upcoming);
-  const billItems: SafeToSpendBillItem[] = upcoming
-    .map((tx) => ({ name: tx.description, amount: tx.amount, date: tx.date, source: tx.source, category: tx.category }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Detected subscriptions due before payday, unless a bill with the same name
+  // is already listed (a bill the user added wins over our guess).
+  const endStr = toDateStr(end);
+  const nowStr = toDateStr(now);
+  const known = new Set(upcoming.map((tx) => tx.description.toLowerCase()));
+  const estimates = estimatedCharges.filter(
+    (c) => c.date > nowStr && c.date <= endStr && !known.has(c.name.toLowerCase())
+  );
+
+  const billsDue = roundMoney(netExpenseTotal(upcoming) + estimates.reduce((s, c) => s + c.amount, 0));
+  const billItems: SafeToSpendBillItem[] = [
+    ...upcoming.map((tx) => ({ name: tx.description, amount: tx.amount, date: tx.date, source: tx.source, category: tx.category })),
+    ...estimates.map((c) => ({
+      name: c.name, amount: c.amount, date: c.date, source: "revolut" as const, category: "Wants" as const,
+      estimated: true, lastChargeDate: c.lastChargeDate,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
 
   // Savings transfers already scheduled (a recurring Savings bill) count towards
   // the target, so the same money isn't held back twice.
@@ -114,7 +140,7 @@ export function computeSafeToSpend(
   const savingsSetAside = roundMoney(Math.max(0, savingsTarget - savedSoFar - savingsDue));
 
   const safe = roundMoney(summary.income - spentSoFar - savedSoFar - billsDue - savingsSetAside);
-  const daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
+  const daysLeft = daysToPayday(monthKey, payday, now);
 
   return {
     applicable: true,

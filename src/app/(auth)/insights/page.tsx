@@ -9,9 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
-import { buildReport, detectSubscriptions } from "@/lib/reports";
+import { buildReport, detectSubscriptions, merchantKey, displayName } from "@/lib/reports";
 import { getRecurringInRange } from "@/lib/recurring";
-import { getPeriodBounds, cn, toDateStr } from "@/lib/utils";
+import { getUpcomingCharges } from "@/lib/upcomingCharges";
+import { computeSafeToSpend } from "@/lib/safeToSpend";
+import { getPeriodBounds, toDateStr } from "@/lib/utils";
+import { Segmented, TabPanel } from "@/components/ui/segmented";
 
 import { OverviewTab } from "./_tabs/OverviewTab";
 import { MerchantsTab } from "./_tabs/MerchantsTab";
@@ -70,8 +73,37 @@ export default function ReportsPage() {
   const todayStr = useMemo(() => toDateStr(new Date()), []);
   const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= todayStr), [allTxs, todayStr]);
 
-  const report = useMemo(() => buildReport(currentTxs, month, paydayOfMonth), [currentTxs, month, paydayOfMonth]);
-  const { summary } = useBudget(currentTxs, settings, month);
+  // Subscriptions we expect to charge before payday — the same list the
+  // dashboard's Safe to spend holds back.
+  const expectedCharges = useMemo(() => {
+    const { end } = getPeriodBounds(month, paydayOfMonth);
+    const today = new Date(todayStr + "T00:00:00");
+    const daysToPayday = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / 86400000));
+    const subs = detectSubscriptions(transactions).filter((s) => !(settings.excludedSubscriptions ?? []).includes(s.name));
+    return getUpcomingCharges([], subs, today, daysToPayday)
+      .filter((c) => c.isEstimated)
+      .map((c) => ({ name: c.name, amount: c.amount, date: c.date, lastChargeDate: c.lastChargeDate }));
+  }, [transactions, settings.excludedSubscriptions, month, paydayOfMonth, todayStr]);
+
+  // Known spending still to come before payday (bills + expected subscriptions),
+  // so "By payday" lines up with Safe to spend on the dashboard.
+  const upcomingSpend = useMemo(() => {
+    const endStr = toDateStr(getPeriodBounds(month, paydayOfMonth).end);
+    const bills = allTxs.filter((t) => !t.excluded && t.type === "expense" && t.category !== "Savings" && t.date > todayStr && t.date <= endStr);
+    const known = new Set(bills.map((b) => b.description.toLowerCase()));
+    const expected = expectedCharges.filter((c) => !known.has(c.name.toLowerCase()));
+    return bills.reduce((s, t) => s + t.amount, 0) + expected.reduce((s, c) => s + c.amount, 0);
+  }, [allTxs, expectedCharges, month, paydayOfMonth, todayStr]);
+
+  const report = useMemo(
+    () => buildReport(currentTxs, month, paydayOfMonth, new Date(), upcomingSpend),
+    [currentTxs, month, paydayOfMonth, upcomingSpend]
+  );
+  const { summary, budgetAllocations } = useBudget(currentTxs, settings, month);
+  const safeInfo = useMemo(
+    () => computeSafeToSpend(allTxs, settings, month, summary, new Date(), budgetAllocations.savings, expectedCharges),
+    [allTxs, settings, month, summary, budgetAllocations.savings, expectedCharges]
+  );
   const savingsRate = summary.income > 0 ? Math.round((summary.savings / summary.income) * 100) : null;
 
   const periodExpenseTxs = useMemo(() => {
@@ -88,14 +120,16 @@ export default function ReportsPage() {
   const hiddenMerchants = useMemo(() => settings.hiddenMerchants ?? [], [settings.hiddenMerchants]);
 
   const allMerchants = useMemo(() => {
-    const map = new Map<string, { total: number; count: number }>();
+    // Group by the normalised shop name so "Wolt" and "Wolt 123" are one place.
+    const map = new Map<string, { name: string; total: number; count: number }>();
     for (const tx of periodExpenseTxs) {
       if (tx.category === "Savings") continue;
-      const prev = map.get(tx.description) ?? { total: 0, count: 0 };
-      map.set(tx.description, { total: prev.total + tx.amount, count: prev.count + 1 });
+      const key = merchantKey(tx.description) || "other";
+      const prev = map.get(key) ?? { name: displayName(tx.description), total: 0, count: 0 };
+      map.set(key, { name: prev.name, total: prev.total + tx.amount, count: prev.count + 1 });
     }
     return [...map.entries()]
-      .map(([name, { total, count }]) => ({ name, total: Math.round(total * 100) / 100, count }))
+      .map(([key, { name, total, count }]) => ({ key, name, total: Math.round(total * 100) / 100, count }))
       .sort((a, b) => b.total - a.total)
       .filter((m) => !hiddenMerchants.includes(m.name));
   }, [periodExpenseTxs, hiddenMerchants]);
@@ -114,30 +148,23 @@ export default function ReportsPage() {
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Insights</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Insights</h1>
         </div>
 
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Sub-tab switcher */}
-        <div role="tablist" aria-label="Insights sections" className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary">
-          {REPORT_TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "h-9 rounded-md text-xs font-medium transition-colors",
-                tab === t.id ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          items={REPORT_TABS.map((t) => ({ value: t.id, label: t.label }))}
+          value={tab}
+          onChange={setTab}
+          label="Insights sections"
+          idPrefix="insights"
+          className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-secondary"
+          itemClassName="h-10 rounded-md text-xs sm:text-sm"
+        />
 
+        <TabPanel idPrefix="insights" value={tab} className="flex flex-col gap-4">
         {isLoading ? (
           <div className="flex flex-col gap-4">
             <Skeleton className="h-24 w-full" />
@@ -149,6 +176,8 @@ export default function ReportsPage() {
               <OverviewTab
                 report={report}
                 savingsRate={savingsRate}
+                safeToSpend={safeInfo.applicable ? safeInfo.safe : null}
+                savingsTargetPct={settings.monthlyBudgets[month]?.budgetRule.savings ?? settings.defaultBudgetRule.savings}
               />
             )}
             {tab === "merchants" && (
@@ -188,6 +217,7 @@ export default function ReportsPage() {
             )}
           </>
         )}
+        </TabPanel>
       </div>
 
       <AppTour pageKey="reports" slides={REPORTS_SLIDES} />

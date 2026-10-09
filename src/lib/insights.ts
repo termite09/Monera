@@ -1,6 +1,6 @@
 import { Transaction, Settings, MonthSummary, Category } from "@/types";
 import { buildReport, detectSubscriptions } from "@/lib/reports";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPeriodBounds } from "@/lib/utils";
 
 export type InsightTone = "good" | "warn" | "info";
 
@@ -25,6 +25,8 @@ export function buildInsights(
   now: Date = new Date()
 ): Insight[] {
   const money = (n: number) => formatCurrency(n);
+  const { start, end } = getPeriodBounds(monthKey, settings.paydayOfMonth ?? 1);
+  const running = now >= start && now <= end;
   const payday = settings.paydayOfMonth ?? 1;
   const out: Insight[] = [];
 
@@ -81,7 +83,9 @@ export function buildInsights(
     out.push({
       id: "savings-rate",
       tone: rate >= 20 ? "good" : "info",
-      text: `You saved ${rate}% of your income this period.`,
+      text: running
+        ? `You've saved ${rate}% of your income so far this period.`
+        : `You saved ${rate}% of your income this period.`,
     });
   }
 

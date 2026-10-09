@@ -3,7 +3,8 @@
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Transaction } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, ordinal, getMonthKey } from "@/lib/utils";
+import { getPeriodSpend } from "@/lib/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,15 +32,26 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
 
   const yearAllTxs = useMemo(() => {
     const todayStr = toDateStr(new Date());
-    return [
-      ...transactions,
-      ...getRecurringInRange(recurringPayments, new Date(year, 0, 1), new Date(year, 11, 31), paydayOfMonth, currency),
-    ].filter((tx) => tx.date <= todayStr);
+    // Bills only count from your first statement onwards — before that Monera
+    // knows nothing about your money, so it shouldn't invent spending.
+    const firstDate = transactions.reduce<string | null>((min, t) => (t.source !== "recurring" && (!min || t.date < min) ? t.date : min), null);
+    const yearStart = new Date(year, 0, 1);
+    const from = firstDate && new Date(firstDate + "T00:00:00") > yearStart ? new Date(firstDate + "T00:00:00") : yearStart;
+    const bills = firstDate ? getRecurringInRange(recurringPayments, from, new Date(year, 11, 31), paydayOfMonth, currency) : [];
+    return [...transactions, ...bills].filter((tx) => tx.date <= todayStr);
   }, [transactions, recurringPayments, currency, year, paydayOfMonth]);
 
   const yearTotals = useMemo(() => monthlyCategoryTotals(yearAllTxs, year, paydayOfMonth), [yearAllTxs, year, paydayOfMonth]);
 
-  const yearExpenses = yearTotals.reduce((s, m) => s + m.needs + m.wants + m.savings, 0);
+  // "Spent" never includes savings — the same meaning as on the dashboard.
+  const yearExpenses = useMemo(() => {
+    let total = 0;
+    for (let m = 1; m <= 12; m++) {
+      const { total: periodTotal, byCategory } = getPeriodSpend(yearAllTxs, `${year}-${String(m).padStart(2, "0")}`, paydayOfMonth);
+      total += periodTotal - byCategory.Savings;
+    }
+    return total;
+  }, [yearAllTxs, year, paydayOfMonth]);
   const yearSavings = yearTotals.reduce((s, m) => s + m.savings, 0);
 
   return (
@@ -61,14 +73,14 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-2">Spent this year</p>
-            <p className="text-xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearExpenses)}</p>
-            <p className="text-xs text-muted-foreground mt-1">All spending across every period this year.</p>
+            <p className="text-2xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearExpenses)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Needs, Wants and anything uncategorised. Savings are counted separately.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-2">Saved this year</p>
-            <p className="text-xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearSavings)}</p>
+            <p className="text-2xl font-medium text-foreground tabular-nums font-mono">{formatCurrency(yearSavings)}</p>
             <p className="text-xs text-muted-foreground mt-1">Everything in the Savings category across the year.</p>
           </CardContent>
         </Card>
@@ -76,8 +88,8 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
 
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground">By pay period</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">Needs, Wants and Savings for each pay period. Select one to open it on the dashboard.</p>
+          <CardTitle className="text-lg font-semibold text-foreground">By pay period</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">What you spent in each pay period{paydayOfMonth > 1 ? `, starting on the ${ordinal(paydayOfMonth)} of the month shown` : ""}. Savings are counted above, not in the bars. Select one to open it on the dashboard.</p>
         </CardHeader>
         <CardContent className="px-4 pb-4">
           <YearBar
@@ -85,6 +97,7 @@ export function YearTab({ transactions, recurringPayments, currency, paydayOfMon
             year={year}
             paydayOfMonth={paydayOfMonth}
             onMonthClick={onMonthClick}
+            currentKey={getMonthKey(new Date(), paydayOfMonth)}
           />
         </CardContent>
       </Card>

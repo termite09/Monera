@@ -40,7 +40,7 @@ export default function GlobalError({
           color: "#1C3557",
         }}
       >
-        <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>Something went wrong</h2>
+        <h2 style={{ fontSize: "1.125rem", fontWeight: 600, margin: 0 }}>Something went wrong</h2>
         <p style={{ maxWidth: "24rem", fontSize: "0.875rem", color: "#6B7280", margin: 0 }}>
           Monera hit an unexpected error. This is usually temporary — try again.
         </p>

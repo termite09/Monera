@@ -179,3 +179,33 @@ describe("buildReport — fair comparison and projection", () => {
     expect(report.projectedTotal).toBe(1080);
   });
 });
+
+describe("detectSubscriptions — steady prices only", () => {
+  it("ignores a shop whose amount changes every month", () => {
+    const subs = detectSubscriptions([
+      tx({ amount: 74.18, type: "expense", description: "Amazon", date: "2024-04-07" }),
+      tx({ amount: 70.95, type: "expense", description: "Amazon", date: "2024-05-07" }),
+      tx({ amount: 64.5, type: "expense", description: "Amazon", date: "2024-06-07" }),
+    ]);
+    expect(subs).toHaveLength(0);
+  });
+});
+
+describe("buildReport — spending and projection", () => {
+  const now = new Date(2024, 5, 10, 12);
+  it("reports spending without savings", () => {
+    const txs = [
+      tx({ amount: 100, type: "expense", category: "Wants", date: "2024-06-05" }),
+      tx({ amount: 150, type: "expense", category: "Savings", date: "2024-06-02" }),
+    ];
+    const r = buildReport(txs, "2024-06", 1, now);
+    expect(r.totalSpent).toBe(250);
+    expect(r.spending).toBe(100);
+  });
+
+  it("adds known upcoming spending to the projection", () => {
+    const txs = [tx({ amount: 100, type: "expense", category: "Wants", description: "Groceries", date: "2024-06-05" })];
+    const without = buildReport(txs, "2024-06", 1, now).projectedTotal;
+    expect(buildReport(txs, "2024-06", 1, now, 129).projectedTotal).toBe(without + 129);
+  });
+});

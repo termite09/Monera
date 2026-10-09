@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Transaction, Category, TransactionType } from "@/types";
-import { cn, roundMoney } from "@/lib/utils";
+import { cn, roundMoney, getDisplayCurrency } from "@/lib/utils";
 import { useAppData } from "@/contexts/AppDataContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,7 +88,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
               onClick={() => selectType(t)}
               className={cn(
                 "h-9 rounded-md text-sm font-medium capitalize transition-colors",
-                type === t ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
+                type === t ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >
               {t}
@@ -98,7 +98,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
       </div>
 
       <div className="flex flex-col gap-1.5 w-40">
-        <Label htmlFor="tx-date">Date <span className="text-destructive">*</span></Label>
+        <Label htmlFor="tx-date">Date <span className="text-muted-foreground" aria-hidden>*</span></Label>
         <Input
           id="tx-date"
           type="date"
@@ -110,7 +110,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="tx-desc">Description <span className="text-destructive">*</span></Label>
+        <Label htmlFor="tx-desc">Description <span className="text-muted-foreground" aria-hidden>*</span></Label>
         <Input
           id="tx-desc"
           value={description}
@@ -122,14 +122,15 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="tx-amount">Amount ({currency}) <span className="text-destructive">*</span></Label>
+        <Label htmlFor="tx-amount">Amount ({getDisplayCurrency().trim()}) <span className="text-muted-foreground" aria-hidden>*</span></Label>
         <Input
           id="tx-amount"
           type="number"
           value={amount}
           onChange={(e) => { setAmount(e.target.value); setErrors((prev) => { const n = {...prev}; delete n.amount; return n; }); }}
           placeholder="0.00"
-          className={cn("h-11", errors.amount && "border-destructive focus-visible:ring-destructive")}
+          inputMode="decimal"
+          className={cn("h-11 font-mono tabular-nums", errors.amount && "border-destructive focus-visible:ring-destructive")}
         />
         {errors.amount && <p className="text-xs text-destructive">{errors.amount}</p>}
       </div>
@@ -137,7 +138,7 @@ export function AddTransactionForm({ onSubmit, onCancel, initialValues, submitLa
           
       {type !== "income" && (
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="tx-category">Category <span className="text-destructive">*</span></Label>
+          <Label htmlFor="tx-category">Category <span className="text-muted-foreground" aria-hidden>*</span></Label>
           <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
             <SelectTrigger id="tx-category" className="h-11">
               <SelectValue />

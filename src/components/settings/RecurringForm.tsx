@@ -17,7 +17,7 @@ const SELECT_CLS = "h-9 px-2 rounded-lg border border-input bg-background text-s
 
 function formatPeriod(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleString("default", { month: "short", year: "numeric" });
+  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" }).replace("Sept", "Sep");
 }
 
 function getPeriodRangeLabel(r: RecurringPayment): string | null {
@@ -140,7 +140,7 @@ export function RecurringForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Bills</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Bills</h1>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Bills you pay from another account, like rent, insurance or the gym. Monera adds them to every pay period, so Safe to spend sets that money aside.</p>
       </div>
 
@@ -263,7 +263,7 @@ export function RecurringForm({ settings, updateSettings }: {
       {/* Add form */}
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground">Add a bill</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground">Add a bill</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -273,7 +273,7 @@ export function RecurringForm({ settings, updateSettings }: {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="r-amount">Amount ({getDisplayCurrency().trim()})</Label>
-              <Input id="r-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="45" className="h-11" />
+              <Input id="r-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="45" className="h-11 font-mono tabular-nums" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="r-day">Day of month</Label>
@@ -305,7 +305,7 @@ export function RecurringForm({ settings, updateSettings }: {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty} className={`w-full sm:w-auto sm:self-start sm:px-8 ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+      <Button onClick={handleSave} disabled={isSaving || !dirty} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
         {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save bills"}
       </Button>
     </div>

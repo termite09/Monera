@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         <h1 className="text-3xl font-serif text-foreground mb-2">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground mb-10">Last updated: June 2026</p>
 
-        <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed max-w-lg">
+        <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed max-w-md">
           <section>
             <h2 className="font-semibold text-base mb-2">Overview</h2>
             <p>
@@ -33,27 +33,27 @@ export default function PrivacyPage() {
             </p>
             <ul className="flex flex-col gap-3 list-none">
               <li>
-                <span className="font-medium">Email address</span> — used as a unique identifier
+                <span className="font-medium">Email address</span>: used as a unique identifier
                 to route Google Drive API calls to the correct user&apos;s storage folder. It is
                 never stored on Monera servers and is not shared with any third party.
               </li>
               <li>
-                <span className="font-medium">Name</span> — received in the authentication
+                <span className="font-medium">Name</span>: received in the authentication
                 response but not displayed or used by the application.
               </li>
               <li>
-                <span className="font-medium">Profile picture</span> — received in the
+                <span className="font-medium">Profile picture</span>: received in the
                 authentication response but not displayed or used by the application.
               </li>
               <li>
-                <span className="font-medium">OAuth access token</span> — used to make
+                <span className="font-medium">OAuth access token</span>: used to make
                 authenticated requests to the Google Drive API on your behalf (reading, writing,
                 creating, and deleting files within the Monera folder only). Stored exclusively in
                 a secure, server-side HttpOnly cookie and never exposed to JavaScript or
                 transmitted to third parties.
               </li>
               <li>
-                <span className="font-medium">OAuth refresh token</span> — stored in the same
+                <span className="font-medium">OAuth refresh token</span>: stored in the same
                 HttpOnly cookie to automatically renew the access token when it expires, so you
                 do not need to sign in again. Used only server-side; never exposed to the browser
                 or shared with any third party.

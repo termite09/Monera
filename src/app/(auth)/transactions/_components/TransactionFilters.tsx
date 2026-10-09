@@ -77,7 +77,7 @@ export function TransactionFilters({
             onClick={() => onFilterTypeChange(value)}
             className={cn(
               "py-1.5 rounded-md text-xs font-medium transition-colors",
-              filterType === value ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
+              filterType === value ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
             )}
           >
             {label}
@@ -109,7 +109,7 @@ export function TransactionFilters({
               onClick={onPeriodMode}
               className={cn(
                 "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                rangeMode === "period" ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
+                rangeMode === "period" ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >
               This period
@@ -120,7 +120,7 @@ export function TransactionFilters({
               onClick={onCustomMode}
               className={cn(
                 "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                rangeMode === "custom" ? "bg-card text-foreground border border-border" : "text-muted-foreground hover:text-foreground border border-transparent"
+                rangeMode === "custom" ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >
               Custom

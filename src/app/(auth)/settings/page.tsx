@@ -8,7 +8,8 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { useAppData } from "@/contexts/AppDataContext";
-import { cn, getMonthLabel } from "@/lib/utils";
+import { getMonthLabel } from "@/lib/utils";
+import { Segmented, TabPanel } from "@/components/ui/segmented";
 import { MonthForm } from "@/components/settings/MonthForm";
 import { DefaultsForm } from "@/components/settings/DefaultsForm";
 import { RecurringForm } from "@/components/settings/RecurringForm";
@@ -71,7 +72,7 @@ export default function SettingsPage() {
         onMonthChange={setMonth}
         paydayOfMonth={paydayOfMonth}
         isLoading={isLoading}
-        navLabel={tab === "monthly" ? undefined : "Settings"}
+        showPeriod={tab === "monthly"}
       />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-6 pt-5 md:max-w-none md:px-6">
@@ -106,7 +107,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:border-destructive hover:text-destructive transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
           >
             <LogOut size={14} />
             Sign out
@@ -116,26 +117,17 @@ export default function SettingsPage() {
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
         {/* Tab switcher */}
-        <div role="tablist" aria-label="Settings sections" className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-secondary">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "h-9 rounded-md text-sm font-medium transition-colors",
-                tab === t.id
-                  ? "bg-card text-foreground border border-border"
-                  : "text-muted-foreground hover:text-foreground border border-transparent"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          items={tabs.map((t) => ({ value: t.id, label: t.label }))}
+          value={tab}
+          onChange={setTab}
+          label="Settings sections"
+          idPrefix="settings"
+          className="grid grid-cols-5 gap-1 p-1 rounded-lg bg-secondary"
+          itemClassName="h-10 rounded-md text-sm"
+        />
 
+        <TabPanel idPrefix="settings" value={tab} className="flex flex-col gap-6">
         {tab === "setup" && <DefaultsForm settings={settings} updateSettings={updateSettings} />}
 
         {tab === "monthly" && (
@@ -159,6 +151,7 @@ export default function SettingsPage() {
         {tab === "sources" && <IncomeForm settings={settings} updateSettings={updateSettings} />}
 
         {tab === "rules" && <RulesForm rules={rules} updateRules={updateRules} />}
+        </TabPanel>
 
         <AppTour pageKey="settings" slides={SETTINGS_SLIDES} />
 

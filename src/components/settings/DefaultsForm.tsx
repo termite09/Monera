@@ -69,13 +69,13 @@ export function DefaultsForm({ settings, updateSettings }: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Basics</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Basics</h1>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">Your payday, your pay, and how you&apos;d like to split it. Every pay period uses these unless you change one under Period.</p>
       </div>
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground"><h2>Payday</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h2>Payday</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
           <Label htmlFor="payday">Day of the month you get paid</Label>
@@ -88,7 +88,7 @@ export function DefaultsForm({ settings, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground"><h2>Your pay</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h2>Your pay</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
           <Label htmlFor="default-income">Pay per period ({getDisplayCurrency().trim()})</Label>
@@ -100,7 +100,7 @@ export function DefaultsForm({ settings, updateSettings }: {
             value={defaultIncome}
             onChange={(e) => setDefaultIncome(e.target.value)}
             placeholder="e.g. 2000"
-            className="h-11 max-w-48"
+            className="h-11 max-w-48 font-mono tabular-nums"
           />
           <p className="text-xs text-muted-foreground max-w-[65ch]">
             Your usual take-home pay. It&apos;s used until your statement shows the real payment, then the real amount is used instead. Leave it blank to count only what arrives.
@@ -110,7 +110,7 @@ export function DefaultsForm({ settings, updateSettings }: {
 
       <Card>
         <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground"><h2>Budget split</h2></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -134,7 +134,7 @@ export function DefaultsForm({ settings, updateSettings }: {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={`w-full sm:w-auto sm:self-start sm:px-8 ${error ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
+      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
         {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}
       </Button>
     </div>

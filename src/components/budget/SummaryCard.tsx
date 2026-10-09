@@ -73,18 +73,20 @@ export function SummaryCard({
         className={cn(
           "w-full h-full text-left rounded-xl border border-border bg-card flex flex-col transition-colors",
           "hover:bg-secondary/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          hero ? "p-5 gap-1.5 md:px-6" : "p-3 gap-1.5 sm:p-4 md:p-5"
+          // Supporting tiles sit in a row of three on phones and stack as compact
+          // label-and-figure rows beside the hero on wider screens.
+          hero ? "p-5 gap-1.5 md:px-6" : "p-3 gap-1.5 sm:p-4 md:flex-row md:items-center md:gap-3 md:px-5 md:py-3"
         )}
       >
-        <span className={cn("flex items-center w-full font-semibold text-foreground", hero ? "text-sm" : "text-sm sm:text-sm")}>
+        <span className={cn("flex items-center font-semibold text-foreground text-sm", hero ? "w-full" : "w-full md:w-auto md:flex-1")}>
           {label}
-          {onClick && <ChevronRight size={14} className="ml-auto text-muted-foreground shrink-0" aria-hidden />}
+          {onClick && <ChevronRight size={14} className={cn("ml-auto text-muted-foreground shrink-0", !hero && "md:hidden")} aria-hidden />}
         </span>
         <span
           aria-hidden
           className={cn(
             "font-mono tabular-nums font-medium leading-tight",
-            hero ? "text-3xl sm:text-4xl tracking-[-0.01em]" : "text-sm sm:text-xl md:text-2xl",
+            hero ? "text-3xl sm:text-4xl tracking-[-0.01em]" : "text-sm sm:text-lg",
             negative ? "text-destructive" : "text-foreground"
           )}
         >
@@ -94,6 +96,7 @@ export function SummaryCard({
           <span className="text-base leading-relaxed text-foreground/80 max-w-[52ch]">{sentence}</span>
         )}
         {hero && note && <span className="text-xs text-muted-foreground">{note}</span>}
+        {!hero && onClick && <ChevronRight size={14} className="hidden md:block text-muted-foreground shrink-0" aria-hidden />}
       </button>
     </div>
   );

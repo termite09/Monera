@@ -8,9 +8,13 @@ type Report = ReturnType<typeof buildReport>;
 interface Props {
   report: Report;
   savingsRate: number | null;
+  /** The dashboard's Safe to spend (null outside the live period). */
+  safeToSpend: number | null;
+  /** The user's own savings target, as a % of income. */
+  savingsTargetPct: number;
 }
 
-export function OverviewTab({ report, savingsRate }: Props) {
+export function OverviewTab({ report, savingsRate, safeToSpend, savingsTargetPct }: Props) {
   if (report.txCount === 0) {
     return (
       <Card>
@@ -28,36 +32,56 @@ export function OverviewTab({ report, savingsRate }: Props) {
         <Card>
           <CardContent className="p-4">
             <h2 className="text-sm font-semibold text-foreground">Savings rate</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">How much of your income you kept.</p>
-            <p className={cn("mt-2 text-xl leading-none font-medium tabular-nums font-mono", savingsRate !== null && savingsRate >= 20 ? "text-status-ok" : "text-foreground")}>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">Share of your income moved to savings this period.</p>
+            <p className={cn("mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground")}>
               {savingsRate === null ? "—" : `${savingsRate}%`}
             </p>
             {savingsRate !== null && (
-              <p className="mt-1 text-xs text-muted-foreground">{savingsRate >= 20 ? "On track" : "Below 20%"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{savingsRate >= savingsTargetPct
+                ? `On your ${savingsTargetPct}% target`
+                : report.comparedToSamePoint
+                  ? `So far · your target is ${savingsTargetPct}%`
+                  : `Under your ${savingsTargetPct}% target`}</p>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <h2 className="text-sm font-semibold text-foreground">By payday</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Your spending so far plus day-to-day spending at this pace. Savings not included.</p>
-            <p className="mt-2 text-xl leading-none font-medium tabular-nums font-mono text-foreground">
-              {report.daysElapsed < 3 ? "—" : formatCurrency(report.projectedTotal)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">{report.daysElapsed < 3 ? "Needs a few more days" : "At your current pace"}</p>
+            {report.comparedToSamePoint && safeToSpend !== null ? (
+              <>
+                <h2 className="text-sm font-semibold text-foreground">Until payday</h2>
+                <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">Everyday spending still to come at your current pace. Bills are already taken out of Safe to spend.</p>
+                <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">
+                  {report.daysElapsed < 3 ? "—" : <>~{formatCurrency(report.projectedPace)}</>}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {report.daysElapsed < 3
+                    ? "Needs a few more days"
+                    : report.projectedPace <= safeToSpend
+                      ? <>Leaves about <span className="font-mono tabular-nums text-foreground">{formatCurrency(safeToSpend - report.projectedPace)}</span> of your <span className="font-mono tabular-nums">{formatCurrency(safeToSpend)}</span> safe to spend</>
+                      : <>About <span className="font-mono tabular-nums text-foreground">{formatCurrency(report.projectedPace - safeToSpend)}</span> more than your <span className="font-mono tabular-nums">{formatCurrency(Math.max(0, safeToSpend))}</span> safe to spend</>}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-sm font-semibold text-foreground">Spent this period</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Needs and Wants. Savings not included.</p>
+                <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">{formatCurrency(report.spending)}</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {report.prevTotal > 0 && report.totalSpent > 0 ? (
+      {report.prevSpending > 0 && report.spending > 0 ? (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground">
               <h2>Compared with last period</h2>
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">
               {report.comparedToSamePoint
-                ? `Spending so far, against the same ${report.daysElapsed} days of last pay period.`
+                ? "Spending so far, against last pay period up to the same day."
                 : "How each category changed since last pay period."}
             </p>
           </CardHeader>
@@ -65,49 +89,55 @@ export function OverviewTab({ report, savingsRate }: Props) {
             <div className="flex items-center justify-between pb-1.5 text-xs font-medium text-muted-foreground">
               <span />
               <div className="flex items-center gap-2">
-                <span>{report.comparedToSamePoint ? "Same day last time" : "Last"}</span>
+                <span>{report.comparedToSamePoint ? "Last period, same day" : "Last period"}</span>
                 <span className="opacity-0 pointer-events-none"><ArrowRight size={12} /></span>
                 <span>This period</span>
                 <span className="ml-1 min-w-14 text-right">Change</span>
               </div>
             </div>
             {(() => {
-              const diff = report.totalSpent - report.prevTotal;
-              const better = diff <= 0;
-              return (
-                <div className="flex items-center justify-between py-2.5 border-b border-border/60">
-                  <span className="text-sm font-medium text-foreground">Total</span>
-                  <div className="flex items-center gap-2 text-sm tabular-nums font-mono">
-                    <span className="text-muted-foreground">{formatCurrency(report.prevTotal)}</span>
-                    <ArrowRight size={12} className="text-muted-foreground shrink-0" />
-                    <span className="font-semibold text-foreground">{formatCurrency(report.totalSpent)}</span>
-                    <Change diff={diff} better={better} />
-                  </div>
-                </div>
-              );
-            })()}
-            {(["Needs", "Wants", "Savings", "Uncategorized"] as const).map((cat) => {
-              const curr = report.byCategory.find((c) => c.category === cat)?.total ?? 0;
-              const prev = report.prevByCategory[cat] ?? 0;
-              if (curr === 0 && prev === 0) return null;
-              const diff = curr - prev;
-              // Saving more is the good direction; for spending it's the reverse.
-              const better = cat === "Savings" ? diff >= 0 : diff <= 0;
-              return (
-                <div key={cat} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+              // Not-yet-sorted spending counts as Wants, as on the dashboard.
+              const cur = (c: "Needs" | "Wants" | "Savings" | "Uncategorized") => report.byCategory.find((x) => x.category === c)?.total ?? 0;
+              const rows = [
+                { key: "Needs" as const, label: "Needs", curr: cur("Needs"), prev: report.prevByCategory.Needs },
+                {
+                  key: "Wants" as const,
+                  label: cur("Uncategorized") + report.prevByCategory.Uncategorized > 0 ? "Wants (incl. not sorted)" : "Wants",
+                  curr: cur("Wants") + cur("Uncategorized"),
+                  prev: report.prevByCategory.Wants + report.prevByCategory.Uncategorized,
+                },
+              ];
+              const row = (label: React.ReactNode, prev: number, curr: number, better: boolean, strong = false, swatch?: string) => (
+                <div className={cn("flex items-center justify-between py-2.5 border-b border-border/60", strong && "font-medium")}>
                   <span className="flex items-center gap-2 text-sm text-foreground">
-                    <span className="size-2 rounded-sm shrink-0" style={{ background: getCategoryColor(cat) }} aria-hidden />
-                    {cat}
+                    {swatch && <span className="size-2 rounded-sm shrink-0" style={{ background: swatch }} aria-hidden />}
+                    {label}
                   </span>
                   <div className="flex items-center gap-2 text-sm tabular-nums font-mono">
                     <span className="text-muted-foreground">{formatCurrency(prev)}</span>
-                    <ArrowRight size={12} className="text-muted-foreground shrink-0" />
-                    <span className="text-foreground">{formatCurrency(curr)}</span>
-                    <Change diff={diff} better={better} />
+                    <ArrowRight size={12} className="text-muted-foreground shrink-0" aria-hidden />
+                    <span className={cn("text-foreground", strong && "font-semibold")}>{formatCurrency(curr)}</span>
+                    <Change diff={curr - prev} better={better} />
                   </div>
                 </div>
               );
-            })}
+              const savedNow = cur("Savings");
+              const savedBefore = report.prevByCategory.Savings;
+              return (
+                <>
+                  {rows.map((r) => (r.curr === 0 && r.prev === 0 ? null : (
+                    <div key={r.key}>{row(r.label, r.prev, r.curr, r.curr - r.prev <= 0, false, getCategoryColor(r.key))}</div>
+                  )))}
+                  {row("Total spent", report.prevSpending, report.spending, report.spending - report.prevSpending <= 0, true)}
+                  {(savedNow > 0 || savedBefore > 0) && (
+                    <div className="pt-3">
+                      <p className="text-xs text-muted-foreground pb-1">Not counted as spending</p>
+                      {row("Moved to savings", savedBefore, savedNow, savedNow - savedBefore >= 0, false, getCategoryColor("Savings"))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       ) : (
@@ -130,8 +160,9 @@ function Change({ diff, better }: { diff: number; better: boolean }) {
   const Icon = diff < 0 ? ArrowDown : ArrowUp;
   return (
     <span
-      className={cn("inline-flex items-center justify-end gap-0.5 text-xs ml-1 min-w-14 text-right", better ? "text-foreground" : "text-foreground font-semibold")}
-      aria-label={`${diff < 0 ? "Down" : "Up"} ${formatCurrency(Math.abs(diff))}`}
+      className="inline-flex items-center justify-end gap-0.5 text-xs ml-1 min-w-14 text-right text-foreground"
+      aria-label={`${diff < 0 ? "Down" : "Up"} ${formatCurrency(Math.abs(diff))}, ${better ? "better" : "worse"} than last period`}
+      title={better ? "Better than last period" : "Worse than last period"}
     >
       <Icon size={12} aria-hidden />
       {formatCurrency(Math.abs(diff))}

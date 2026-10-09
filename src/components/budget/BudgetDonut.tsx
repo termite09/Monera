@@ -11,6 +11,12 @@ interface BudgetDonutProps {
   spent: number;
   allocated: number;
   info?: string;
+  /** No statement covers this period yet: show the budget, not "left". */
+  expected?: boolean;
+  /** Bills (or savings transfers) in this category still to come before payday. */
+  due?: number;
+  /** Small line under the circle, e.g. "incl. €12 not sorted". */
+  note?: React.ReactNode;
   onClick?: () => void;
 }
 
@@ -32,43 +38,52 @@ function amountFontSize(s: string): string {
 const VB = 116;
 const STROKE = 13;
 
-export function BudgetDonut({ category, spent, allocated, info, onClick }: BudgetDonutProps) {
+export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, note, onClick }: BudgetDonutProps) {
   const router = useRouter();
   const isSavings = category === "Savings";
   const color = getCategoryColor(category);
-  const ratio = allocated > 0 ? spent / allocated : 0;
+  // "Left" means left after the bills already committed this period, so the
+  // circles add up to Safe to spend instead of disagreeing with it.
+  const committed = spent + due;
+  const ratio = allocated > 0 ? committed / allocated : 0;
   const pct = Math.min(ratio, 1);
+  const spentPct = allocated > 0 ? Math.min(spent / allocated, 1) : 0;
 
   // Spending budgets go amber near the limit and red over it. Savings is a target,
   // so going past it is good news, never a warning.
   const status: "near" | "over" | "met" | null =
-    allocated <= 0 ? null
-    : isSavings ? (spent >= allocated ? "met" : null)
-    : spent > allocated ? "over"
+    allocated <= 0 || expected ? null
+    : isSavings ? (committed >= allocated ? "met" : null)
+    : committed > allocated ? "over"
     : ratio >= NEAR_LIMIT ? "near"
     : null;
 
   const r = (VB - STROKE) / 2;
   const c = 2 * Math.PI * r;
   const dash = pct * c;
+  const spentDash = spentPct * c;
   const arcColor = status === "over" ? "var(--destructive)" : color;
 
-  const remaining = Math.max(0, allocated - spent);
+  const remaining = Math.max(0, allocated - committed);
   const display = allocated > 0
-    ? centerAmount(status === "over" ? spent - allocated : remaining)
+    ? centerAmount(expected ? allocated : status === "over" ? committed - allocated : remaining)
     : "—";
   const caption = allocated <= 0 ? null
+    : expected ? "budget"
     : status === "over" ? "over"
     : isSavings ? (status === "met" ? "target met" : "to go")
     : "left";
 
-  const spoken = allocated <= 0
+  const spoken = (allocated <= 0
     ? `${category}: no budget set`
+    : expected
+      ? `${category}: ${formatCurrency(allocated)} budget, no statement yet`
     : status === "over"
-      ? `${category}: ${formatCurrency(spent - allocated)} over a ${formatCurrency(allocated)} budget`
+      ? `${category}: ${formatCurrency(committed - allocated)} over a ${formatCurrency(allocated)} budget`
       : isSavings
         ? `${category}: ${formatCurrency(spent)} saved of a ${formatCurrency(allocated)} target`
-        : `${category}: ${formatCurrency(remaining)} left of ${formatCurrency(allocated)}`;
+        : `${category}: ${formatCurrency(remaining)} left of ${formatCurrency(allocated)}`
+  ) + (!expected && due > 0 ? `, after ${formatCurrency(due)} ${isSavings ? "scheduled" : "in bills due"}` : "");
 
   const infoText = allocated === 0 && info
     ? `${info} Go to Settings → Basics to set your budget split.`
@@ -93,7 +108,22 @@ export function BudgetDonut({ category, spent, allocated, info, onClick }: Budge
       >
         <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-full block" aria-hidden>
           <circle cx={VB / 2} cy={VB / 2} r={r} fill="none" stroke="var(--secondary)" strokeWidth={STROKE} />
-          {allocated > 0 && pct > 0.005 && (
+          {/* Committed-but-not-yet-paid bills: the same colour, lighter. */}
+          {!expected && allocated > 0 && pct > 0.005 && due > 0 && (
+            <circle
+              cx={VB / 2}
+              cy={VB / 2}
+              r={r}
+              fill="none"
+              stroke={arcColor}
+              strokeOpacity={0.4}
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              strokeDasharray={`${dash} ${c - dash}`}
+              transform={`rotate(-90 ${VB / 2} ${VB / 2})`}
+            />
+          )}
+          {!expected && allocated > 0 && spentPct > 0.005 && (
             <circle
               cx={VB / 2}
               cy={VB / 2}
@@ -102,7 +132,7 @@ export function BudgetDonut({ category, spent, allocated, info, onClick }: Budge
               stroke={arcColor}
               strokeWidth={STROKE}
               strokeLinecap="round"
-              strokeDasharray={`${dash} ${c - dash}`}
+              strokeDasharray={`${spentDash} ${c - spentDash}`}
               transform={`rotate(-90 ${VB / 2} ${VB / 2})`}
               className="motion-safe:transition-[stroke-dasharray] motion-safe:duration-500"
             />
@@ -121,10 +151,16 @@ export function BudgetDonut({ category, spent, allocated, info, onClick }: Budge
         </span>
       </button>
 
+      {!expected && due > 0 && status !== "over" && (
+        <span className="text-xs text-muted-foreground text-center">
+          <span className="font-mono tabular-nums">{formatCurrency(due)}</span> {isSavings ? "scheduled" : "bill due"}
+        </span>
+      )}
+      {note && <span className="text-xs text-muted-foreground text-center">{note}</span>}
       {status === "near" && (
         <span className="inline-flex items-center gap-1 rounded-full bg-status-warn-bg px-2 py-0.5 text-xs font-medium text-status-warn">
           <AlertTriangle size={12} aria-hidden />
-          {Math.round(ratio * 100)}% used
+          <span className="font-mono tabular-nums">{Math.round(ratio * 100)}%</span> used
         </span>
       )}
       {status === "over" && (
