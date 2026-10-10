@@ -1,18 +1,28 @@
 # Monera
 
-> Personal finance that lives in your Google Drive — not on someone else's server.
+> Private budgeting for Revolut users. Your statements live in your own Google Drive — not on anyone else's server.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
 
-Monera turns your Revolut exports into a clear monthly picture of where your money goes. Import a CSV or Excel statement, set your payday, and get budgets, spending breakdowns, merchant analytics, subscription detection, and plain-language insights — with every byte stored in a private folder in **your own Google Drive**.
+**[Try it free at mymonera.com](https://mymonera.com)** · or [run it yourself](#getting-started)
 
-There is no Monera backend, no database, and no account data on any third-party server.
+![Monera dashboard: safe to spend, budget circles and upcoming bills](public/screenshot-dashboard-v5.png)
 
----
+Export a statement from Revolut, drop it in, and see where your pay went — counted from payday to payday, not by calendar month.
 
-## Features
+## What you get
+
+- **Safe to spend** — what you can still spend before payday, after bills due and your savings target.
+- **Budgets that follow your payday** — Needs, Wants and Savings for each pay period.
+- **Every number explained** — tap any figure to see the transactions and the sum behind it.
+- **Subscriptions and upcoming bills** — spot regular charges and see what's due before payday.
+- **Categories that learn** — fix one transaction and similar ones follow.
+- **Your data stays yours** — everything lives in a `Monera/` folder in your Google Drive. Monera can only see files it created, and has no server or database of its own.
+
+<details>
+<summary>All features</summary>
 
 | | |
 |---|---|
@@ -31,12 +41,14 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Upcoming bills** | Dashboard card listing everything due before payday — recurring bills with exact dates and estimated charges from detected subscriptions. Pin an estimated charge as a bill for an exact date. |
 | **Simple, clear wording** | Every number has a short plain label and nothing more. A replayable guided tour explains each page on first visit. |
 | **Accessible** | Full keyboard navigation with visible focus, labelled controls for screen readers, WCAG AA colour contrast, 44px tap targets on phones, and reduced-motion support. |
-| **Mobile-first account controls** | On mobile, the Settings page shows your Google account name, photo, and a Sign out button at the very top — no scrolling required. Sign-out clears the session and all cached data. |
+| **Mobile-first account controls** | On mobile, the Settings page shows your Google account name, photo, and a Sign out button at the very top — no scrolling required. Sign-out clears the session and all cached transaction data. |
 | **Recurring payments** | Track fixed payments paid outside Revolut (rent, insurance, savings transfers, etc). They appear as synthetic transactions in every period and count toward your budget — but only once their date arrives. Future-dated occurrences stay visible (e.g. in the transaction list, marked as upcoming) without being counted in any total until they've actually happened. Configured under Settings → Bills, with support for any spending category including Savings. A one-time nudge after the first successful import prompts the user to set these up. |
 | **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
 | **Fast & optimistic** | Data is cached in-memory (TanStack Query) and revalidated in the background. Edits apply immediately and roll back automatically on failure. Stale category overrides are pruned on load. Installable PWA. |
 | **Resilient error recovery** | If loading fails, every page says why in plain words — offline, Google sign-in expired, or Drive trouble — with the one action that fixes it ("Try again" or "Sign in again"). An offline banner appears when the connection drops. React error boundaries catch unexpected render errors so the app degrades gracefully rather than going blank. |
 | **Multiple income sources** | Salary keywords identify salary-type transactions for display. Configured salary basis (from Settings) and all detected income are always summed — so income from multiple employers and side jobs are counted together. |
+
+</details>
 
 ---
 
@@ -48,10 +60,10 @@ There is no Monera backend, no database, and no account data on any third-party 
 | Auth | [NextAuth v5](https://authjs.dev) — Google OAuth, JWT sessions |
 | Storage | Google Drive REST API (`drive.file` scope) |
 | Data layer | [TanStack Query v5](https://tanstack.com/query) — in-memory cache with optimistic updates |
-| Styling | Tailwind CSS v4, shadcn/ui (Radix), Framer Motion |
+| Styling | Tailwind CSS v4, shadcn/ui (Radix) |
 | Charts | Recharts |
 | Spreadsheets | SheetJS (lazy-loaded for `.xlsx` uploads) |
-| Testing | Vitest |
+| Testing | Vitest (unit), Playwright (end-to-end) |
 
 ---
 
@@ -163,7 +175,7 @@ Monera/
 ## Privacy & Security
 
 - **No server-side storage.** Data never leaves your Google Drive. Monera has no backend database.
-- **No browser storage of financial data.** Transaction data is kept only in memory during the session — nothing is written to localStorage or IndexedDB. Only transaction-list filter preferences are stored, in sessionStorage, which clears when the tab closes.
+- **No browser storage of financial data.** Transaction data is kept only in memory during the session. Transaction-list filter preferences are stored in sessionStorage, which clears when the tab closes. The IDs of Monera's own Drive folders and files are kept in localStorage so return visits open faster — IDs only, no financial data.
 - **Minimal OAuth scope.** `drive.file` grants access only to the files Monera creates — it cannot read the rest of your Drive.
 - **Persistent sessions.** Google OAuth is configured to always issue a refresh token, so the app silently renews the 1-hour access token in the background — users stay signed in without being interrupted.
 - **HttpOnly session cookies.** Access and refresh tokens are stored in a server-side httpOnly cookie and are never exposed to JavaScript or logged.

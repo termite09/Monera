@@ -120,6 +120,12 @@ export default function PrivacyPage() {
               clears automatically when you close the tab. This contains no financial data and is
               never transmitted to Monera servers.
             </p>
+            <p>
+              To open faster on your next visit, Monera keeps the IDs of its own Google Drive
+              folders and files in your browser&apos;s localStorage. These are reference codes only
+              — no names, amounts, or other financial data — and they are never transmitted to
+              Monera servers. You can remove them by clearing this site&apos;s data in your browser.
+            </p>
           </section>
 
           <section>
