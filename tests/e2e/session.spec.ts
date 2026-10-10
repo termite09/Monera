@@ -41,6 +41,34 @@ test("setup that can't reach Drive explains and retries", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "When do you get paid?" })).toBeVisible();
 });
 
+test("settings that can't be read block the app instead of falling back to defaults", async ({ page, drive }) => {
+  const seeded = account();
+  drive.seed(seeded);
+  drive.failingDownloads.add("settings.json");
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Couldn't load your settings" })).toBeVisible();
+  // Never the first-run setup, which would save defaults over the real settings.
+  await expect(page.getByRole("heading", { name: "When do you get paid?" })).toBeHidden();
+
+  drive.failingDownloads.clear();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+  expect(drive.appFile("settings")).toMatchObject(seeded.settings);
+});
+
+test("folder ids remembered from an earlier visit are replaced when they've gone", async ({ page, drive }) => {
+  drive.seed(account());
+  await page.goto("/dashboard");
+  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+
+  // The folder is deleted and set up again, so every remembered id is stale.
+  drive.clear();
+  drive.seed(account());
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+  expect(drive.folders().filter((f) => f === "Monera")).toHaveLength(1);
+});
+
 test("going offline says the numbers are the last ones loaded", async ({ page, drive, context }) => {
   drive.seed(account());
   await page.goto("/dashboard");

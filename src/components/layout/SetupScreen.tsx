@@ -6,9 +6,17 @@ import { Button } from "@/components/ui/button";
 interface SetupScreenProps {
   error?: string | null;
   onRetry?: () => void;
+  /** Heading and explanation shown with an error. */
+  errorTitle?: string;
+  errorMessage?: string;
 }
 
-export function SetupScreen({ error, onRetry }: SetupScreenProps) {
+export function SetupScreen({
+  error,
+  onRetry,
+  errorTitle = "Setup didn't finish",
+  errorMessage = "We couldn't open your Monera folder in Google Drive. This is usually temporary, so please try again.",
+}: SetupScreenProps) {
   return (
     <main
       className="min-h-dvh flex flex-col items-center justify-center bg-background px-6"
@@ -23,10 +31,8 @@ export function SetupScreen({ error, onRetry }: SetupScreenProps) {
               <span className="flex items-center justify-center size-12 rounded-full bg-destructive/10 text-destructive">
                 <AlertCircle size={24} aria-hidden />
               </span>
-              <h1 className="text-base font-medium text-foreground">Setup didn&apos;t finish</h1>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                We couldn&apos;t open your Monera folder in Google Drive. This is usually temporary, so please try again.
-              </p>
+              <h1 className="text-base font-medium text-foreground">{errorTitle}</h1>
+              <p className="text-sm text-muted-foreground max-w-xs">{errorMessage}</p>
             </div>
             {onRetry && (
               <Button onClick={onRetry} className="mt-6 w-full">

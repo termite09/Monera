@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Transaction, Category, CategoryRule, Settings } from "@/types";
 import { DriveStructure, listStatementFiles, readAppFile, writeAppFile } from "@/lib/google/folders";
-import { readFile } from "@/lib/google/drive";
+import { readFile, writeFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { applyCategorizationRules } from "@/lib/categorizer";
 import { filterInternalTransfers } from "@/lib/transfers";
@@ -47,21 +47,17 @@ function updateFile<T>(token: string, fileId: string, change: (current: T) => T)
 // set. Throws on failure so the query surfaces the error (incl. DriveAuthError).
 async function loadTxData(accessToken: string, structure: DriveStructure): Promise<TxData> {
   const { fileIds } = structure;
-  const [manualTxs, overrides, excludedIds, csvFiles] = await Promise.all([
+  const [manualTxs, overrides, excludedIds, csvFiles, cache] = await Promise.all([
     readAppFile<Transaction[]>(accessToken, fileIds.manualTransactions, []),
     readAppFile<Overrides>(accessToken, fileIds.categoryOverrides, {}),
     readAppFile<string[]>(accessToken, fileIds.excludedTransactions, []),
     listStatementFiles(accessToken, structure),
+    // Parse cache, keyed by fileId:size so unchanged files aren't re-parsed.
+    readAppFile<ParseCache>(accessToken, fileIds.parseCache).catch((err): ParseCache => {
+      if (err instanceof DriveAuthError) throw err; // don't swallow auth errors
+      return {}; // Cache file unreadable/corrupt — start fresh, rebuilt below.
+    }),
   ]);
-
-  // Parse cache, keyed by fileId:size so unchanged files aren't re-parsed.
-  let cache: ParseCache = {};
-  try {
-    cache = await readAppFile<ParseCache>(accessToken, fileIds.parseCache);
-  } catch (err) {
-    if (err instanceof DriveAuthError) throw err; // don't swallow auth errors
-    // Cache file unreadable/corrupt — start fresh, rebuilt below.
-  }
 
   const liveKeys = csvFiles.map(cacheKey);
   const parsed = await Promise.all(
@@ -71,7 +67,8 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
   // Rewrite when a file was parsed fresh or a deleted file's entry was dropped.
   const cacheChanged = liveKeys.some((k) => !cache[k]) || Object.keys(cache).length !== liveKeys.length;
   if (cacheChanged) {
-    writeAppFile(accessToken, fileIds.parseCache, nextCache).catch(() => {
+    // Unindented: this is the biggest app file and only Monera reads it.
+    writeFile(accessToken, fileIds.parseCache, JSON.stringify(nextCache)).catch(() => {
       // Non-fatal: worst case we re-parse next time.
     });
   }
@@ -80,15 +77,9 @@ async function loadTxData(accessToken: string, structure: DriveStructure): Promi
   const manual = manualTxs.map((t) => ({ ...t, currency: currencyCode(t.currency) }));
   const rawTxs = mergeTransactions(parsed.flat(), manual);
 
-  // Drop overrides whose transactions no longer exist (deleted entries, removed
-  // statements) so category-overrides.json doesn't accumulate orphans.
-  const liveIds = new Set(rawTxs.map((t) => t.id));
-  const liveOverrides = Object.fromEntries(Object.entries(overrides).filter(([id]) => liveIds.has(id)));
-  if (Object.keys(liveOverrides).length !== Object.keys(overrides).length) {
-    writeAppFile(accessToken, fileIds.categoryOverrides, liveOverrides).catch(() => {});
-  }
-
-  return { rawTxs, overrides: liveOverrides, excludedIds };
+  // Overrides for transactions that aren't loaded (a removed statement) are kept
+  // on purpose: adding that statement again brings its categories back.
+  return { rawTxs, overrides, excludedIds };
 }
 
 export function useTransactions(
@@ -100,9 +91,25 @@ export function useTransactions(
   const qc = useQueryClient();
   const queryKey = useMemo(() => ["transactions", structure?.appDataId ?? "none"], [structure?.appDataId]);
 
+  // Every Drive write goes through this one queue, so two quick changes to the
+  // same file never read-modify-write over each other.
+  const writeQueue = useRef<Promise<void>>(Promise.resolve());
+  // Counts changes made on screen, so a load can tell one happened while it ran.
+  const changeCount = useRef(0);
+
   const query = useQuery({
     queryKey,
-    queryFn: () => loadTxData(accessToken as string, structure as DriveStructure),
+    // A load that finished on top of a change made meanwhile would undo it on
+    // screen. So read only once pending saves have landed, and read again if
+    // another change came in while reading.
+    queryFn: async () => {
+      for (;;) {
+        const seen = changeCount.current;
+        await writeQueue.current;
+        const loaded = await loadTxData(accessToken as string, structure as DriveStructure);
+        if (changeCount.current === seen) return loaded;
+      }
+    },
     enabled: !!accessToken && !!structure,
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
   });
@@ -126,10 +133,6 @@ export function useTransactions(
       ? query.error instanceof Error ? query.error.message : "Failed to load transactions"
       : null;
 
-  // Every Drive write goes through this one queue, so two quick changes to the
-  // same file never read-modify-write over each other.
-  const writeQueue = useRef<Promise<void>>(Promise.resolve());
-
   /**
    * Shows a change instantly, then saves it to Drive in the queue. If the save
    * fails, the list is re-read from Drive (the source of truth) rather than
@@ -138,6 +141,7 @@ export function useTransactions(
   const mutate = useCallback(
     (optimistic: (d: TxData) => TxData, save: (token: string, s: DriveStructure) => Promise<void>): Promise<void> => {
       if (!accessToken || !structure) return Promise.resolve();
+      changeCount.current += 1;
       qc.setQueryData<TxData>(queryKey, (old) => (old ? optimistic(old) : old));
       const run = writeQueue.current.then(() => save(accessToken, structure));
       writeQueue.current = run.catch(() => {});

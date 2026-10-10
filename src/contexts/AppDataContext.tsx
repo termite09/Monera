@@ -52,8 +52,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const accessToken = session?.error ? undefined : session?.accessToken;
   const drive = useDrive(accessToken, session?.user?.email ?? undefined);
   const { structure } = drive;
-  const { settings, updateSettings, settingsLoaded } = useSettings(accessToken, structure);
-  const { rules, updateRules, rulesLoaded } = useRules(accessToken, structure);
+  const { settings, updateSettings, settingsLoaded, settingsFailed, refetchSettings } = useSettings(accessToken, structure);
+  const { rules, updateRules, rulesLoaded, rulesFailed, refetchRules } = useRules(accessToken, structure);
   const tx = useTransactions(accessToken, structure, rules, settings);
   const { transactions } = tx;
 
@@ -136,6 +136,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   // and then complete without Drive ever having fired.
   if (!structure && !!accessToken) {
     return <SetupScreen error={drive.error} onRetry={drive.refetch} />;
+  }
+
+  // Running on default settings or no rules after a failed read would show the
+  // wrong numbers, and the next save would overwrite what's in Drive.
+  if (settingsFailed || rulesFailed) {
+    return (
+      <SetupScreen
+        error="load failed"
+        errorTitle="Couldn't load your settings"
+        errorMessage="We couldn't read your settings from Google Drive. This is usually temporary, so please try again."
+        onRetry={() => {
+          if (settingsFailed) refetchSettings();
+          if (rulesFailed) refetchRules();
+        }}
+      />
+    );
   }
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

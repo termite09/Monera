@@ -33,6 +33,12 @@ export function useSettings(accessToken: string | undefined, structure: DriveStr
     async (newSettings: Settings) => {
       if (!accessToken || !fileId) return;
       const prev = qc.getQueryData(queryKey);
+      // Saving before the real settings have loaded would write the defaults
+      // over them (bills, budgets, keywords), so refuse instead.
+      if (!prev) {
+        notifySaveFailed();
+        throw new Error("Settings haven't loaded yet");
+      }
       qc.setQueryData(queryKey, newSettings);
       try {
         await writeAppFile(accessToken, fileId, newSettings);
@@ -45,10 +51,14 @@ export function useSettings(accessToken: string | undefined, structure: DriveStr
     [accessToken, fileId, qc, queryKey]
   );
 
+  // Loaded means read from Drive. A failed read is an error, never "defaults":
+  // treating it as loaded would show an existing user the first-run setup.
+  const settingsLoaded = query.data !== undefined;
   return {
     settings: query.data ?? DEFAULT_SETTINGS,
     updateSettings,
-    // Settled (loaded from Drive, or failed and falling back to defaults).
-    settingsLoaded: query.isSuccess || query.isError,
+    settingsLoaded,
+    settingsFailed: !settingsLoaded && query.isError && !(query.error instanceof DriveAuthError),
+    refetchSettings: query.refetch,
   };
 }

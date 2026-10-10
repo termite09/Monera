@@ -34,6 +34,11 @@ export function useRules(accessToken: string | undefined, structure: DriveStruct
     async (next: CategoryRule[]) => {
       if (!accessToken || !fileId) return;
       const prev = qc.getQueryData(queryKey);
+      // Saving before the real rules have loaded would replace them, so refuse instead.
+      if (!prev) {
+        notifySaveFailed();
+        throw new Error("Rules haven't loaded yet");
+      }
       qc.setQueryData(queryKey, next);
       try {
         await writeAppFile(accessToken, fileId, { v: 1, customized: true, rules: next } satisfies StoredRulesFile);
@@ -46,10 +51,13 @@ export function useRules(accessToken: string | undefined, structure: DriveStruct
     [accessToken, fileId, qc, queryKey]
   );
 
+  // Loaded means read from Drive; a failed read is an error, not "no rules".
+  const rulesLoaded = query.data !== undefined;
   return {
     rules: query.data ?? NO_RULES,
     updateRules,
-    // Settled (loaded from Drive, or failed and falling back to no rules).
-    rulesLoaded: query.isSuccess || query.isError,
+    rulesLoaded,
+    rulesFailed: !rulesLoaded && query.isError && !(query.error instanceof DriveAuthError),
+    refetchRules: query.refetch,
   };
 }

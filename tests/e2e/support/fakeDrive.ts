@@ -38,6 +38,8 @@ export class FakeDrive {
   unauthorized = false;
   /** Small on purpose, so every listing exercises the app's pagination. */
   maxPageSize = 3;
+  /** Names of files whose download fails with a server error, as during a Drive outage. */
+  failingDownloads = new Set<string>();
 
   async install(page: Page): Promise<void> {
     await page.route(/^https:\/\/www\.googleapis\.com\//, (route) => this.handle(route));
@@ -79,6 +81,11 @@ export class FakeDrive {
     for (const s of data.statements ?? []) this.add(s.name, "text/csv", statementsFolder, s.csv);
   }
 
+  /** Empties the Drive, as if the user deleted the Monera folder. New items get new ids. */
+  clear(): void {
+    this.items.clear();
+  }
+
   /** Parsed contents of one of the app-data JSON files. */
   appFile<T = unknown>(key: AppFile): T {
     const item = [...this.items.values()].find((i) => i.name === APP_FILES[key]);
@@ -110,6 +117,7 @@ export class FakeDrive {
     if (method === "GET" && fileId) {
       const item = this.items.get(fileId);
       if (!item) return this.json(route, 404, { error: { code: 404, message: "File not found" } });
+      if (this.failingDownloads.has(item.name)) return this.json(route, 500, { error: { code: 500, message: "Backend Error" } });
       return route.fulfill({ status: 200, headers: CORS, contentType: item.mimeType, body: item.content });
     }
     if (method === "POST" && isUpload) {

@@ -7,6 +7,19 @@ const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 4;
+// Server errors are usually brief; one retry covers a blip without making a
+// real outage take long to show.
+const SERVER_ERROR_RETRIES = 1;
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Drive signals rate limiting with 429, or with 403 and a "...RateLimitExceeded" reason. */
+async function isRateLimited(response: Response): Promise<boolean> {
+  if (response.status === 429) return true;
+  if (response.status !== 403) return false;
+  const body = await response.clone().json().catch(() => null);
+  return /ratelimitexceeded/i.test(JSON.stringify(body?.error?.errors ?? []));
+}
 
 async function driveRequest(
   url: string,
@@ -33,11 +46,18 @@ async function driveRequest(
 
   if (response.status === 401) throw new DriveAuthError();
 
-  // Back off on rate limiting, but cap retries so a sustained 429 can't spin
+  // Back off on rate limiting, but cap retries so a sustained limit can't spin
   // forever — surface the error after a few exponential attempts instead.
-  if (response.status === 429 && attempt < MAX_RETRIES) {
-    const delay = 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s
-    await new Promise((r) => setTimeout(r, delay));
+  if (attempt < MAX_RETRIES && (await isRateLimited(response))) {
+    await wait(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+    return driveRequest(url, accessToken, options, attempt + 1);
+  }
+
+  // A POST that failed with a server error may still have created the file or
+  // folder, so only requests that are safe to repeat are retried.
+  const repeatable = (options.method ?? "GET") !== "POST";
+  if (response.status >= 500 && repeatable && attempt < SERVER_ERROR_RETRIES) {
+    await wait(1000);
     return driveRequest(url, accessToken, options, attempt + 1);
   }
 
