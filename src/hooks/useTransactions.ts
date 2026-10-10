@@ -1,112 +1,94 @@
 import { useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Transaction, Category, CategoryRule, Settings } from "@/types";
-import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
-import { listFiles, readFile } from "@/lib/google/drive";
+import { DriveStructure, listStatementFiles, readAppFile, writeAppFile } from "@/lib/google/folders";
+import { readFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { applyCategorizationRules } from "@/lib/categorizer";
 import { filterInternalTransfers } from "@/lib/transfers";
 import { mergeTransactions } from "@/lib/dedup";
 import { DriveAuthError } from "@/lib/errors";
-import { generateId } from "@/lib/utils";
+import { notifySaveFailed } from "@/lib/notify";
+import { currencyCode, generateId } from "@/lib/utils";
 
 type ParseCache = Record<string, Transaction[]>;
+type Overrides = Record<string, Category>;
+export type NewTransaction = Omit<Transaction, "id" | "source" | "categorySource">;
 
 interface TxData {
   rawTxs: Transaction[];
-  overrides: Record<string, Category>;
+  overrides: Overrides;
   excludedIds: string[];
 }
 
-const MAX_CACHE_ENTRIES = 60;
-
 // Bump when the parser's output changes so stale entries are re-parsed once.
-// v2: parser no longer strips self-transfers / savings-vault mirrors (that moved
-// to settings-driven filterInternalTransfers), so cached rows must be rebuilt.
-// v3: Revolut parser now keeps PENDING rows (previously skipped until COMPLETED).
-const CACHE_VERSION = "v3";
+// v2: parser no longer strips self-transfers / savings-vault mirrors.
+// v3: Revolut parser keeps PENDING rows.
+// v4: source "revolut" → "statement"; amounts like "1,234.56" parse correctly.
+const CACHE_VERSION = "v4";
 
 function cacheKey(f: { id: string; size?: string }): string {
   return `${f.id}:${f.size ?? "0"}:${CACHE_VERSION}`;
+}
+
+const without = <T,>(record: Record<string, T>, ids: Set<string>) =>
+  Object.fromEntries(Object.entries(record).filter(([id]) => !ids.has(id)));
+
+/**
+ * Read-modify-write of one JSON file in Drive. No fallback on purpose: if the
+ * file is unreadable the write fails rather than replacing it.
+ */
+function updateFile<T>(token: string, fileId: string, change: (current: T) => T): Promise<void> {
+  return readAppFile<T>(token, fileId).then((current) => writeAppFile(token, fileId, change(current)));
 }
 
 // Reads everything that makes up the transaction list (manual entries, category
 // overrides, exclusions, CSV files + the parse cache) and returns the merged raw
 // set. Throws on failure so the query surfaces the error (incl. DriveAuthError).
 async function loadTxData(accessToken: string, structure: DriveStructure): Promise<TxData> {
-  const [manualTxs, ov, ex] = await Promise.all([
-    readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions, []),
-    readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides, {}),
-    readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions, []),
+  const { fileIds } = structure;
+  const [manualTxs, overrides, excludedIds, csvFiles] = await Promise.all([
+    readAppFile<Transaction[]>(accessToken, fileIds.manualTransactions, []),
+    readAppFile<Overrides>(accessToken, fileIds.categoryOverrides, {}),
+    readAppFile<string[]>(accessToken, fileIds.excludedTransactions, []),
+    listStatementFiles(accessToken, structure),
   ]);
 
-  const csvFiles = await listFiles(
-    accessToken,
-    `'${structure.revolutExportsId}' in parents and mimeType='text/csv' and trashed=false`
-  );
-
-  // Load parse cache — keyed by fileId:size so we skip re-parsing unchanged files.
+  // Parse cache, keyed by fileId:size so unchanged files aren't re-parsed.
   let cache: ParseCache = {};
   try {
-    cache = await readAppFile<ParseCache>(accessToken, structure.fileIds.parseCache);
+    cache = await readAppFile<ParseCache>(accessToken, fileIds.parseCache);
   } catch (err) {
     if (err instanceof DriveAuthError) throw err; // don't swallow auth errors
-    // Cache file unreadable/corrupt — start fresh, will be rebuilt below.
+    // Cache file unreadable/corrupt — start fresh, rebuilt below.
   }
 
-  const hits: Transaction[] = [];
-  const misses: typeof csvFiles = [];
-  for (const f of csvFiles) {
-    const key = cacheKey(f);
-    if (cache[key]) hits.push(...cache[key]);
-    else misses.push(f);
-  }
-
-  const missResults = await Promise.all(
-    misses.map(async (f) => {
-      const content = await readFile(accessToken, f.id);
-      return { key: cacheKey(f), parsed: parseCSV(content).transactions };
-    })
+  const liveKeys = csvFiles.map(cacheKey);
+  const parsed = await Promise.all(
+    csvFiles.map(async (f, i) => cache[liveKeys[i]] ?? parseCSV(await readFile(accessToken, f.id)).transactions)
   );
-
-  const importedTxs: Transaction[] = [...hits];
-  const cacheUpdates: ParseCache = {};
-  for (const { key, parsed } of missResults) {
-    importedTxs.push(...parsed);
-    cacheUpdates[key] = parsed;
-  }
-
-  // Prune dead entries (deleted CSV files) and write when the cache changed.
-  const liveKeys = new Set(csvFiles.map(cacheKey));
-  const merged = { ...cache, ...cacheUpdates };
-  const pruned = Object.entries(merged).filter(([k]) => liveKeys.has(k));
-  const prunedCache = Object.fromEntries(
-    pruned.length > MAX_CACHE_ENTRIES ? pruned.slice(-MAX_CACHE_ENTRIES) : pruned
-  );
-  const cacheChanged = missResults.length > 0 || Object.keys(merged).some((k) => !liveKeys.has(k));
+  const nextCache: ParseCache = Object.fromEntries(liveKeys.map((key, i) => [key, parsed[i]]));
+  // Rewrite when a file was parsed fresh or a deleted file's entry was dropped.
+  const cacheChanged = liveKeys.some((k) => !cache[k]) || Object.keys(cache).length !== liveKeys.length;
   if (cacheChanged) {
-    writeAppFile(accessToken, structure.fileIds.parseCache, prunedCache).catch(() => {
+    writeAppFile(accessToken, fileIds.parseCache, nextCache).catch(() => {
       // Non-fatal: worst case we re-parse next time.
     });
   }
 
-  // Prune overrides whose transaction IDs no longer exist in the merged set.
-  // This keeps category-overrides.json from accumulating orphaned entries
-  // as transactions are deleted or CSVs are re-uploaded.
-  const liveIds = new Set(mergeTransactions(importedTxs, manualTxs ?? []).map((t) => t.id));
-  const prunedOverrides = Object.fromEntries(
-    Object.entries(ov ?? {}).filter(([id]) => liveIds.has(id))
-  );
-  const overridesPruned = Object.keys(prunedOverrides).length !== Object.keys(ov ?? {}).length;
-  if (overridesPruned) {
-    writeAppFile(accessToken, structure.fileIds.categoryOverrides, prunedOverrides).catch(() => {});
+  // Older manual entries stored a currency symbol ("€"); everything uses ISO codes now.
+  const manual = manualTxs.map((t) => ({ ...t, currency: currencyCode(t.currency) }));
+  const rawTxs = mergeTransactions(parsed.flat(), manual);
+
+  // Drop overrides whose transactions no longer exist (deleted entries, removed
+  // statements) so category-overrides.json doesn't accumulate orphans.
+  const liveIds = new Set(rawTxs.map((t) => t.id));
+  const liveOverrides = Object.fromEntries(Object.entries(overrides).filter(([id]) => liveIds.has(id)));
+  if (Object.keys(liveOverrides).length !== Object.keys(overrides).length) {
+    writeAppFile(accessToken, fileIds.categoryOverrides, liveOverrides).catch(() => {});
   }
 
-  return {
-    rawTxs: mergeTransactions(importedTxs, manualTxs ?? []),
-    overrides: prunedOverrides,
-    excludedIds: ex ?? [],
-  };
+  return { rawTxs, overrides: liveOverrides, excludedIds };
 }
 
 export function useTransactions(
@@ -116,17 +98,7 @@ export function useTransactions(
   settings: Settings
 ) {
   const qc = useQueryClient();
-  const appDataId = structure?.appDataId;
-  const queryKey = ["transactions", appDataId ?? "none"];
-
-  // Serialises category override writes so rapid mutations never race each other.
-  // Each write waits for the previous to settle before reading and writing Drive.
-  const categoryWriteQueue = useRef<Promise<void>>(Promise.resolve());
-  const enqueueWrite = useCallback((fn: () => Promise<void>): Promise<void> => {
-    const queued = categoryWriteQueue.current.then(fn, fn);
-    categoryWriteQueue.current = queued.catch(() => {});
-    return queued;
-  }, []);
+  const queryKey = useMemo(() => ["transactions", structure?.appDataId ?? "none"], [structure?.appDataId]);
 
   const query = useQuery({
     queryKey,
@@ -135,270 +107,152 @@ export function useTransactions(
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
   });
 
-  // Memoized on query.data so the empty fallbacks don't produce a fresh []/{}
-  // reference each render (which would needlessly re-run the derivations below).
-  const rawTxs = useMemo(() => query.data?.rawTxs ?? [], [query.data]);
-  const overrides = useMemo(() => query.data?.overrides ?? {}, [query.data]);
-  const excludedIds = useMemo(() => query.data?.excludedIds ?? [], [query.data]);
+  const data = query.data;
+  const { selfTransferKeywords, savingsVaultKeywords } = settings;
+  const transactions = useMemo(() => {
+    if (!data) return [];
+    const excluded = new Set(data.excludedIds);
+    // Drop internal money movements (self-transfers, savings-vault mirrors) using
+    // the user's configured keywords before categorizing.
+    const visible = filterInternalTransfers(data.rawTxs, { selfTransferKeywords, savingsVaultKeywords });
+    return applyCategorizationRules(visible, rules, data.overrides).map((tx) =>
+      excluded.has(tx.id) ? { ...tx, excluded: true } : tx
+    );
+  }, [data, rules, selfTransferKeywords, savingsVaultKeywords]);
 
   const needsReauth = query.error instanceof DriveAuthError;
   const error =
     query.error && !needsReauth
-      ? query.error instanceof Error
-        ? query.error.message
-        : "Failed to load transactions"
+      ? query.error instanceof Error ? query.error.message : "Failed to load transactions"
       : null;
 
-  const excludedSet = useMemo(() => new Set(excludedIds), [excludedIds]);
-  const transactions = useMemo(() => {
-    // Drop internal money movements (self-transfers, savings-vault mirrors) using
-    // the user's configured keywords before categorizing.
-    const visible = filterInternalTransfers(rawTxs, {
-      selfTransferKeywords: settings?.selfTransferKeywords,
-      savingsVaultKeywords: settings?.savingsVaultKeywords,
-    });
-    return applyCategorizationRules(visible, rules, overrides).map((tx) =>
-      excludedSet.has(tx.id) ? { ...tx, excluded: true } : tx
-    );
-  }, [rawTxs, rules, overrides, excludedSet, settings?.selfTransferKeywords, settings?.savingsVaultKeywords]);
+  // Every Drive write goes through this one queue, so two quick changes to the
+  // same file never read-modify-write over each other.
+  const writeQueue = useRef<Promise<void>>(Promise.resolve());
 
-  // Mutations write to Drive, then patch the cached raw data (same write-then-update
-  // behavior as before — the change shows after the write succeeds).
-  const patch = useCallback(
-    (updater: (d: TxData) => TxData) => {
-      qc.setQueryData<TxData>(["transactions", appDataId ?? "none"], (old) => (old ? updater(old) : old));
+  /**
+   * Shows a change instantly, then saves it to Drive in the queue. If the save
+   * fails, the list is re-read from Drive (the source of truth) rather than
+   * restoring a snapshot that might also undo other changes made meanwhile.
+   */
+  const mutate = useCallback(
+    (optimistic: (d: TxData) => TxData, save: (token: string, s: DriveStructure) => Promise<void>): Promise<void> => {
+      if (!accessToken || !structure) return Promise.resolve();
+      qc.setQueryData<TxData>(queryKey, (old) => (old ? optimistic(old) : old));
+      const run = writeQueue.current.then(() => save(accessToken, structure));
+      writeQueue.current = run.catch(() => {});
+      return run.catch((err) => {
+        qc.invalidateQueries({ queryKey });
+        notifySaveFailed();
+        throw err;
+      });
     },
-    [qc, appDataId]
+    [accessToken, structure, qc, queryKey]
   );
 
   const addManualTransaction = useCallback(
-    async (tx: Omit<Transaction, "id" | "source" | "categorySource">) => {
-      if (!accessToken || !structure) return;
-      const id = generateId(`manual-${tx.date}-${tx.description}-${tx.amount}-${Date.now()}`);
-      const newTx: Transaction = { ...tx, id, source: "manual", categorySource: "manual" };
-      const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
-      await writeAppFile(accessToken, structure.fileIds.manualTransactions, [newTx, ...existing]);
-      patch((d) => ({ ...d, rawTxs: [newTx, ...d.rawTxs] }));
+    (tx: NewTransaction) => {
+      const newTx: Transaction = {
+        ...tx,
+        id: generateId(`manual-${tx.date}-${tx.description}-${tx.amount}-${Date.now()}`),
+        source: "manual",
+        categorySource: "manual",
+      };
+      return mutate(
+        (d) => ({ ...d, rawTxs: [newTx, ...d.rawTxs] }),
+        (token, s) => updateFile<Transaction[]>(token, s.fileIds.manualTransactions, (all) => [newTx, ...all])
+      );
     },
-    [accessToken, structure, patch]
+    [mutate]
   );
 
   const deleteManualTransaction = useCallback(
-    async (txId: string) => {
-      if (!accessToken || !structure) return;
-      const [existing, overrides, excludedIds] = await Promise.all([
-        readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions),
-        readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
-        readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
-      ]);
-      const { [txId]: _removed, ...cleanedOverrides } = overrides;
-      await Promise.all([
-        writeAppFile(accessToken, structure.fileIds.manualTransactions, existing.filter((t) => t.id !== txId)),
-        writeAppFile(accessToken, structure.fileIds.categoryOverrides, cleanedOverrides),
-        writeAppFile(accessToken, structure.fileIds.excludedTransactions, excludedIds.filter((id) => id !== txId)),
-      ]);
-      patch((d) => {
-        const { [txId]: _ov, ...nextOverrides } = d.overrides;
-        return {
-          ...d,
+    (txId: string) => {
+      const ids = new Set([txId]);
+      return mutate(
+        (d) => ({
           rawTxs: d.rawTxs.filter((t) => t.id !== txId),
-          overrides: nextOverrides,
+          overrides: without(d.overrides, ids),
           excludedIds: d.excludedIds.filter((id) => id !== txId),
-        };
-      });
+        }),
+        (token, s) =>
+          Promise.all([
+            updateFile<Transaction[]>(token, s.fileIds.manualTransactions, (all) => all.filter((t) => t.id !== txId)),
+            updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, ids)),
+            updateFile<string[]>(token, s.fileIds.excludedTransactions, (all) => all.filter((id) => id !== txId)),
+          ]).then(() => {})
+      );
     },
-    [accessToken, structure, patch]
+    [mutate]
   );
 
+  // Editing also clears any category override, so the new category isn't
+  // silently shadowed by an old one.
   const updateManualTransaction = useCallback(
-    async (txId: string, updates: Omit<Transaction, "id" | "source" | "categorySource">) => {
-      if (!accessToken || !structure) return;
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
-      // Optimistically apply the update and remove any category override for this
-      // transaction so the new category is not silently shadowed by the override.
-      patch((d) => {
-        const { [txId]: _ov, ...nextOverrides } = d.overrides;
-        return {
-          ...d,
-          rawTxs: d.rawTxs.map((t) => (t.id === txId ? { ...t, ...updates } : t)),
-          overrides: nextOverrides,
-        };
-      });
-      try {
-        const existing = await readAppFile<Transaction[]>(accessToken, structure.fileIds.manualTransactions);
-        const updated = existing.map((t) => (t.id === txId ? { ...t, ...updates } : t));
-        await writeAppFile(accessToken, structure.fileIds.manualTransactions, updated);
-        // If an override existed in the snapshot, also remove it from Drive (non-blocking).
-        if (prev?.overrides[txId] !== undefined) {
-          const existingOverrides = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-          const { [txId]: _removed, ...cleanedOverrides } = existingOverrides;
-          writeAppFile(accessToken, structure.fileIds.categoryOverrides, cleanedOverrides).catch(() => {});
-        }
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
+    (txId: string, updates: NewTransaction) => {
+      const ids = new Set([txId]);
+      const apply = (all: Transaction[]) => all.map((t) => (t.id === txId ? { ...t, ...updates } : t));
+      return mutate(
+        (d) => ({ ...d, rawTxs: apply(d.rawTxs), overrides: without(d.overrides, ids) }),
+        (token, s) =>
+          Promise.all([
+            updateFile<Transaction[]>(token, s.fileIds.manualTransactions, apply),
+            updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, ids)),
+          ]).then(() => {})
+      );
     },
-    [accessToken, structure, patch, qc, appDataId]
-  );
-
-  // Category and exclude are rapid, tap-heavy interactions, so update the UI
-  // optimistically (instantly) and roll back if the Drive write fails.
-  // Writes are serialised via enqueueWrite so rapid taps never clobber each other.
-  const updateCategory = useCallback(
-    (txId: string, category: Category): Promise<void> => {
-      if (!accessToken || !structure) return Promise.resolve();
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
-      patch((d) => ({ ...d, overrides: { ...d.overrides, [txId]: category } }));
-      return enqueueWrite(async () => {
-        try {
-          const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-          const updated = { ...existing, [txId]: category };
-          await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
-          patch((d) => ({ ...d, overrides: updated })); // reconcile with the merged Drive value
-        } catch (err) {
-          if (prev) qc.setQueryData(key, prev);
-          throw err;
-        }
-      });
-    },
-    [accessToken, structure, patch, qc, appDataId, enqueueWrite]
+    [mutate]
   );
 
   const bulkUpdateCategory = useCallback(
-    (updates: { txId: string; category: Category }[]): Promise<void> => {
-      if (!accessToken || !structure || updates.length === 0) return Promise.resolve();
-      const patchEntries = Object.fromEntries(updates.map(({ txId, category }) => [txId, category]));
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
-      patch((d) => ({ ...d, overrides: { ...d.overrides, ...patchEntries } }));
-      return enqueueWrite(async () => {
-        try {
-          const existing = await readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides);
-          const updated = { ...existing, ...patchEntries };
-          await writeAppFile(accessToken, structure.fileIds.categoryOverrides, updated);
-          patch((d) => ({ ...d, overrides: updated }));
-        } catch (err) {
-          if (prev) qc.setQueryData(key, prev);
-          throw err;
-        }
-      });
+    (updates: { txId: string; category: Category }[]) => {
+      if (updates.length === 0) return Promise.resolve();
+      const changes = Object.fromEntries(updates.map(({ txId, category }) => [txId, category]));
+      return mutate(
+        (d) => ({ ...d, overrides: { ...d.overrides, ...changes } }),
+        (token, s) => updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => ({ ...o, ...changes }))
+      );
     },
-    [accessToken, structure, patch, qc, appDataId, enqueueWrite]
+    [mutate]
   );
 
-  // Atomic batch exclude/include — one Drive read-write, no race between IDs.
+  const updateCategory = useCallback(
+    (txId: string, category: Category) => bulkUpdateCategory([{ txId, category }]),
+    [bulkUpdateCategory]
+  );
+
   const bulkExclude = useCallback(
-    async (ids: string[], shouldExclude: boolean) => {
-      if (!accessToken || !structure || ids.length === 0) return;
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
+    (ids: string[], shouldExclude: boolean) => {
+      if (ids.length === 0) return Promise.resolve();
       const idSet = new Set(ids);
-      patch((d) => {
-        const cleaned = d.excludedIds.filter((id) => !idSet.has(id));
-        return { ...d, excludedIds: shouldExclude ? [...cleaned, ...ids] : cleaned };
-      });
-      try {
-        const existing = await readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions);
-        const cleaned = existing.filter((id) => !idSet.has(id));
-        const next = shouldExclude ? [...cleaned, ...ids] : cleaned;
-        await writeAppFile(accessToken, structure.fileIds.excludedTransactions, next);
-        patch((d) => ({ ...d, excludedIds: next }));
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
+      const apply = (all: string[]) => {
+        const rest = all.filter((id) => !idSet.has(id));
+        return shouldExclude ? [...rest, ...ids] : rest;
+      };
+      return mutate(
+        (d) => ({ ...d, excludedIds: apply(d.excludedIds) }),
+        (token, s) => updateFile<string[]>(token, s.fileIds.excludedTransactions, apply)
+      );
     },
-    [accessToken, structure, patch, qc, appDataId]
+    [mutate]
   );
 
-  // Reset a single transaction to its original imported state:
-  // removes the category override AND re-includes it if excluded.
-  const resetToDefault = useCallback(
-    async (txId: string) => {
-      if (!accessToken || !structure) return;
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
-      patch((d) => {
-        const { [txId]: _, ...overrides } = d.overrides;
-        return { ...d, overrides, excludedIds: d.excludedIds.filter((id) => id !== txId) };
-      });
-      try {
-        const [existingOverrides, existingExcluded] = await Promise.all([
-          readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
-          readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
-        ]);
-        const { [txId]: _, ...updatedOverrides } = existingOverrides;
-        const updatedExcluded = existingExcluded.filter((id) => id !== txId);
-        await Promise.all([
-          writeAppFile(accessToken, structure.fileIds.categoryOverrides, updatedOverrides),
-          writeAppFile(accessToken, structure.fileIds.excludedTransactions, updatedExcluded),
-        ]);
-        patch((d) => ({ ...d, overrides: updatedOverrides, excludedIds: updatedExcluded }));
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
-    },
-    [accessToken, structure, patch, qc, appDataId]
-  );
-
-  // Batch version of resetToDefault — one read pair, one write pair for all IDs.
+  /** Back to how the statement had it: no category override, counted again. */
   const bulkResetToDefault = useCallback(
-    async (ids: string[]) => {
-      if (!accessToken || !structure || ids.length === 0) return;
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
+    (ids: string[]) => {
+      if (ids.length === 0) return Promise.resolve();
       const idSet = new Set(ids);
-      patch((d) => ({
-        ...d,
-        overrides: Object.fromEntries(Object.entries(d.overrides).filter(([id]) => !idSet.has(id))),
-        excludedIds: d.excludedIds.filter((id) => !idSet.has(id)),
-      }));
-      try {
-        const [existingOverrides, existingExcluded] = await Promise.all([
-          readAppFile<Record<string, Category>>(accessToken, structure.fileIds.categoryOverrides),
-          readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions),
-        ]);
-        const updatedOverrides = Object.fromEntries(Object.entries(existingOverrides).filter(([id]) => !idSet.has(id)));
-        const updatedExcluded = existingExcluded.filter((id) => !idSet.has(id));
-        await Promise.all([
-          writeAppFile(accessToken, structure.fileIds.categoryOverrides, updatedOverrides),
-          writeAppFile(accessToken, structure.fileIds.excludedTransactions, updatedExcluded),
-        ]);
-        patch((d) => ({ ...d, overrides: updatedOverrides, excludedIds: updatedExcluded }));
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
+      const include = (all: string[]) => all.filter((id) => !idSet.has(id));
+      return mutate(
+        (d) => ({ ...d, overrides: without(d.overrides, idSet), excludedIds: include(d.excludedIds) }),
+        (token, s) =>
+          Promise.all([
+            updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, idSet)),
+            updateFile<string[]>(token, s.fileIds.excludedTransactions, include),
+          ]).then(() => {})
+      );
     },
-    [accessToken, structure, patch, qc, appDataId]
-  );
-
-  const toggleExclude = useCallback(
-    async (txId: string) => {
-      if (!accessToken || !structure) return;
-      const key = ["transactions", appDataId ?? "none"];
-      const prev = qc.getQueryData<TxData>(key);
-      // Target a definite state (not an independent toggle) so the optimistic
-      // update and the Drive write always agree.
-      const willExclude = !(prev?.excludedIds ?? []).includes(txId);
-      const apply = (ids: string[]) =>
-        willExclude ? Array.from(new Set([...ids, txId])) : ids.filter((i) => i !== txId);
-      patch((d) => ({ ...d, excludedIds: apply(d.excludedIds) }));
-      try {
-        const existing = await readAppFile<string[]>(accessToken, structure.fileIds.excludedTransactions);
-        const next = apply(existing);
-        await writeAppFile(accessToken, structure.fileIds.excludedTransactions, next);
-        patch((d) => ({ ...d, excludedIds: next }));
-      } catch (err) {
-        if (prev) qc.setQueryData(key, prev);
-        throw err;
-      }
-    },
-    [accessToken, structure, patch, qc, appDataId]
+    [mutate]
   );
 
   return {
@@ -414,8 +268,6 @@ export function useTransactions(
     updateCategory,
     bulkUpdateCategory,
     bulkExclude,
-    resetToDefault,
     bulkResetToDefault,
-    toggleExclude,
   };
 }

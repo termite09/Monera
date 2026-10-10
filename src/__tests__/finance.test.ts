@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getPeriodSpend, netExpenseByCategory, netExpenseTotal } from "@/lib/finance";
-import { useBudget } from "@/hooks/useBudget";
-import { buildReport } from "@/lib/reports";
+import { computeBudget } from "@/lib/budget";
+import { buildPeriodInsights } from "@/lib/insights";
 import { Transaction, Category, Settings } from "@/types";
 import { roundMoney } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ function tx(partial: Partial<Transaction> & { amount: number; type: Transaction[
     description: "x",
     currency: "EUR",
     category: "Wants",
-    source: "revolut",
+    source: "statement",
     categorySource: "auto",
     excluded: false,
     ...partial,
@@ -156,7 +156,7 @@ describe("useBudget income: pay is counted once", () => {
   it("uses the expected pay when the statement has no matching deposit", () => {
     const settings: Settings = { ...baseSettings, defaultIncome: 2000 };
     const txs = [tx({ amount: 40, type: "income", category: "Uncategorized", description: "From Maria" })];
-    const { summary, salaryFromStatement } = useBudget(txs, settings, "2024-06");
+    const { summary, salaryFromStatement } = computeBudget(txs, settings, "2024-06");
     // expected pay (2000) + a small unrelated transfer (40)
     expect(summary.income).toBe(2040);
     expect(salaryFromStatement).toBe(false);
@@ -165,7 +165,7 @@ describe("useBudget income: pay is counted once", () => {
   it("does not double count when the typed pay also arrives in the statement", () => {
     const settings: Settings = { ...baseSettings, defaultIncome: 2400 };
     const txs = [tx({ amount: 2400, type: "income", category: "Uncategorized", description: "ACME Ltd" })];
-    const { summary, salaryFromStatement, unconfirmedSalaryTx } = useBudget(txs, settings, "2024-06");
+    const { summary, salaryFromStatement, unconfirmedSalaryTx } = computeBudget(txs, settings, "2024-06");
     expect(summary.income).toBe(2400);
     expect(salaryFromStatement).toBe(true);
     // Not matched by a saved keyword, so it's offered for confirmation.
@@ -175,7 +175,7 @@ describe("useBudget income: pay is counted once", () => {
   it("prefers the real deposit when it differs from the typed pay", () => {
     const settings: Settings = { ...baseSettings, defaultIncome: 2400 };
     const txs = [tx({ amount: 2550, type: "income", category: "Uncategorized", description: "ACME Ltd" })];
-    expect(useBudget(txs, settings, "2024-06").summary.income).toBe(2550);
+    expect(computeBudget(txs, settings, "2024-06").summary.income).toBe(2550);
   });
 
   it("per-period configured pay overrides the standing default", () => {
@@ -186,7 +186,7 @@ describe("useBudget income: pay is counted once", () => {
         "2024-06": { month: "2024-06", income: 3000, budgetRule: { needs: 30, wants: 60, savings: 10 } },
       },
     };
-    const { summary } = useBudget([], settings, "2024-06");
+    const { summary } = computeBudget([], settings, "2024-06");
     expect(summary.income).toBe(3000);
   });
 
@@ -195,14 +195,14 @@ describe("useBudget income: pay is counted once", () => {
       tx({ amount: 1500, type: "income", category: "Uncategorized" }),
       tx({ amount: 200, type: "income", category: "Uncategorized" }),
     ];
-    const { summary, incomeIsDetected } = useBudget(txs, baseSettings, "2024-06");
+    const { summary, incomeIsDetected } = computeBudget(txs, baseSettings, "2024-06");
     expect(summary.income).toBe(1700);
     expect(incomeIsDetected).toBe(true);
   });
 
   it("is zero when there is neither configured nor received income", () => {
     const txs = [tx({ amount: 50, type: "expense", category: "Wants" })];
-    const { summary, incomeIsDetected } = useBudget(txs, baseSettings, "2024-06");
+    const { summary, incomeIsDetected } = computeBudget(txs, baseSettings, "2024-06");
     expect(summary.income).toBe(0);
     expect(incomeIsDetected).toBe(false);
   });
@@ -213,7 +213,7 @@ describe("useBudget income: pay is counted once", () => {
       tx({ amount: 100, type: "expense", category: "Wants" }),
       tx({ amount: 30, type: "income", category: "Wants" }), // refund
     ];
-    const { summary } = useBudget(txs, baseSettings, "2024-06");
+    const { summary } = computeBudget(txs, baseSettings, "2024-06");
     expect(summary.income).toBe(2000);
     expect(summary.wants).toBe(70);
     expect(summary.remaining).toBe(1930);
@@ -233,7 +233,7 @@ describe("useBudget — salary keyword behaviour", () => {
       tx({ amount: 3000, type: "income", description: "Monthly Salary", date: "2024-06-10", category: "Uncategorized" }),
       tx({ amount: 50, type: "income", description: "Freelance payment", date: "2024-06-12", category: "Uncategorized" }),
     ];
-    const { summary, additionalIncome, unconfirmedSalaryTx } = useBudget(txs, salarySettings, "2024-06");
+    const { summary, additionalIncome, unconfirmedSalaryTx } = computeBudget(txs, salarySettings, "2024-06");
     expect(summary.income).toBe(3050);
     expect(additionalIncome).toBe(50);
     expect(unconfirmedSalaryTx).toBeNull();
@@ -244,14 +244,14 @@ describe("useBudget — salary keyword behaviour", () => {
       tx({ amount: 3000, type: "income", description: "Primary Salary", date: "2024-06-10", category: "Uncategorized" }),
       tx({ amount: 1500, type: "income", description: "Side Job Salary", date: "2024-06-15", category: "Uncategorized" }),
     ];
-    expect(useBudget(txs, salarySettings, "2024-06").summary.income).toBe(4500);
+    expect(computeBudget(txs, salarySettings, "2024-06").summary.income).toBe(4500);
   });
 
   it("uses received income when no pay is configured", () => {
     const txs: Transaction[] = [
       tx({ amount: 2800, type: "income", description: "Wages", date: "2024-06-10", category: "Uncategorized" }),
     ];
-    const { summary } = useBudget(txs, { ...baseSettings, monthlyBudgets: {} }, "2024-06");
+    const { summary } = computeBudget(txs, { ...baseSettings, monthlyBudgets: {} }, "2024-06");
     expect(summary.income).toBe(2800);
   });
 });
@@ -264,8 +264,8 @@ describe("dashboard / reports consistency (C1)", () => {
       tx({ amount: 200, type: "expense", category: "Needs" }),
       tx({ amount: 2000, type: "income", category: "Uncategorized" }), // salary
     ];
-    const { summary } = useBudget(txs, baseSettings, "2024-06");
-    const report = buildReport(txs, "2024-06", 1);
+    const { summary } = computeBudget(txs, baseSettings, "2024-06");
+    const report = buildPeriodInsights(txs, "2024-06", 1);
     expect(summary.totalExpenses).toBe(report.totalSpent);
     expect(report.totalSpent).toBe(265); // (100-35) + 200, salary excluded
   });

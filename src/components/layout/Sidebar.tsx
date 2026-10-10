@@ -2,19 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, List, Upload, Settings, PieChart, LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { signOutAndClear } from "@/lib/session";
+import { NAV_ITEMS } from "./navItems";
 import { useAppData } from "@/contexts/AppDataContext";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: List },
-  { href: "/insights", label: "Insights", icon: PieChart },
-  { href: "/upload", label: "Statements", icon: Upload },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -35,7 +28,7 @@ export function Sidebar() {
       <Separator />
 
       <nav aria-label="Main" className="flex-1 p-3 flex flex-col gap-0.5 mt-2">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
@@ -61,10 +54,10 @@ export function Sidebar() {
       <div className="p-3">
         <button
           type="button"
-          onClick={() => signOut({ redirectTo: "/login" })}
+          onClick={signOutAndClear}
           className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
-          <LogOut size={16} />
+          <LogOut size={16} aria-hidden />
           Sign out
         </button>
       </div>

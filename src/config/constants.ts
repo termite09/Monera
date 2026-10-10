@@ -1,5 +1,8 @@
+import type { Category, Settings } from "@/types";
+
 export const DRIVE_ROOT_FOLDER = "Monera";
-export const REVOLUT_EXPORTS_FOLDER = "revolut-exports";
+/** Holds every uploaded statement, whatever the bank. The Drive name predates other banks. */
+export const STATEMENTS_FOLDER = "revolut-exports";
 export const APP_DATA_FOLDER = "app-data";
 
 export const DRIVE_FILES = {
@@ -11,10 +14,11 @@ export const DRIVE_FILES = {
   parseCache: "parse-cache.json",
 } as const;
 
-export const SETTINGS_VERSION = 1;
+// v2: currency is stored as an ISO code ("EUR"), not a symbol ("€").
+export const SETTINGS_VERSION = 2;
 
-export const DEFAULT_SETTINGS = {
-  currency: "€",
+export const DEFAULT_SETTINGS: Settings = {
+  currency: "EUR",
   paydayOfMonth: 1,
   defaultIncome: 0,
   defaultBudgetRule: { needs: 30, wants: 60, savings: 10 },
@@ -25,10 +29,13 @@ export const DEFAULT_SETTINGS = {
   savingsVaultKeywords: ["eur savings", "savings for"],
   recurringPayments: [],
   onboarded: false,
-  excludedSubscriptions: [] as string[],
-  tourPages: {} as Record<string, boolean>,
+  excludedSubscriptions: [],
+  tourPages: {},
   settingsVersion: SETTINGS_VERSION,
 };
+
+/** The categories a person can file spending under. */
+export const BUDGET_CATEGORIES: Exclude<Category, "Uncategorized">[] = ["Needs", "Wants", "Savings"];
 
 export const MONTH_NAMES = [
   "January","February","March","April","May","June",
@@ -36,3 +43,6 @@ export const MONTH_NAMES = [
 ];
 
 export const WEEKDAY_LABELS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+/** Statements bigger than this are almost certainly the wrong file. */
+export const MAX_STATEMENT_BYTES = 25 * 1024 * 1024;

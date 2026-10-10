@@ -4,9 +4,8 @@ import { DriveAuthError } from "@/lib/errors";
 
 /**
  * Resolves the user's Drive folder/file structure via TanStack Query, so it's
- * cached + persisted (instant on reload, revalidated in the background) instead
- * of re-fetched on every load. Keyed by the user so switching Google accounts
- * never serves the wrong folder IDs.
+ * cached in memory for the session instead of re-fetched on every navigation.
+ * Keyed by the user so switching Google accounts never serves the wrong folder IDs.
  */
 export function useDrive(accessToken: string | undefined, userKey: string | undefined) {
   const query = useQuery({
@@ -21,9 +20,7 @@ export function useDrive(accessToken: string | undefined, userKey: string | unde
   const needsReauth = query.error instanceof DriveAuthError;
   const error =
     query.error && !needsReauth
-      ? query.error instanceof Error
-        ? query.error.message
-        : "Failed to initialize Drive"
+      ? query.error instanceof Error ? query.error.message : "Failed to initialize Drive"
       : null;
 
   return {

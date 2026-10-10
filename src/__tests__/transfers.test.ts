@@ -10,7 +10,7 @@ function tx(partial: Partial<Transaction> & { type: Transaction["type"]; descrip
     amount: 10,
     currency: "EUR",
     category: "Wants",
-    source: "revolut",
+    source: "statement",
     categorySource: "auto",
     excluded: false,
     ...partial,

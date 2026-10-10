@@ -1,44 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { Transaction, RecurringPayment } from "@/types";
-import { formatCurrency, formatDate, cleanDescription, cn, ordinal, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
 import { ChevronDown, CalendarClock, CreditCard } from "lucide-react";
-import type { detectSubscriptions } from "@/lib/reports";
-import { getRecurringInRange } from "@/lib/recurring";
-
-type Subscription = ReturnType<typeof detectSubscriptions>[number];
-
-function formatPeriodKey(key: string): string {
-  const [y, m] = key.split("-");
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" }).replace("Sept", "Sep");
-}
-
-function getPeriodRangeBadge(startMonth?: string, endMonth?: string): string | null {
-  if (!startMonth && !endMonth) return null;
-  if (startMonth && endMonth) return `${formatPeriodKey(startMonth)} – ${formatPeriodKey(endMonth)}`;
-  if (startMonth) return `From ${formatPeriodKey(startMonth)}`;
-  return `Until ${formatPeriodKey(endMonth!)}`;
-}
-
+import { Transaction, RecurringPayment } from "@/types";
+import {
+  formatCurrency, formatDate, formatMonthShort, cleanDescription, cn, ordinal, getCategoryTextClass,
+  getCategorySwatchClass, parseDateStr, plural, roundMoney,
+} from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { merchantKey, monthlyCost, type Subscription } from "@/lib/insights";
+import { billPeriodLabel, getRecurringInRange } from "@/lib/recurring";
 
 interface Props {
   recurringPayments: RecurringPayment[];
-  subscriptions: Subscription[];   // already filtered — excluded subs removed by parent
+  /** Already filtered — hidden subscriptions removed by the parent. */
+  subscriptions: Subscription[];
   transactions: Transaction[];
   paydayOfMonth: number;
-  excludedSubCount: number;        // how many detected subs are currently hidden
-  onExclude: (name: string) => void;
+  /** "YYYY-MM-DD" */
+  today: string;
+  /** How many detected subscriptions are currently hidden. */
+  hiddenCount: number;
+  onHide: (name: string) => void;
   onRestore: () => void;
 }
 
-export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, paydayOfMonth, excludedSubCount, onExclude, onRestore }: Props) {
-  const [expandedSub, setExpandedSub] = useState<string | null>(null);
+export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, paydayOfMonth, today, hiddenCount, onHide, onRestore }: Props) {
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
-  const subsMonthly = subscriptions.reduce((s, sub) => s + sub.amount, 0);
+  // Bills only count from your first statement onwards — before that Monera knows nothing.
+  const earliestDate = useMemo(
+    () => transactions.reduce<string | null>((min, t) => (t.source !== "recurring" && (!min || t.date < min) ? t.date : min), null),
+    [transactions]
+  );
+  const timesPaid = (p: RecurringPayment) =>
+    earliestDate ? getRecurringInRange([p], parseDateStr(earliestDate), parseDateStr(today), paydayOfMonth).length : 0;
 
-  const earliestDate = transactions.reduce<string | null>((min, t) => (t.source !== "recurring" && (!min || t.date < min) ? t.date : min), null);
+  const billsMonthly = roundMoney(recurringPayments.reduce((s, p) => s + p.amount, 0));
+  const subsMonthly = roundMoney(subscriptions.reduce((s, sub) => s + monthlyCost(sub), 0));
 
   return (
     <>
@@ -49,7 +48,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           </CardTitle>
           {recurringPayments.length > 1 && (
             <span className="text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums">{formatCurrency(recurringPayments.reduce((s, p) => s + p.amount, 0))}</span> a month
+              <span className="font-mono tabular-nums">{formatCurrency(billsMonthly)}</span> a month
             </span>
           )}
         </CardHeader>
@@ -57,44 +56,39 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           {recurringPayments.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">No recurring bills set up yet. Add them in Settings → Bills.</p>
           ) : (
-            <>
-              <div className="flex flex-col divide-y divide-border">
-                {recurringPayments.map((p) => {
-                  const badge = getPeriodRangeBadge(p.startMonth, p.endMonth);
-                  // Only charges that have actually happened, since your first statement.
-                  const count = earliestDate ? getRecurringInRange([p], new Date(earliestDate + "T00:00:00"), new Date(), paydayOfMonth).length : 0;
-                  return (
-                    <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm text-foreground wrap-break-word min-w-0">{p.name}</p>
-                          <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-1.5 py-0.5 rounded-md shrink-0 bg-secondary", getCategoryTextClass(p.category))}>
-                            <span className={cn("size-2 rounded-sm", getCategorySwatchClass(p.category))} aria-hidden />
-                            {p.category}
-                          </span>
-                          {badge && (
-                            <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">
-                              {badge}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">
-                          Due on the {ordinal(p.dayOfMonth)}
-                        </p>
-                      </div>
-                      <span className="text-right shrink-0">
-                        <span className="block text-sm font-medium tabular-nums text-foreground font-mono">{formatCurrency(p.amount)}<span className="font-sans font-normal text-muted-foreground"> a month</span></span>
-                        {count > 0 && (
-                          <span className="block text-xs text-muted-foreground">
-                            paid {count} time{count === 1 ? "" : "s"}{earliestDate ? ` since ${new Date(earliestDate + "T00:00:00").toLocaleDateString("en-GB", { month: "short" }).replace("Sept", "Sep")}` : ""}
-                          </span>
+            <div className="flex flex-col divide-y divide-border">
+              {recurringPayments.map((p) => {
+                const badge = billPeriodLabel(p);
+                const count = timesPaid(p);
+                return (
+                  <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm text-foreground wrap-break-word min-w-0">{p.name}</p>
+                        <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium px-1.5 py-0.5 rounded-md shrink-0 bg-secondary", getCategoryTextClass(p.category))}>
+                          <span className={cn("size-2 rounded-sm", getCategorySwatchClass(p.category))} aria-hidden />
+                          {p.category}
+                        </span>
+                        {badge && (
+                          <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md shrink-0">{badge}</span>
                         )}
-                      </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 max-w-[65ch]">Due on the {ordinal(p.dayOfMonth)}</p>
                     </div>
-                  );
-                })}
-              </div>
-            </>
+                    <span className="text-right shrink-0">
+                      <span className="block text-sm font-medium tabular-nums text-foreground font-mono">
+                        {formatCurrency(p.amount)}<span className="font-sans font-normal text-muted-foreground"> a month</span>
+                      </span>
+                      {count > 0 && earliestDate && (
+                        <span className="block text-xs text-muted-foreground">
+                          paid {plural(count, "time")} since {formatMonthShort(earliestDate)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -105,12 +99,16 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <CreditCard size={13} aria-hidden /> <h2>Subscriptions we found</h2>
             </CardTitle>
-            {subscriptions.length > 0 && <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0"><span className="font-medium text-foreground font-mono tabular-nums">~{formatCurrency(subsMonthly)}</span> a month</span>}
+            {subscriptions.length > 0 && (
+              <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
+                <span className="font-medium text-foreground font-mono tabular-nums">~{formatCurrency(subsMonthly)}</span> a month
+              </span>
+            )}
           </div>
-          {excludedSubCount > 0 && (
+          {hiddenCount > 0 && (
             <p className="text-sm mt-1">
               <button type="button" onClick={onRestore} className="tap-area text-primary hover:underline">
-                Show hidden ({excludedSubCount})
+                Show hidden ({hiddenCount})
               </button>
             </p>
           )}
@@ -121,25 +119,26 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
           ) : (
             <div className="flex flex-col divide-y divide-border -mx-4">
               {subscriptions.map((s) => {
-                const isOpen = expandedSub === s.name;
-                const subTxs = isOpen
+                const isOpen = expandedKey === s.key;
+                // The same charges detection grouped together, newest first.
+                const charges = isOpen
                   ? transactions
-                      .filter((t) => !t.excluded && t.type === "expense" && t.description.toLowerCase().includes(s.name.toLowerCase().trim()))
+                      .filter((t) => !t.excluded && t.type === "expense" && t.category === "Wants" && merchantKey(t.description) === s.key)
                       .sort((a, b) => b.date.localeCompare(a.date))
                   : [];
                 return (
-                  <div key={s.name} className="border-b border-border last:border-0">
+                  <div key={s.key} className="border-b border-border last:border-0">
                     <div className="flex items-center gap-1 pr-2">
                       <button
                         type="button"
-                        onClick={() => setExpandedSub(isOpen ? null : s.name)}
+                        onClick={() => setExpandedKey(isOpen ? null : s.key)}
                         aria-expanded={isOpen}
                         className="flex-1 min-w-0 flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
                       >
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm text-foreground wrap-break-word">{s.name}</span>
                           <span className="block text-xs text-muted-foreground">
-                            Seen in {s.months} months · last {formatDate(s.lastDate)}
+                            {s.everyMonths === 2 ? "Every 2 months" : "Monthly"} · seen in {s.months} months · last {formatDate(s.lastDate)}
                           </span>
                         </span>
                         <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">~{formatCurrency(s.amount)}</span>
@@ -151,7 +150,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       </button>
                       <button
                         type="button"
-                        onClick={() => onExclude(s.name)}
+                        onClick={() => onHide(s.name)}
                         className="min-h-11 px-3 flex items-center justify-center rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
                         aria-label={`${s.name} isn't a subscription — hide it`}
                         title="Not a subscription? Hide it (won't change your numbers)"
@@ -162,12 +161,10 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                     {isOpen && (
                       <div className="mx-4 mb-3 rounded-lg bg-secondary/50">
                         <p className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-                          <span className="font-mono tabular-nums">{formatCurrency(s.total)}</span> across {subTxs.length} charge{subTxs.length === 1 ? "" : "s"} so far
+                          <span className="font-mono tabular-nums">{formatCurrency(s.total)}</span> across {plural(charges.length, "charge")} so far
                         </p>
                         <div className="divide-y divide-border">
-                          {subTxs.length === 0 ? (
-                            <p className="text-sm text-muted-foreground px-3 py-3">No transactions found.</p>
-                          ) : subTxs.map((tx) => (
+                          {charges.map((tx) => (
                             <div key={tx.id} className="flex items-start gap-3 px-3 py-2.5">
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm text-foreground wrap-break-word">{cleanDescription(tx.description)}</p>

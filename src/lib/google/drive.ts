@@ -6,6 +6,7 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 
 const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 4;
 
 async function driveRequest(
   url: string,
@@ -34,7 +35,6 @@ async function driveRequest(
 
   // Back off on rate limiting, but cap retries so a sustained 429 can't spin
   // forever — surface the error after a few exponential attempts instead.
-  const MAX_RETRIES = 4;
   if (response.status === 429 && attempt < MAX_RETRIES) {
     const delay = 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s
     await new Promise((r) => setTimeout(r, delay));
@@ -44,21 +44,29 @@ async function driveRequest(
   return response;
 }
 
+/** Every file matching a Drive query, newest first, following pagination. */
 export async function listFiles(
   accessToken: string,
   query: string
 ): Promise<DriveFile[]> {
-  const params = new URLSearchParams({
-    q: query,
-    fields: "files(id,name,mimeType,createdTime,size)",
-    orderBy: "createdTime desc",
-  });
+  const files: DriveFile[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      q: query,
+      fields: "nextPageToken,files(id,name,mimeType,createdTime,size)",
+      orderBy: "createdTime desc",
+      pageSize: "1000",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
 
-  const res = await driveRequest(`${DRIVE_API}/files?${params}`, accessToken);
-  if (!res.ok) throw new Error(`Drive listFiles failed: ${res.statusText}`);
-
-  const data = await res.json();
-  return data.files ?? [];
+    const res = await driveRequest(`${DRIVE_API}/files?${params}`, accessToken);
+    if (!res.ok) throw new Error(`Drive listFiles failed: ${res.statusText}`);
+    const data: { files?: DriveFile[]; nextPageToken?: string } = await res.json();
+    files.push(...(data.files ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return files;
 }
 
 export async function createFolder(
@@ -150,15 +158,6 @@ export async function createFile(
   if (!res.ok) throw new Error(`Drive createFile failed: ${res.statusText}`);
   const data = await res.json();
   return data.id;
-}
-
-export async function uploadCSV(
-  accessToken: string,
-  name: string,
-  parentId: string,
-  content: string
-): Promise<string> {
-  return createFile(accessToken, name, parentId, content, "text/csv");
 }
 
 export async function deleteFile(accessToken: string, fileId: string): Promise<void> {

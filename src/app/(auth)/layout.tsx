@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomBar } from "@/components/layout/BottomBar";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 import { OfflineBanner } from "@/components/layout/OfflineBanner";
+import { SessionProvider } from "next-auth/react";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,16 @@ export default async function AuthLayout({
   if (session?.error) redirect("/login?error=SessionExpired");
   if (!session?.user) redirect("/login");
 
+  // Refetch the session every 4 minutes (and on focus) so the Drive access token
+  // stays fresh — the server refreshes it before it expires.
   return (
-    <AppDataProvider>
-      <Sidebar />
-      <OfflineBanner />
-      {children}
-      <BottomBar />
-    </AppDataProvider>
+    <SessionProvider session={session} refetchInterval={4 * 60} refetchOnWindowFocus>
+      <AppDataProvider>
+        <Sidebar />
+        <OfflineBanner />
+        {children}
+        <BottomBar />
+      </AppDataProvider>
+    </SessionProvider>
   );
 }

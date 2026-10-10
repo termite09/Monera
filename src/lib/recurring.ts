@@ -1,45 +1,39 @@
 import { Transaction, RecurringPayment } from "@/types";
-import { getPeriodBounds, generateId, periodKeysBetween, toDateStr } from "@/lib/utils";
-
-function clampDay(year: number, monthIndex: number, day: number): Date {
-  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-  return new Date(year, monthIndex, Math.min(day, lastDay));
-}
+import { getPeriodBounds, generateId, periodKeysBetween, toDateStr, clampDayToMonth, formatMonthYear } from "@/lib/utils";
 
 /**
  * Expands configured recurring payments into synthetic expense transactions
- * for a given budget period. These are paid outside Revolut (from another bank)
- * so they never appear in the CSV — we generate one occurrence per period.
+ * for a given budget period. These are paid outside the imported account (from
+ * another bank) so they never appear in a statement — we generate one occurrence
+ * per period.
  */
 export function getRecurringTransactions(
   recurring: RecurringPayment[],
-  monthKey: string,
+  periodKey: string,
   paydayOfMonth = 1,
   currency = "EUR"
 ): Transaction[] {
-  const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
+  const { start, end } = getPeriodBounds(periodKey, paydayOfMonth);
+  const onDay = (month: Date, day: number) =>
+    new Date(month.getFullYear(), month.getMonth(), clampDayToMonth(month.getFullYear(), month.getMonth(), day));
   const txs: Transaction[] = [];
 
   for (const r of recurring) {
     if (!r.amount || r.amount <= 0) continue;
-    if (r.startMonth && monthKey < r.startMonth) continue;
-    if (r.endMonth && monthKey > r.endMonth) continue;
+    if (r.startMonth && periodKey < r.startMonth) continue;
+    if (r.endMonth && periodKey > r.endMonth) continue;
 
     // A budget period can span two calendar months; try the occurrence in each.
-    const candidates = [
-      clampDay(start.getFullYear(), start.getMonth(), r.dayOfMonth),
-      clampDay(end.getFullYear(), end.getMonth(), r.dayOfMonth),
-    ];
-    const occurrence = candidates.find((d) => d >= start && d <= end);
+    const occurrence = [onDay(start, r.dayOfMonth), onDay(end, r.dayOfMonth)].find((d) => d >= start && d <= end);
     if (!occurrence) continue;
 
     txs.push({
-      id: generateId(`recurring-${r.id}-${monthKey}`),
+      id: generateId(`recurring-${r.id}-${periodKey}`),
       date: toDateStr(occurrence),
       description: r.name,
       amount: r.amount,
       type: "expense",
-      currency: currency,
+      currency,
       category: r.category,
       source: "recurring",
       categorySource: "manual",
@@ -71,12 +65,19 @@ export function getRecurringInRange(
 
   for (const key of periodKeysBetween(from, to, paydayOfMonth)) {
     for (const t of getRecurringTransactions(recurring, key, paydayOfMonth, currency)) {
-      if (t.date < fromStr || t.date > toStr) continue;
-      if (seen.has(t.id)) continue;
+      if (t.date < fromStr || t.date > toStr || seen.has(t.id)) continue;
       seen.add(t.id);
       out.push(t);
     }
   }
 
   return out;
+}
+
+/** "Sep 2025 – Mar 2026", "From Sep 2025", "Until Mar 2026", or null when a bill applies to every period. */
+export function billPeriodLabel(r: Pick<RecurringPayment, "startMonth" | "endMonth">): string | null {
+  if (r.startMonth && r.endMonth) return `${formatMonthYear(r.startMonth)} – ${formatMonthYear(r.endMonth)}`;
+  if (r.startMonth) return `From ${formatMonthYear(r.startMonth)}`;
+  if (r.endMonth) return `Until ${formatMonthYear(r.endMonth)}`;
+  return null;
 }

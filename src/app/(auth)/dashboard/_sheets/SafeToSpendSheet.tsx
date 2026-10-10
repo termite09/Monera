@@ -1,4 +1,4 @@
-import { SafeToSpend } from "@/lib/safeToSpend";
+import { SafeToSpend, billKind } from "@/lib/safeToSpend";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 
@@ -55,7 +55,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{b.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatShortDate(b.date)} · {b.estimated ? "expected subscription" : b.category === "Savings" ? "savings transfer" : b.source === "recurring" ? "regular bill" : "added by you"}
+                      {formatShortDate(b.date)} · {billKind(b)}
                     </p>
                   </div>
                   <span className="text-sm tabular-nums font-mono text-foreground shrink-0">{formatCurrency(b.amount)}</span>

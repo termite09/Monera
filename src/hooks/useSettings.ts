@@ -4,12 +4,10 @@ import { Settings } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { DEFAULT_SETTINGS } from "@/config/constants";
 import { DriveAuthError } from "@/lib/errors";
+import { notifySaveFailed } from "@/lib/notify";
 import { migrateSettings } from "@/lib/migrateSettings";
 
-export function useSettings(
-  accessToken: string | undefined,
-  structure: DriveStructure | null
-) {
+export function useSettings(accessToken: string | undefined, structure: DriveStructure | null) {
   const qc = useQueryClient();
   const fileId = structure?.fileIds.settings;
   const queryKey = useMemo(() => ["settings", fileId ?? "none"], [fileId]);
@@ -18,7 +16,7 @@ export function useSettings(
     queryKey,
     queryFn: async () => {
       const s = await readAppFile<Partial<Settings>>(accessToken as string, fileId as string);
-      const { migrated, changed } = migrateSettings(s, DEFAULT_SETTINGS as Settings);
+      const { migrated, changed } = migrateSettings(s, DEFAULT_SETTINGS);
       if (changed) {
         // Persist missing-key backfill and version stamp without blocking the return.
         writeAppFile(accessToken as string, fileId as string, migrated).catch(() => {
@@ -40,6 +38,7 @@ export function useSettings(
         await writeAppFile(accessToken, fileId, newSettings);
       } catch (err) {
         qc.setQueryData(queryKey, prev);
+        notifySaveFailed();
         throw err;
       }
     },

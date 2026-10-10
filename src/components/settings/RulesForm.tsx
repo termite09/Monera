@@ -1,111 +1,98 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Trash2, Plus, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useAppData } from "@/contexts/AppDataContext";
+import { NativeSelect } from "@/components/ui/native-select";
 import { cn, getCategoryTextClass } from "@/lib/utils";
+import { BUDGET_CATEGORIES } from "@/config/constants";
+import { useSaveStatus } from "@/hooks/useSaveStatus";
 import { Category, CategoryRule } from "@/types";
-import { Trash2, Plus, Search } from "lucide-react";
+import { SaveButton } from "./SaveButton";
 
-const CATEGORIES: Category[] = ["Needs", "Wants", "Savings"];
+/** A rule while it's being edited. The id is local only — it keeps a row stable while its keyword changes. */
+interface DraftRule extends CategoryRule {
+  id: number;
+}
 
+let nextId = 0;
+const withId = (rule: CategoryRule): DraftRule => ({ ...rule, id: nextId++ });
+
+/** Keyword → category rules. Mount with a `key` to reset. */
 export function RulesForm({ rules, updateRules }: {
   rules: CategoryRule[];
-  updateRules: ReturnType<typeof useAppData>["updateRules"];
+  updateRules: (r: CategoryRule[]) => Promise<void>;
 }) {
-  const [items, setItems] = useState<CategoryRule[]>(rules);
+  const [items, setItems] = useState(() => rules.map(withId));
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<Category | "">("");
   const [newKw, setNewKw] = useState("");
   const [newCat, setNewCat] = useState<Category>("Wants");
   const [dupError, setDupError] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const { status, run } = useSaveStatus();
 
-  // Intentional sync from externally-loaded rules (Drive data arriving after mount).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setItems(rules);
-    setIsDirty(false);
-  }, [rules]);
+  const edit = (change: (prev: DraftRule[]) => DraftRule[]) => {
+    setItems(change);
+    setIsDirty(true);
+  };
 
   const handleAddRule = () => {
-    const kw = newKw.trim().toLowerCase();
-    if (!kw) return;
-    if (items.some((r) => r.keyword === kw)) {
+    const keyword = newKw.trim().toLowerCase();
+    if (!keyword) return;
+    if (items.some((r) => r.keyword === keyword)) {
       setDupError(true);
       return;
     }
     setDupError(false);
-    setItems((prev) => [{ keyword: kw, category: newCat }, ...prev]);
-    setIsDirty(true);
+    edit((prev) => [withId({ keyword, category: newCat }), ...prev]);
     setNewKw("");
     setNewCat("Wants");
   };
-  const handleRuleCategoryChange = (i: number, category: Category) => {
-    setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, category } : r)));
-    setIsDirty(true);
-  };
-  const handleRuleKeywordChange = (i: number, keyword: string) => {
-    setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, keyword } : r)));
-    setIsDirty(true);
-  };
-  const handleRemoveRule = (i: number) => {
-    setItems((prev) => prev.filter((_, idx) => idx !== i));
-    setIsDirty(true);
-  };
+  const updateRule = (id: number, patch: Partial<CategoryRule>) =>
+    edit((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); setConfirmDelete(false); };
 
   const handleBulkDelete = () => {
-    setItems((prev) => prev.filter((r) => !selected.has(r.keyword)));
-    setIsDirty(true);
+    edit((prev) => prev.filter((r) => !selected.has(r.id)));
     exitSelectMode();
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    setError(false);
-    try {
-      await updateRules(items);
-      setSaved(true);
-      setIsDirty(false);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setError(true);
-    } finally {
-      setIsSaving(false);
-    }
+    const saved = await run(() => updateRules(items.map(({ keyword, category }) => ({ keyword, category }))));
+    if (saved) setIsDirty(false);
   };
 
-  const visible = items
-    .map((r, i) => ({ r, i }))
-    .filter(({ r }) =>
-      (!search || r.keyword.includes(search.toLowerCase())) &&
-      (!catFilter || r.category === catFilter)
-    );
-
-  const allVisibleSelected = visible.length > 0 && visible.every(({ r }) => selected.has(r.keyword));
+  const visible = items.filter((r) =>
+    (!search || r.keyword.includes(search.toLowerCase())) && (!catFilter || r.category === catFilter)
+  );
+  const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.id));
 
   const toggleSelectAll = () => {
-    if (allVisibleSelected) {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        visible.forEach(({ r }) => next.delete(r.keyword));
-        return next;
-      });
-    } else {
-      setSelected((prev) => new Set([...prev, ...visible.map(({ r }) => r.keyword)]));
-    }
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const r of visible) {
+        if (allVisibleSelected) next.delete(r.id);
+        else next.add(r.id);
+      }
+      return next;
+    });
   };
+
+  const toggleSelected = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <div className="flex flex-col gap-4">
@@ -128,7 +115,7 @@ export function RulesForm({ rules, updateRules }: {
               id="rule-kw"
               value={newKw}
               onChange={(e) => { setNewKw(e.target.value); setDupError(false); }}
-              onKeyDown={(e) => e.key === "Enter" && handleAddRule()}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddRule(); }}
               placeholder="e.g. netflix"
               className={cn("h-11", dupError && "border-destructive focus-visible:ring-destructive")}
             />
@@ -138,19 +125,12 @@ export function RulesForm({ rules, updateRules }: {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="rule-cat">Category</Label>
-            <select
-              id="rule-cat"
-              value={newCat}
-              onChange={(e) => setNewCat(e.target.value as Category)}
-              className={cn("h-11 px-3 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring", getCategoryTextClass(newCat))}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <NativeSelect id="rule-cat" value={newCat} onChange={(e) => setNewCat(e.target.value as Category)} className="h-11 font-medium">
+              {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </NativeSelect>
           </div>
           <Button onClick={handleAddRule} variant="outline" className="w-full">
-            <Plus size={16} className="mr-1.5" />
+            <Plus size={16} className="mr-1.5" aria-hidden />
             Add rule
           </Button>
         </CardContent>
@@ -159,34 +139,31 @@ export function RulesForm({ rules, updateRules }: {
       {/* Search + category filter row */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search rules..."
+            placeholder="Search rules…"
             aria-label="Search rules"
-            className="w-full h-11 pl-9 pr-3 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 pl-9"
           />
         </div>
-        <select
+        <NativeSelect
           value={catFilter}
           onChange={(e) => setCatFilter(e.target.value as Category | "")}
           aria-label="Filter rules by category"
-          className="h-11 px-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring shrink-0"
+          className="h-11 px-2 shrink-0"
         >
           <option value="">All</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+          {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </NativeSelect>
       </div>
 
       {/* List header */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground max-w-[65ch]">{visible.length} of {items.length} rules</p>
         {!selectMode ? (
-          <button type="button"
-            onClick={() => setSelectMode(true)}
-            className="tap-area text-xs text-primary hover:underline"
-          >
+          <button type="button" onClick={() => setSelectMode(true)} className="tap-area text-xs text-primary hover:underline">
             Select
           </button>
         ) : (
@@ -204,48 +181,41 @@ export function RulesForm({ rules, updateRules }: {
       <Card className="overflow-hidden">
         <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
           <div className="divide-y divide-border">
-            {visible.map(({ r, i }) => (
-              <div key={r.keyword} className="flex items-center gap-2 py-2 px-3">
+            {visible.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 py-2 px-3">
                 {selectMode && (
                   <input
                     type="checkbox"
-                    checked={selected.has(r.keyword)}
-                    onChange={() => setSelected((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(r.keyword)) next.delete(r.keyword);
-                      else next.add(r.keyword);
-                      return next;
-                    })}
+                    checked={selected.has(r.id)}
+                    onChange={() => toggleSelected(r.id)}
                     aria-label={`Select rule ${r.keyword}`}
                     className="size-5 rounded accent-primary shrink-0 cursor-pointer"
                   />
                 )}
-                <input
+                <Input
                   value={r.keyword}
-                  onChange={(e) => handleRuleKeywordChange(i, e.target.value)}
+                  onChange={(e) => updateRule(r.id, { keyword: e.target.value })}
                   disabled={selectMode}
                   aria-label="Shop name contains"
-                  className="flex-1 min-w-0 h-11 sm:h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default"
+                  className="flex-1 min-w-0 h-11 sm:h-8 px-2 rounded-md bg-background focus-visible:ring-1 focus-visible:ring-offset-0 disabled:opacity-60 disabled:cursor-default"
                 />
-                <select
+                <NativeSelect
                   value={r.category}
-                  onChange={(e) => handleRuleCategoryChange(i, e.target.value as Category)}
+                  onChange={(e) => updateRule(r.id, { category: e.target.value as Category })}
                   disabled={selectMode}
                   aria-label={`Category for ${r.keyword || "this rule"}`}
-                  className={cn("h-11 sm:h-8 px-2 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60 disabled:cursor-default", getCategoryTextClass(r.category))}
+                  className={cn("h-11 sm:h-8 px-2 rounded-md bg-background text-xs font-medium", getCategoryTextClass(r.category))}
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </NativeSelect>
                 {!selectMode && (
                   <button
                     type="button"
-                    onClick={() => handleRemoveRule(i)}
+                    onClick={() => edit((prev) => prev.filter((x) => x.id !== r.id))}
                     className="text-muted-foreground hover:text-destructive transition-colors size-11 sm:size-8 flex items-center justify-center rounded-md shrink-0"
                     aria-label={`Remove ${r.keyword}`}
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={15} aria-hidden />
                   </button>
                 )}
               </div>
@@ -260,29 +230,20 @@ export function RulesForm({ rules, updateRules }: {
           <p className="text-sm text-foreground">{selected.size} rule{selected.size !== 1 ? "s" : ""} selected</p>
           {confirmDelete ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground max-w-[65ch]">Are you sure?</p>
+              <p className="text-xs text-muted-foreground">Are you sure?</p>
               <button type="button" onClick={handleBulkDelete} className="tap-area text-xs font-medium text-destructive hover:underline">Delete</button>
               <button type="button" onClick={() => setConfirmDelete(false)} className="tap-area text-xs text-muted-foreground hover:underline">Cancel</button>
             </div>
           ) : (
-            <button type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="tap-area flex items-center gap-1.5 text-sm font-medium text-destructive hover:underline"
-            >
-              <Trash2 size={14} />
+            <button type="button" onClick={() => setConfirmDelete(true)} className="tap-area flex items-center gap-1.5 text-sm font-medium text-destructive hover:underline">
+              <Trash2 size={14} aria-hidden />
               Delete {selected.size}
             </button>
           )}
         </div>
       )}
 
-      <Button
-        onClick={handleSave}
-        disabled={isSaving || !isDirty}
-        className={"w-full sm:w-auto sm:self-start sm:px-8"}
-      >
-        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save rules"}
-      </Button>
+      <SaveButton status={status} onClick={handleSave} disabled={!isDirty} label="Save rules" />
     </div>
   );
 }

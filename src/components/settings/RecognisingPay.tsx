@@ -18,11 +18,7 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
 
   const add = () => {
     const kw = draft.trim().toLowerCase();
-    if (!kw || keywords.includes(kw)) {
-      setDraft("");
-      return;
-    }
-    onChange([...keywords, kw]);
+    if (kw && !keywords.includes(kw)) onChange([...keywords, kw]);
     setDraft("");
   };
 

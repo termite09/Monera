@@ -88,7 +88,7 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
         <span className="size-2.5 rounded-sm shrink-0" style={{ background: color }} aria-hidden />
         <p className="text-sm font-semibold text-foreground">{category}</p>
         {allocated === 0 && infoText && (
-          <InfoIcon content={infoText} side="top" onClick={() => router.push("/settings?tab=setup")} />
+          <InfoIcon content={infoText} side="top" onClick={() => router.push("/settings?tab=basics")} />
         )}
       </div>
 

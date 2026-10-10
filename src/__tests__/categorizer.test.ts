@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchCategory, applyCategorizationRules } from "@/lib/categorizer";
+import { applyCategorizationRules } from "@/lib/categorizer";
 import type { Transaction, CategoryRule } from "@/types";
 
 const rules: CategoryRule[] = [
@@ -17,24 +17,27 @@ function makeTx(id: string, description: string, type: "expense" | "income" = "e
     type,
     currency: "EUR",
     category: "Uncategorized",
-    source: "revolut",
+    source: "statement",
     categorySource: "auto",
     excluded: false,
   };
 }
 
-describe("matchCategory", () => {
+describe("applyCategorizationRules — matching", () => {
+  const categoryOf = (description: string) => applyCategorizationRules([makeTx("1", description)], rules, {})[0].category;
+
   it("matches case-insensitively", () => {
-    expect(matchCategory("LIDL Supermarket", rules)).toBe("Needs");
-    expect(matchCategory("Netflix Monthly", rules)).toBe("Wants");
+    expect(categoryOf("LIDL Supermarket")).toBe("Needs");
+    expect(categoryOf("Netflix Monthly")).toBe("Wants");
   });
 
-  it("returns null when no rule matches", () => {
-    expect(matchCategory("Unknown merchant", rules)).toBeNull();
+  it("matches a keyword anywhere in the description", () => {
+    expect(categoryOf("Transfer To EUR Savings Account")).toBe("Savings");
   });
 
-  it("matches substring", () => {
-    expect(matchCategory("Transfer To EUR Savings Account", rules)).toBe("Savings");
+  it("uses the first matching rule", () => {
+    const [result] = applyCategorizationRules([makeTx("1", "Lidl Netflix")], rules, {});
+    expect(result.category).toBe("Needs");
   });
 });
 

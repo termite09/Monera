@@ -1,83 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { useAppData } from "@/contexts/AppDataContext";
-import { ordinal, cn, getDisplayCurrency } from "@/lib/utils";
-import { RecognisingPay } from "@/components/settings/RecognisingPay";
+import { ordinal, getDisplayCurrency } from "@/lib/utils";
+import { useSaveStatus } from "@/hooks/useSaveStatus";
+import type { Settings } from "@/types";
+import { RecognisingPay } from "./RecognisingPay";
+import { SaveButton } from "./SaveButton";
+import { BudgetSplitFields, fromSplitDraft, splitTotal, toSplitDraft } from "./BudgetSplitFields";
 
+const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
+const incomeText = (n: number | undefined) => (n ? String(n) : "");
+
+/** Basics: payday, standing pay, budget split and the keywords that recognise pay. Mount with a `key` to reset. */
 export function DefaultsForm({ settings, updateSettings }: {
-  settings: ReturnType<typeof useAppData>["settings"];
-  updateSettings: ReturnType<typeof useAppData>["updateSettings"];
+  settings: Settings;
+  updateSettings: (s: Settings) => Promise<void>;
 }) {
-  const [payday, setPayday] = useState(String(settings.paydayOfMonth ?? 1));
-  const [needs, setNeeds] = useState(String(settings.defaultBudgetRule.needs));
-  const [wants, setWants] = useState(String(settings.defaultBudgetRule.wants));
-  const [saving, setSaving] = useState(String(settings.defaultBudgetRule.savings));
-  const [defaultIncome, setDefaultIncome] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
-  const [salary, setSalary] = useState<string[]>(settings.salaryKeywords ?? []);
-  const [selfTransfer, setSelfTransfer] = useState<string[]>(settings.selfTransferKeywords ?? []);
-  const [savingsVault, setSavingsVault] = useState<string[]>(settings.savingsVaultKeywords ?? []);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(false);
+  const [payday, setPayday] = useState(String(settings.paydayOfMonth));
+  const [split, setSplit] = useState(() => toSplitDraft(settings.defaultBudgetRule));
+  const [defaultIncome, setDefaultIncome] = useState(incomeText(settings.defaultIncome));
+  const [salary, setSalary] = useState(settings.salaryKeywords);
+  const [selfTransfer, setSelfTransfer] = useState(settings.selfTransferKeywords);
+  const [savingsVault, setSavingsVault] = useState(settings.savingsVaultKeywords);
+  const { status, run } = useSaveStatus();
 
-  // Intentional sync from externally-loaded settings.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPayday(String(settings.paydayOfMonth ?? 1));
-    setNeeds(String(settings.defaultBudgetRule.needs));
-    setWants(String(settings.defaultBudgetRule.wants));
-    setSaving(String(settings.defaultBudgetRule.savings));
-    setDefaultIncome(settings.defaultIncome ? String(settings.defaultIncome) : "");
-    setSalary(settings.salaryKeywords ?? []);
-    setSelfTransfer(settings.selfTransferKeywords ?? []);
-    setSavingsVault(settings.savingsVaultKeywords ?? []);
-  }, [settings]);
+  const paydayNum = Math.min(31, Math.max(1, parseInt(payday, 10) || 1));
+  const total = splitTotal(split);
+  const savedSplit = toSplitDraft(settings.defaultBudgetRule);
+  const dirty =
+    payday !== String(settings.paydayOfMonth) ||
+    split.needs !== savedSplit.needs || split.wants !== savedSplit.wants || split.savings !== savedSplit.savings ||
+    defaultIncome !== incomeText(settings.defaultIncome) ||
+    !sameList(salary, settings.salaryKeywords) ||
+    !sameList(selfTransfer, settings.selfTransferKeywords) ||
+    !sameList(savingsVault, settings.savingsVaultKeywords);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (total !== 100) return;
-    setIsSaving(true);
-    setError(false);
-    const paydayNum = Math.min(31, Math.max(1, parseInt(payday) || 1));
-    try {
-      await updateSettings({
+    run(() =>
+      updateSettings({
         ...settings,
         paydayOfMonth: paydayNum,
         defaultIncome: Math.max(0, parseFloat(defaultIncome) || 0),
-        defaultBudgetRule: {
-          needs: parseFloat(needs) || 0,
-          wants: parseFloat(wants) || 0,
-          savings: parseFloat(saving) || 0,
-        },
+        defaultBudgetRule: fromSplitDraft(split),
         salaryKeywords: salary,
         selfTransferKeywords: selfTransfer,
         savingsVaultKeywords: savingsVault,
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      setError(true);
-    } finally {
-      setIsSaving(false);
-    }
+      })
+    );
   };
-
-  const paydayNum = parseInt(payday) || 1;
-  const total = (parseFloat(needs) || 0) + (parseFloat(wants) || 0) + (parseFloat(saving) || 0);
-  const dirty =
-    payday !== String(settings.paydayOfMonth ?? 1) ||
-    needs !== String(settings.defaultBudgetRule.needs) ||
-    wants !== String(settings.defaultBudgetRule.wants) ||
-    saving !== String(settings.defaultBudgetRule.savings) ||
-    defaultIncome !== (settings.defaultIncome ? String(settings.defaultIncome) : "") ||
-    JSON.stringify(salary) !== JSON.stringify(settings.salaryKeywords ?? []) ||
-    JSON.stringify(selfTransfer) !== JSON.stringify(settings.selfTransferKeywords ?? []) ||
-    JSON.stringify(savingsVault) !== JSON.stringify(settings.savingsVaultKeywords ?? []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,24 +100,7 @@ export function DefaultsForm({ settings, updateSettings }: {
           <CardTitle className="text-lg font-semibold text-foreground"><h3>Budget split</h3></CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-needs">Needs % <span className="font-normal text-muted-foreground">· rent, groceries, bills, transport</span></Label>
-            <Input id="d-needs" type="number" value={needs} onChange={(e) => setNeeds(e.target.value)} placeholder="50" className="h-11 max-w-28" />
-          </div>
-          <Separator />
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-wants">Wants % <span className="font-normal text-muted-foreground">· eating out, shopping, subscriptions</span></Label>
-            <Input id="d-wants" type="number" value={wants} onChange={(e) => setWants(e.target.value)} placeholder="30" className="h-11 max-w-28" />
-          </div>
-          <Separator />
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-savings">Savings % <span className="font-normal text-muted-foreground">· money you put aside or invest</span></Label>
-            <Input id="d-savings" type="number" value={saving} onChange={(e) => setSaving(e.target.value)} placeholder="20" className="h-11 max-w-28" />
-          </div>
-          <p className="text-xs text-muted-foreground max-w-[65ch]" aria-live="polite">
-            Adds up to <span className={cn("font-mono tabular-nums font-medium", total !== 100 ? "text-destructive" : "text-foreground")}>{total}%</span>
-            {total !== 100 && <span className="text-destructive">. It needs to be 100%.</span>}
-          </p>
+          <BudgetSplitFields idPrefix="basics" value={split} onChange={setSplit} showHints />
         </CardContent>
       </Card>
 
@@ -153,9 +110,7 @@ export function DefaultsForm({ settings, updateSettings }: {
         savingsVault={savingsVault} setSavingsVault={setSavingsVault}
       />
 
-      <Button onClick={handleSave} disabled={isSaving || !dirty || total !== 100} className={"w-full sm:w-auto sm:self-start sm:px-8"}>
-        {error ? "Couldn't save. Try signing out and back in." : saved ? "Saved" : isSaving ? "Saving…" : "Save"}
-      </Button>
+      <SaveButton status={status} onClick={handleSave} disabled={!dirty || total !== 100} />
     </div>
   );
 }

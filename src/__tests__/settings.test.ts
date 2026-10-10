@@ -3,14 +3,14 @@ import { migrateSettings } from "@/lib/migrateSettings";
 import { DEFAULT_SETTINGS, SETTINGS_VERSION } from "@/config/constants";
 import { Settings } from "@/types";
 
-const defaults = DEFAULT_SETTINGS as Settings;
+const defaults = DEFAULT_SETTINGS;
 
 describe("migrateSettings", () => {
   it("fills in missing keys from defaults", () => {
     const loaded: Partial<Settings> = { currency: "£", paydayOfMonth: 25 };
     const { migrated } = migrateSettings(loaded, defaults);
-    // Provided values are preserved
-    expect(migrated.currency).toBe("£");
+    // Provided values are preserved (a stored symbol becomes its ISO code)
+    expect(migrated.currency).toBe("GBP");
     expect(migrated.paydayOfMonth).toBe(25);
     // Missing keys come from defaults
     expect(migrated.salaryKeywords).toEqual(defaults.salaryKeywords);
@@ -58,12 +58,18 @@ describe("migrateSettings", () => {
 
   it("DEFAULT_SETTINGS includes settingsVersion set to SETTINGS_VERSION", () => {
     expect(defaults.settingsVersion).toBe(SETTINGS_VERSION);
-    expect(SETTINGS_VERSION).toBe(1);
+    expect(SETTINGS_VERSION).toBe(2);
   });
 
   it("backfills excludedSubscriptions to [] when missing", () => {
     const { migrated, changed } = migrateSettings({} as Settings, defaults);
     expect(migrated.excludedSubscriptions).toEqual([]);
+    expect(changed).toBe(true);
+  });
+
+  it("converts a stored currency symbol to its ISO code and asks to save it", () => {
+    const { migrated, changed } = migrateSettings({ ...defaults, currency: "€" }, defaults);
+    expect(migrated.currency).toBe("EUR");
     expect(changed).toBe(true);
   });
 });

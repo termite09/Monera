@@ -1,16 +1,16 @@
 "use client";
 
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Transaction } from "@/types";
-import { cn, formatCurrency, getMonthLabel } from "@/lib/utils";
-import { monthlyCategoryTotals } from "@/lib/reports";
+import { cn, formatCurrency, getPeriodLabel, toMonthKey } from "@/lib/utils";
+import type { CategoryTotals } from "@/lib/insights";
 import { MONTH_NAMES } from "@/config/constants";
 
 interface YearBarProps {
-  transactions: Transaction[];
+  /** The 12 pay periods keyed in `year`, January first. */
+  totals: CategoryTotals[];
   year: number;
   paydayOfMonth?: number;
-  onMonthClick?: (monthKey: string) => void;
+  onPeriodClick?: (periodKey: string) => void;
   /** The pay period still running, marked as unfinished. */
   currentKey?: string;
 }
@@ -22,12 +22,10 @@ const SERIES = [
   { key: "wants", name: "Wants", color: "var(--cat-wants)" },
 ] as const;
 
-export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick, currentKey }: YearBarProps) {
-  const totals = monthlyCategoryTotals(transactions, year, paydayOfMonth);
+export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, currentKey }: YearBarProps) {
   const data = MONTH_NAMES.map((name, idx) => ({
     month: name.slice(0, 3),
-    fullMonth: name,
-    monthKey: `${year}-${String(idx + 1).padStart(2, "0")}`,
+    periodKey: toMonthKey(year, idx),
     ...totals[idx],
   }));
 
@@ -38,10 +36,10 @@ export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick, c
           <BarChart
             data={data}
             margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
-            style={onMonthClick ? { cursor: "pointer" } : undefined}
-            onClick={onMonthClick ? (chartData) => {
+            style={onPeriodClick ? { cursor: "pointer" } : undefined}
+            onClick={onPeriodClick ? (chartData) => {
               const idx = chartData?.activeTooltipIndex;
-              if (typeof idx === "number" && data[idx]?.monthKey) onMonthClick(data[idx].monthKey);
+              if (typeof idx === "number" && data[idx]?.periodKey) onPeriodClick(data[idx].periodKey);
             } : undefined}
           >
             <XAxis dataKey="month" hide />
@@ -68,13 +66,13 @@ export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick, c
       <div className="grid grid-cols-12 border-t border-border pt-1">
         {data.map((d) => {
           const total = d.needs + d.wants;
-          const running = d.monthKey === currentKey;
-          const spoken = `Pay period ${getMonthLabel(d.monthKey, paydayOfMonth)}: ${formatCurrency(total)} spent${running ? " so far, still in progress" : ""}`;
-          return onMonthClick ? (
+          const running = d.periodKey === currentKey;
+          const spoken = `Pay period ${getPeriodLabel(d.periodKey, paydayOfMonth)}: ${formatCurrency(total)} spent${running ? " so far, still in progress" : ""}`;
+          return onPeriodClick ? (
             <button
-              key={d.monthKey}
+              key={d.periodKey}
               type="button"
-              onClick={() => onMonthClick(d.monthKey)}
+              onClick={() => onPeriodClick(d.periodKey)}
               aria-label={`${spoken}. Open on the dashboard`}
               className={cn(
                 "py-1 text-xs text-center rounded-md",
@@ -85,7 +83,7 @@ export function YearBar({ transactions, year, paydayOfMonth = 1, onMonthClick, c
               {d.month}
             </button>
           ) : (
-            <span key={d.monthKey} className="py-1 text-xs text-center text-muted-foreground" aria-label={spoken}>{d.month}</span>
+            <span key={d.periodKey} className="py-1 text-xs text-center text-muted-foreground" aria-label={spoken}>{d.month}</span>
           );
         })}
       </div>

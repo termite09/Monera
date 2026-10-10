@@ -11,8 +11,10 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function matchesAny(desc: string, keywords: string[]): boolean {
-  return keywords.some((k) => new RegExp(`\\b${escapeRegex(k)}\\b`, "i").test(desc));
+/** One case-insensitive whole-word pattern for a keyword list, or null when the list is empty. */
+function keywordPattern(keywords: string[]): RegExp | null {
+  const words = keywords.map((k) => k.trim()).filter(Boolean);
+  return words.length ? new RegExp(`\\b(?:${words.map(escapeRegex).join("|")})\\b`, "i") : null;
 }
 
 /**
@@ -29,14 +31,13 @@ export function filterInternalTransfers(
   transactions: Transaction[],
   { selfTransferKeywords = [], savingsVaultKeywords = [] }: TransferKeywords
 ): Transaction[] {
-  const self = selfTransferKeywords.map((k) => k.trim()).filter(Boolean);
-  const vault = savingsVaultKeywords.map((k) => k.trim()).filter(Boolean);
-  if (self.length === 0 && vault.length === 0) return transactions;
+  const self = keywordPattern(selfTransferKeywords);
+  const vault = keywordPattern(savingsVaultKeywords);
+  if (!self && !vault) return transactions;
 
   return transactions.filter((tx) => {
-    const desc = tx.description;
-    if (self.length && matchesAny(desc, self)) return false;
-    if (vault.length && tx.type === "income" && matchesAny(desc, vault)) return false;
+    if (self?.test(tx.description)) return false;
+    if (vault && tx.type === "income" && vault.test(tx.description)) return false;
     return true;
   });
 }

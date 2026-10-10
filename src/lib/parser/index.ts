@@ -1,33 +1,8 @@
 import { Transaction, ParsedCSV } from "@/types";
-import { parseRevolutCSV } from "./revolut";
-import { parseRevolutDate } from "./dates";
+import { parseRevolutCSV, isRevolutHeader } from "./revolut";
+import { parseStatementDate } from "./dates";
+import { splitCsvLine, csvLines, parseMoney } from "./csv";
 import { occurrenceId } from "@/lib/utils";
-
-function splitLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let q = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (q && line[i + 1] === '"') { cur += '"'; i++; } // RFC 4180 escaped quote
-      else q = !q;
-    } else if (ch === "," && !q) {
-      out.push(cur.trim());
-      cur = "";
-    } else cur += ch;
-  }
-  out.push(cur.trim());
-  return out;
-}
-
-function parseMoney(s: string): number {
-  if (!s) return NaN;
-  let t = s.replace(/[^\d.,-]/g, "").trim();
-  if (t.includes(",") && t.includes(".")) t = t.replace(/,/g, ""); // 1,234.56 -> thousands comma
-  else if (t.includes(",")) t = t.replace(",", "."); // 12,50 -> decimal comma
-  return parseFloat(t);
-}
 
 // Find the first header index whose name contains any of the candidates
 function findCol(headers: string[], candidates: string[]): number {
@@ -38,21 +13,13 @@ function findCol(headers: string[], candidates: string[]): number {
   return -1;
 }
 
-function isRevolut(headers: string[]): boolean {
-  const h = headers.map((x) => x.toLowerCase());
-  return h.includes("type") && h.includes("product") && h.includes("state") && h.some((x) => x.includes("completed date"));
-}
-
 /**
  * Generic CSV parser for non-Revolut exports. Auto-detects the date,
  * description and amount columns (or separate debit/credit columns) by header
  * name. Negative amounts (or debit column) are expenses, positives are income.
  */
-export function parseGenericCSV(content: string): ParsedCSV {
-  const lines = content.split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return { transactions: [], errors: ["Empty or invalid CSV file"] };
-
-  const headers = splitLine(lines[0]).map((h) => h.replace(/"/g, "").trim().toLowerCase());
+function parseGenericCSV(lines: string[]): ParsedCSV {
+  const headers = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
 
   const dateIdx = findCol(headers, ["completed date", "transaction date", "date posted", "posted", "date"]);
   const descIdx = findCol(headers, ["description", "name", "details", "merchant", "payee", "narrative", "reference", "memo"]);
@@ -69,10 +36,11 @@ export function parseGenericCSV(content: string): ParsedCSV {
   const transactions: Transaction[] = [];
   const counts = new Map<string, number>();
   for (let i = 1; i < lines.length; i++) {
-    const v = splitLine(lines[i]).map((x) => x.replace(/"/g, "").trim());
+    // Quote characters are dropped, as they always have been, so ids stay stable.
+    const v = splitCsvLine(lines[i]).map((x) => x.replace(/"/g, ""));
     if (v.length < headers.length) continue;
 
-    const date = parseRevolutDate(v[dateIdx]);
+    const date = parseStatementDate(v[dateIdx]);
     if (!date) continue;
 
     let amount = NaN;
@@ -93,7 +61,7 @@ export function parseGenericCSV(content: string): ParsedCSV {
       type: amount < 0 ? "expense" : "income",
       currency,
       category: "Uncategorized",
-      source: "revolut",
+      source: "statement",
       categorySource: "auto",
       excluded: false,
     });
@@ -107,7 +75,7 @@ export function parseGenericCSV(content: string): ParsedCSV {
  * falls back to the generic column-detecting parser.
  */
 export function parseCSV(content: string): ParsedCSV {
-  const firstLine = content.split("\n").find((l) => l.trim()) ?? "";
-  const headers = splitLine(firstLine).map((h) => h.replace(/"/g, "").trim());
-  return isRevolut(headers) ? parseRevolutCSV(content) : parseGenericCSV(content);
+  const lines = csvLines(content);
+  if (lines.length < 2) return { transactions: [], errors: ["Empty or invalid CSV file"] };
+  return isRevolutHeader(splitCsvLine(lines[0])) ? parseRevolutCSV(content) : parseGenericCSV(lines);
 }

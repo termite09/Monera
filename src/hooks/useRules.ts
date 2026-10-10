@@ -2,20 +2,19 @@ import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CategoryRule } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
-import { DEFAULT_CATEGORY_RULES } from "@/config/categories";
 import { DriveAuthError } from "@/lib/errors";
+import { notifySaveFailed } from "@/lib/notify";
 
-// Legacy marker: old saves wrote a bare CategoryRule[] and used this keyword
-// as a sentinel to detect user-customized rules vs. the seeded defaults.
-// New saves use { v: 1, customized: true, rules: [...] } — marker no longer needed.
+// Legacy format: old saves wrote a bare CategoryRule[] and seeded built-in
+// defaults; this keyword marked a list the user had customized. Uncustomized
+// legacy lists were the old seeded defaults, which are no longer used.
 const LEGACY_MARKER = "to eur savings";
 
 type StoredRulesFile = { v: 1; customized: boolean; rules: CategoryRule[] };
 
-export function useRules(
-  accessToken: string | undefined,
-  structure: DriveStructure | null
-) {
+const NO_RULES: CategoryRule[] = [];
+
+export function useRules(accessToken: string | undefined, structure: DriveStructure | null) {
   const qc = useQueryClient();
   const fileId = structure?.fileIds.categoryRules;
   const queryKey = useMemo(() => ["rules", fileId ?? "none"], [fileId]);
@@ -24,16 +23,8 @@ export function useRules(
     queryKey,
     queryFn: async () => {
       const raw = await readAppFile<StoredRulesFile | CategoryRule[]>(accessToken as string, fileId as string);
-      // New format: { v: 1, customized: true, rules: [...] }
-      if (raw && !Array.isArray(raw) && (raw as StoredRulesFile).v === 1) {
-        return (raw as StoredRulesFile).customized ? (raw as StoredRulesFile).rules : DEFAULT_CATEGORY_RULES;
-      }
-      // Legacy format: bare array — use marker sentinel for one-time backward compat.
-      if (Array.isArray(raw) && raw.length > 0) {
-        const wasCustomized = (raw as CategoryRule[]).some((r) => r.keyword === LEGACY_MARKER);
-        return wasCustomized ? (raw as CategoryRule[]) : DEFAULT_CATEGORY_RULES;
-      }
-      return DEFAULT_CATEGORY_RULES;
+      if (Array.isArray(raw)) return raw.some((r) => r.keyword === LEGACY_MARKER) ? raw : NO_RULES;
+      return raw?.v === 1 && raw.customized ? raw.rules : NO_RULES;
     },
     enabled: !!accessToken && !!fileId,
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
@@ -48,11 +39,17 @@ export function useRules(
         await writeAppFile(accessToken, fileId, { v: 1, customized: true, rules: next } satisfies StoredRulesFile);
       } catch (err) {
         qc.setQueryData(queryKey, prev);
+        notifySaveFailed();
         throw err;
       }
     },
     [accessToken, fileId, qc, queryKey]
   );
 
-  return { rules: query.data ?? DEFAULT_CATEGORY_RULES, updateRules };
+  return {
+    rules: query.data ?? NO_RULES,
+    updateRules,
+    // Settled (loaded from Drive, or failed and falling back to no rules).
+    rulesLoaded: query.isSuccess || query.isError,
+  };
 }

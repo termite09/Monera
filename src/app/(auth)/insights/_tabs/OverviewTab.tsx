@@ -1,19 +1,18 @@
+import type { ReactNode } from "react";
+import { ArrowRight, ArrowDown, ArrowUp } from "lucide-react";
 import { formatCurrency, getCategoryColor, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, ArrowDown, ArrowUp } from "lucide-react";
-import type { buildReport } from "@/lib/reports";
-
-type Report = ReturnType<typeof buildReport>;
+import type { PeriodInsights } from "@/lib/insights";
 
 interface Props {
-  report: Report;
+  insights: PeriodInsights;
   savingsRate: number | null;
   /** The user's own savings target, as a % of income. */
   savingsTargetPct: number;
 }
 
-export function OverviewTab({ report, savingsRate, savingsTargetPct }: Props) {
-  if (report.txCount === 0) {
+export function OverviewTab({ insights, savingsRate, savingsTargetPct }: Props) {
+  if (insights.txCount === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -23,6 +22,15 @@ export function OverviewTab({ report, savingsRate, savingsTargetPct }: Props) {
     );
   }
 
+  const now = insights.byCategory;
+  const before = insights.prevByCategory;
+  // Not-yet-sorted spending counts as Wants, as on the dashboard.
+  const unsorted = now.Uncategorized + before.Uncategorized > 0;
+  const rows = [
+    { key: "Needs" as const, label: "Needs", curr: now.Needs, prev: before.Needs },
+    { key: "Wants" as const, label: unsorted ? "Wants (incl. not sorted)" : "Wants", curr: now.Wants + now.Uncategorized, prev: before.Wants + before.Uncategorized },
+  ].filter((r) => r.curr > 0 || r.prev > 0);
+
   return (
     <>
       <Card>
@@ -31,13 +39,11 @@ export function OverviewTab({ report, savingsRate, savingsTargetPct }: Props) {
           <p className="mt-2 text-2xl leading-none font-medium tabular-nums font-mono text-foreground">
             {savingsRate === null ? "—" : `${savingsRate}%`}
           </p>
-          {savingsRate !== null && (
-            <p className="mt-1 text-xs text-muted-foreground">Target {savingsTargetPct}%</p>
-          )}
+          {savingsRate !== null && <p className="mt-1 text-xs text-muted-foreground">Target {savingsTargetPct}%</p>}
         </CardContent>
       </Card>
 
-      {report.prevSpending > 0 && report.spending > 0 ? (
+      {insights.prevSpending > 0 && insights.spending > 0 ? (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-lg font-semibold text-foreground">
@@ -48,54 +54,21 @@ export function OverviewTab({ report, savingsRate, savingsTargetPct }: Props) {
             <div className="flex items-center justify-between pb-1.5 text-xs font-medium text-muted-foreground">
               <span />
               <div className="flex items-center gap-2">
-                <span>{report.comparedToSamePoint ? "Last period, same day" : "Last period"}</span>
+                <span>{insights.comparedToSamePoint ? "Last period, same day" : "Last period"}</span>
                 <span className="opacity-0 pointer-events-none"><ArrowRight size={12} /></span>
                 <span>This period</span>
                 <span className="ml-1 min-w-14 text-right">Change</span>
               </div>
             </div>
-            {(() => {
-              // Not-yet-sorted spending counts as Wants, as on the dashboard.
-              const cur = (c: "Needs" | "Wants" | "Savings" | "Uncategorized") => report.byCategory.find((x) => x.category === c)?.total ?? 0;
-              const rows = [
-                { key: "Needs" as const, label: "Needs", curr: cur("Needs"), prev: report.prevByCategory.Needs },
-                {
-                  key: "Wants" as const,
-                  label: cur("Uncategorized") + report.prevByCategory.Uncategorized > 0 ? "Wants (incl. not sorted)" : "Wants",
-                  curr: cur("Wants") + cur("Uncategorized"),
-                  prev: report.prevByCategory.Wants + report.prevByCategory.Uncategorized,
-                },
-              ];
-              const row = (label: React.ReactNode, prev: number, curr: number, better: boolean, strong = false, swatch?: string) => (
-                <div className={cn("flex items-center justify-between py-2.5 border-b border-border/60", strong && "font-medium")}>
-                  <span className="flex items-center gap-2 text-sm text-foreground">
-                    {swatch && <span className="size-2 rounded-sm shrink-0" style={{ background: swatch }} aria-hidden />}
-                    {label}
-                  </span>
-                  <div className="flex items-center gap-2 text-sm tabular-nums font-mono">
-                    <span className="text-muted-foreground">{formatCurrency(prev)}</span>
-                    <ArrowRight size={12} className="text-muted-foreground shrink-0" aria-hidden />
-                    <span className={cn("text-foreground", strong && "font-semibold")}>{formatCurrency(curr)}</span>
-                    <Change diff={curr - prev} better={better} />
-                  </div>
-                </div>
-              );
-              const savedNow = cur("Savings");
-              const savedBefore = report.prevByCategory.Savings;
-              return (
-                <>
-                  {rows.map((r) => (r.curr === 0 && r.prev === 0 ? null : (
-                    <div key={r.key}>{row(r.label, r.prev, r.curr, r.curr - r.prev <= 0, false, getCategoryColor(r.key))}</div>
-                  )))}
-                  {row("Total spent", report.prevSpending, report.spending, report.spending - report.prevSpending <= 0, true)}
-                  {(savedNow > 0 || savedBefore > 0) && (
-                    <div className="pt-3">
-                      {row("Moved to savings", savedBefore, savedNow, savedNow - savedBefore >= 0, false, getCategoryColor("Savings"))}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+            {rows.map((r) => (
+              <ComparisonRow key={r.key} label={r.label} prev={r.prev} curr={r.curr} lowerIsBetter swatch={getCategoryColor(r.key)} />
+            ))}
+            <ComparisonRow label="Total spent" prev={insights.prevSpending} curr={insights.spending} lowerIsBetter strong />
+            {(now.Savings > 0 || before.Savings > 0) && (
+              <div className="pt-3">
+                <ComparisonRow label="Moved to savings" prev={before.Savings} curr={now.Savings} swatch={getCategoryColor("Savings")} />
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -106,6 +79,32 @@ export function OverviewTab({ report, savingsRate, savingsTargetPct }: Props) {
         </Card>
       )}
     </>
+  );
+}
+
+/** Last period → this period, with the change. Spending is better lower; savings better higher. */
+function ComparisonRow({ label, prev, curr, lowerIsBetter = false, strong = false, swatch }: {
+  label: ReactNode;
+  prev: number;
+  curr: number;
+  lowerIsBetter?: boolean;
+  strong?: boolean;
+  swatch?: string;
+}) {
+  const diff = curr - prev;
+  return (
+    <div className={cn("flex items-center justify-between py-2.5 border-b border-border/60", strong && "font-medium")}>
+      <span className="flex items-center gap-2 text-sm text-foreground">
+        {swatch && <span className="size-2 rounded-sm shrink-0" style={{ background: swatch }} aria-hidden />}
+        {label}
+      </span>
+      <div className="flex items-center gap-2 text-sm tabular-nums font-mono">
+        <span className="text-muted-foreground">{formatCurrency(prev)}</span>
+        <ArrowRight size={12} className="text-muted-foreground shrink-0" aria-hidden />
+        <span className={cn("text-foreground", strong && "font-semibold")}>{formatCurrency(curr)}</span>
+        <Change diff={diff} better={lowerIsBetter ? diff <= 0 : diff >= 0} />
+      </div>
+    </div>
   );
 }
 

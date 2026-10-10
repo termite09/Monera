@@ -141,3 +141,13 @@ body {
   background: var(--primary);
   color: var(--primary-foreground);
 }
+
+/* Header loading bar: a short highlight sweeping left to right. */
+@keyframes loading-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@utility animate-loading-sweep {
+  animation: loading-sweep 1.2s ease-in-out infinite;
+}

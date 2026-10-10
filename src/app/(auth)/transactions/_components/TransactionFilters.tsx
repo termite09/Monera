@@ -1,38 +1,51 @@
 import { Category } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "@/components/ui/segmented";
 import { Search, X, Plus } from "lucide-react";
 
 /** Which list is showing. Savings sits apart from Expenses: it isn't spending. */
 export type ListType = "expense" | "savings" | "income" | "all";
+export type RangeMode = "period" | "custom";
+export type CategoryFilter = Category | "All";
+
+const LIST_TYPES: { value: ListType; label: string }[] = [
+  { value: "expense", label: "Expenses" },
+  { value: "savings", label: "Savings" },
+  { value: "income", label: "Income" },
+  { value: "all", label: "All" },
+];
+
+const RANGE_MODES: { value: RangeMode; label: string }[] = [
+  { value: "period", label: "This period" },
+  { value: "custom", label: "Custom" },
+];
 
 interface Props {
   search: string;
   onSearchChange: (v: string) => void;
-  filterType: ListType;
-  onFilterTypeChange: (v: ListType) => void;
-  filterCat: Category | "All";
-  onFilterCatChange: (v: Category | "All") => void;
-  rangeMode: "period" | "custom";
-  onPeriodMode: () => void;
-  onCustomMode: () => void;
+  listType: ListType;
+  onListTypeChange: (v: ListType) => void;
+  category: CategoryFilter;
+  onCategoryChange: (v: CategoryFilter) => void;
+  rangeMode: RangeMode;
+  onRangeModeChange: (v: RangeMode) => void;
   customFrom: string;
   onCustomFromChange: (v: string) => void;
   customTo: string;
   onCustomToChange: (v: string) => void;
-  searching: boolean;
   onAdd: () => void;
 }
 
 export function TransactionFilters({
   search, onSearchChange,
-  filterType, onFilterTypeChange,
-  filterCat, onFilterCatChange,
-  rangeMode, onPeriodMode, onCustomMode,
+  listType, onListTypeChange,
+  category, onCategoryChange,
+  rangeMode, onRangeModeChange,
   customFrom, onCustomFromChange,
   customTo, onCustomToChange,
-  searching, onAdd,
+  onAdd,
 }: Props) {
   return (
     <div className="flex flex-col gap-2">
@@ -41,6 +54,7 @@ export function TransactionFilters({
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
+            id="tx-search"
             type="search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -54,81 +68,53 @@ export function TransactionFilters({
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               aria-label="Clear search"
             >
-              <X size={14} />
+              <X size={14} aria-hidden />
             </button>
           )}
         </div>
         <Button onClick={onAdd} size="sm" className="h-11 shrink-0 px-4">
-          <Plus size={14} className="mr-1.5" />
+          <Plus size={14} className="mr-1.5" aria-hidden />
           Add
         </Button>
       </div>
 
-      {/* Row 2: Type filter */}
-      <div className="grid grid-cols-4 gap-0.5 p-0.5 rounded-lg bg-secondary">
-        {(
-          [
-            { value: "expense" as const, label: "Expenses" },
-            { value: "savings" as const, label: "Savings" },
-            { value: "income" as const, label: "Income" },
-            { value: "all" as const, label: "All" },
-          ] as { value: ListType; label: string }[]
-        ).map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filterType === value}
-            onClick={() => onFilterTypeChange(value)}
-            className={cn(
-              "min-h-11 sm:min-h-8 rounded-md text-xs font-medium transition-colors",
-              filterType === value ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Row 2: List type */}
+      <Segmented
+        items={LIST_TYPES}
+        value={listType}
+        onChange={onListTypeChange}
+        label="Show"
+        kind="radio"
+        className="grid grid-cols-4 gap-0.5 p-0.5 rounded-lg bg-secondary"
+        itemClassName="min-h-11 sm:min-h-8 rounded-md text-xs"
+      />
 
       {/* Row 3: Category + Period/Custom */}
       <div className="flex items-center gap-2">
-        <div className={cn("flex-1 min-w-0", (filterType === "income" || filterType === "savings") && "invisible pointer-events-none")}>
-          <Select value={filterCat} onValueChange={(v) => onFilterCatChange(v as Category | "All")}>
-            <SelectTrigger className="h-11 sm:h-8 text-xs w-full" aria-label="Filter by category">
-              <SelectValue>{filterCat === "All" ? "All categories" : filterCat === "Uncategorized" ? "No category" : filterCat}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All categories</SelectItem>
-              <SelectItem value="Needs">Needs</SelectItem>
-              <SelectItem value="Wants">Wants</SelectItem>
-              <SelectItem value="Uncategorized">No category</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className={cn("flex-1 min-w-0", (listType === "income" || listType === "savings") && "invisible pointer-events-none")}>
+          <NativeSelect
+            value={category}
+            onChange={(e) => onCategoryChange(e.target.value as CategoryFilter)}
+            aria-label="Filter by category"
+            className="h-11 sm:h-8 text-xs w-full"
+          >
+            <option value="All">All categories</option>
+            <option value="Needs">Needs</option>
+            <option value="Wants">Wants</option>
+            <option value="Uncategorized">No category</option>
+          </NativeSelect>
         </div>
-        {!searching && (
-          <div className="flex gap-0.5 p-0.5 rounded-lg bg-secondary shrink-0">
-            <button
-              type="button"
-              aria-pressed={rangeMode === "period"}
-              onClick={onPeriodMode}
-              className={cn(
-                "px-2.5 min-h-10 sm:min-h-7 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                rangeMode === "period" ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
-              )}
-            >
-              This period
-            </button>
-            <button
-              type="button"
-              aria-pressed={rangeMode === "custom"}
-              onClick={onCustomMode}
-              className={cn(
-                "px-2.5 min-h-10 sm:min-h-7 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                rangeMode === "custom" ? "bg-card text-foreground border border-border" : "text-foreground/70 hover:text-foreground border border-transparent"
-              )}
-            >
-              Custom
-            </button>
-          </div>
+        {/* A search looks across the whole range already chosen, so the range stays put while searching. */}
+        {!search.trim() && (
+          <Segmented
+            items={RANGE_MODES}
+            value={rangeMode}
+            onChange={onRangeModeChange}
+            label="Date range"
+            kind="radio"
+            className="flex gap-0.5 p-0.5 rounded-lg bg-secondary shrink-0"
+            itemClassName="px-2.5 min-h-10 sm:min-h-7 rounded-md text-xs whitespace-nowrap"
+          />
         )}
       </div>
 

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { getMonthKey, getPeriodBounds, getMonthLabel, generateId, formatCurrency, roundMoney, getCategoryTextClass, currencySymbol, dominantCurrency, setDisplayCurrency } from "@/lib/utils";
+import { describe, it, expect, vi } from "vitest";
+import { getPeriodKey, getPeriodBounds, getPeriodLabel, generateId, formatCurrency, roundMoney, getCategoryTextClass, currencySymbol, dominantCurrency, setDisplayCurrency, addMonths, toMonthKey, getPeriodRange, inRange, currencyCode } from "@/lib/utils";
 
 describe("roundMoney", () => {
   it("eliminates floating-point accumulation drift to clean cents", () => {
@@ -16,19 +16,19 @@ describe("roundMoney", () => {
   });
 });
 
-describe("getMonthKey", () => {
+describe("getPeriodKey", () => {
   it("returns YYYY-MM for payday=1", () => {
-    expect(getMonthKey("2024-06-15")).toBe("2024-06");
+    expect(getPeriodKey("2024-06-15")).toBe("2024-06");
   });
 
   it("date before payday belongs to previous month key", () => {
     // Payday is 24th: Jun 10 belongs to May's period (May 24 – Jun 23)
-    expect(getMonthKey("2024-06-10", 24)).toBe("2024-05");
+    expect(getPeriodKey("2024-06-10", 24)).toBe("2024-05");
   });
 
   it("date on or after payday belongs to current month key", () => {
-    expect(getMonthKey("2024-06-24", 24)).toBe("2024-06");
-    expect(getMonthKey("2024-06-30", 24)).toBe("2024-06");
+    expect(getPeriodKey("2024-06-24", 24)).toBe("2024-06");
+    expect(getPeriodKey("2024-06-30", 24)).toBe("2024-06");
   });
 });
 
@@ -50,13 +50,13 @@ describe("getPeriodBounds", () => {
   });
 });
 
-describe("getMonthLabel", () => {
+describe("getPeriodLabel", () => {
   it("returns long month name for payday=1", () => {
-    expect(getMonthLabel("2024-06", 1)).toBe("June 2024");
+    expect(getPeriodLabel("2024-06", 1)).toBe("June 2024");
   });
 
   it("returns date range for non-1 payday", () => {
-    const label = getMonthLabel("2024-06", 24);
+    const label = getPeriodLabel("2024-06", 24);
     expect(label).toContain("24");
     expect(label).toContain("Jun");
   });
@@ -88,12 +88,20 @@ describe("formatCurrency", () => {
   });
 
   it("falls back to the display currency set from statements", () => {
+    // It's only ever set in the browser.
+    vi.stubGlobal("window", {});
     setDisplayCurrency("GBP");
     try {
       expect(formatCurrency(3)).toBe("£3.00");
     } finally {
       setDisplayCurrency("€");
+      vi.unstubAllGlobals();
     }
+  });
+
+  it("never changes on the server, so one user's currency can't reach another's page", () => {
+    setDisplayCurrency("GBP");
+    expect(formatCurrency(3)).toBe("€3.00");
   });
 });
 
@@ -104,9 +112,9 @@ describe("currencySymbol / dominantCurrency", () => {
 
   it("picks the most common statement currency and ignores recurring rows", () => {
     const rows = [
-      { currency: "GBP", source: "revolut" },
-      { currency: "GBP", source: "revolut" },
-      { currency: "EUR", source: "revolut" },
+      { currency: "GBP", source: "statement" },
+      { currency: "GBP", source: "statement" },
+      { currency: "EUR", source: "statement" },
       { currency: "EUR", source: "recurring" },
       { currency: "EUR", source: "recurring" },
     ];
@@ -136,18 +144,52 @@ describe("paydays on the 29th–31st", () => {
   });
 
   it("assigns the last day of a short month to the new period", () => {
-    expect(getMonthKey("2026-02-28", 31)).toBe("2026-02");
-    expect(getMonthKey("2026-02-27", 31)).toBe("2026-01");
-    expect(getMonthKey("2026-03-31", 31)).toBe("2026-03");
+    expect(getPeriodKey("2026-02-28", 31)).toBe("2026-02");
+    expect(getPeriodKey("2026-02-27", 31)).toBe("2026-01");
+    expect(getPeriodKey("2026-03-31", 31)).toBe("2026-03");
   });
 });
 
-describe("getMonthLabel — years", () => {
+describe("getPeriodLabel — years", () => {
   it("adds the years when a pay period crosses New Year", () => {
-    expect(getMonthLabel("2024-12", 24)).toBe("24 Dec 2024 – 23 Jan 2025");
+    expect(getPeriodLabel("2024-12", 24)).toBe("24 Dec 2024 – 23 Jan 2025");
   });
 
   it("adds the year for a past year's period", () => {
-    expect(getMonthLabel("2024-06", 24)).toBe("24 Jun – 23 Jul 2024");
+    expect(getPeriodLabel("2024-06", 24)).toBe("24 Jun – 23 Jul 2024");
+  });
+});
+
+describe("period keys", () => {
+  it("steps months across year boundaries", () => {
+    expect(addMonths("2024-01", -1)).toBe("2023-12");
+    expect(addMonths("2024-12", 1)).toBe("2025-01");
+    expect(toMonthKey(2024, -1)).toBe("2023-12");
+  });
+
+  it("gives a period's first and last day as strings", () => {
+    expect(getPeriodRange("2024-01", 31)).toEqual({ from: "2024-01-31", to: "2024-02-28" });
+    expect(inRange("2024-02-28", getPeriodRange("2024-01", 31))).toBe(true);
+    expect(inRange("2024-02-29", getPeriodRange("2024-01", 31))).toBe(false);
+  });
+
+  it("names the period a date falls in, payday-aware", () => {
+    expect(getPeriodKey("2026-10-10", 24)).toBe("2026-09");
+    expect(getPeriodKey("2026-10-24", 24)).toBe("2026-10");
+  });
+});
+
+describe("currencyCode", () => {
+  it("turns a symbol into its ISO code and leaves codes alone", () => {
+    expect(currencyCode("€")).toBe("EUR");
+    expect(currencyCode("GBP")).toBe("GBP");
+  });
+
+  it("counts symbol and code rows as the same currency", () => {
+    expect(dominantCurrency([
+      { currency: "€", source: "manual" },
+      { currency: "EUR", source: "statement" },
+      { currency: "GBP", source: "statement" },
+    ])).toBe("EUR");
   });
 });

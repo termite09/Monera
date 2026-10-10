@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { Repeat, Loader2, Pencil } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency, cleanDescription, cn, getCategoryTextClass, getCategorySwatchClass, toDateStr } from "@/lib/utils";
+import { formatCurrency, formatShortDate, cleanDescription, cn, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
+  /** Today as "YYYY-MM-DD" — later rows are upcoming. */
+  today: string;
   onDelete?: (id: string) => void | Promise<void>;
   onEdit?: (id: string) => void;
   selectMode?: boolean;
@@ -18,20 +20,13 @@ interface TransactionRowProps {
   showCategory?: boolean;
 }
 
-const THIS_YEAR = new Date().getFullYear();
-
-function parseDateParts(dateStr: string): { dayMonth: string; year: string | null } {
-  const d = new Date(dateStr + "T00:00:00");
-  return {
-    // en-GB writes "Sept"; three letters keeps the date column narrow and even.
-    dayMonth: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }).replace("Sept", "Sep"),
-    // Only worth the space when it isn't this year.
-    year: d.getFullYear() === THIS_YEAR ? null : String(d.getFullYear()),
-  };
-}
-
-export function TransactionRow({
+/**
+ * One transaction in the list. Memoised: ticking one row's checkbox re-renders
+ * that row only, as long as the parent passes stable callbacks.
+ */
+export const TransactionRow = memo(function TransactionRow({
   transaction,
+  today,
   onDelete,
   onEdit,
   selectMode = false,
@@ -48,12 +43,14 @@ export function TransactionRow({
   const tx = transaction;
   const isIncome = tx.type === "income";
   const isRecurring = tx.source === "recurring";
-  const excluded = !!tx.excluded;
-  const { dayMonth, year } = parseDateParts(tx.date);
+  const excluded = tx.excluded;
+  // The year is only worth the space when it isn't this year.
+  const year = tx.date.slice(0, 4) === today.slice(0, 4) ? null : tx.date.slice(0, 4);
   // Future-dated rows (bills still to come) are listed but don't count yet.
-  const isUpcoming = tx.date > toDateStr(new Date());
+  const isUpcoming = tx.date > today;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const name = cleanDescription(tx.description);
 
   return (
     <div
@@ -67,7 +64,7 @@ export function TransactionRow({
     >
       {/* Date — day+month on top, year below when it isn't this year */}
       <div className="shrink-0 w-12 sm:w-14 pt-0.5 flex flex-col leading-tight">
-        <span className="text-xs text-muted-foreground tabular-nums font-mono">{dayMonth}</span>
+        <span className="text-xs text-muted-foreground tabular-nums font-mono">{formatShortDate(tx.date)}</span>
         {year && <span className="text-xs text-muted-foreground tabular-nums font-mono">{year}</span>}
       </div>
 
@@ -77,17 +74,17 @@ export function TransactionRow({
           {isRecurring && (
             <Repeat size={12} className="text-muted-foreground shrink-0 mt-0.5" role="img" aria-label="Regular bill" />
           )}
-          <span className="min-w-0 break-words">{cleanDescription(tx.description)}</span>
+          <span className="min-w-0 wrap-break-word">{name}</span>
         </span>
         {isUpcoming && (
           <span className="text-xs font-medium text-muted-foreground">Upcoming</span>
         )}
-        {tx.notes && <span className="text-xs text-muted-foreground break-words">{tx.notes}</span>}
+        {tx.notes && <span className="text-xs text-muted-foreground wrap-break-word">{tx.notes}</span>}
         {tx.source === "manual" && (
           <span className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2" onClick={stop}>
             Added by you
             {onEdit && !confirmDelete && (
-              <button type="button" onClick={() => onEdit(tx.id)} className="tap-area underline underline-offset-2 hover:text-foreground">
+              <button type="button" onClick={() => onEdit(tx.id)} aria-label={`Edit ${name}`} className="tap-area underline underline-offset-2 hover:text-foreground">
                 Edit
               </button>
             )}
@@ -96,6 +93,7 @@ export function TransactionRow({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
+                  aria-label={`Delete ${name} for good`}
                   onClick={async () => {
                     if (deleting) return;
                     setDeleting(true);
@@ -127,6 +125,7 @@ export function TransactionRow({
                   if (autoHideRef.current) clearTimeout(autoHideRef.current);
                   autoHideRef.current = setTimeout(() => setConfirmDelete(false), 5000);
                 }}
+                aria-label={`Delete ${name}`}
                 className="tap-area underline underline-offset-2 hover:text-foreground"
               >
                 Delete
@@ -144,7 +143,7 @@ export function TransactionRow({
             <button
               type="button"
               onClick={(e) => { stop(e); onCategory(tx); }}
-              aria-label={`Category: ${tx.category === "Uncategorized" ? "none" : tx.category}. Change`}
+              aria-label={`Category of ${name}: ${tx.category === "Uncategorized" ? "none" : tx.category}. Change`}
               className="-mx-1 -my-0.5 px-1 py-0.5 rounded-md hover:bg-secondary transition-colors"
             >
               <CategoryLabel tx={tx} />
@@ -173,14 +172,14 @@ export function TransactionRow({
             checked={checked}
             onChange={() => { /* handled in onClick so shift-click works */ }}
             onClick={(e) => onCheck(tx.id, e.shiftKey)}
-            aria-label={`Select ${cleanDescription(tx.description)}, ${isIncome ? "+" : "−"}${formatCurrency(tx.amount)}`}
+            aria-label={`Select ${name}, ${isIncome ? "+" : "−"}${formatCurrency(tx.amount)}`}
             className="size-4 cursor-pointer accent-primary rounded-sm"
           />
         )}
       </label>
     </div>
   );
-}
+});
 
 function CategoryLabel({ tx }: { tx: Transaction }) {
   return (

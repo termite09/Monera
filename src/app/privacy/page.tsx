@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         </Link>
 
         <h1 className="text-3xl font-serif text-foreground mb-2">Privacy Policy</h1>
-        <p className="text-sm text-muted-foreground mb-10">Last updated: June 2026</p>
+        <p className="text-sm text-muted-foreground mb-10">Last updated: October 2026</p>
 
         <div className="flex flex-col gap-8 text-sm text-foreground leading-relaxed max-w-md">
           <section>
@@ -39,11 +39,13 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <span className="font-medium">Name</span>: received in the authentication
-                response but not displayed or used by the application.
+                response and shown only to you, on your Settings screen. It is never stored on
+                Monera servers or shared.
               </li>
               <li>
                 <span className="font-medium">Profile picture</span>: received in the
-                authentication response but not displayed or used by the application.
+                authentication response and shown only to you, on your Settings screen. It is
+                never stored on Monera servers or shared.
               </li>
               <li>
                 <span className="font-medium">OAuth access token</span>: used to make
@@ -79,7 +81,7 @@ export default function PrivacyPage() {
             <ul className="flex flex-col gap-1 list-disc list-inside text-muted-foreground">
               <li>Creates and maintains a <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">Monera/</code> folder with subfolders <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">revolut-exports/</code> and <code className="bg-secondary text-foreground px-1 py-0.5 rounded text-xs">app-data/</code></li>
               <li>Reads and writes JSON data files: transaction records, category overrides, settings, category rules, exclusions, and a parse cache</li>
-              <li>Uploads CSV bank statement files you import into the app</li>
+              <li>Uploads the bank statement files (CSV or Excel) you import into the app</li>
               <li>Deletes files when you remove data within the app</li>
             </ul>
           </section>

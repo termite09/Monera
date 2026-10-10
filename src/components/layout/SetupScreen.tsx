@@ -1,6 +1,5 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,19 +9,12 @@ interface SetupScreenProps {
 }
 
 export function SetupScreen({ error, onRetry }: SetupScreenProps) {
-  const reduceMotion = useReducedMotion();
-
   return (
     <main
-      className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6"
+      className="min-h-dvh flex flex-col items-center justify-center bg-background px-6"
       style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <motion.div
-        initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reduceMotion ? 0 : 0.4, ease: "easeOut" }}
-        className="w-full max-w-sm flex flex-col items-center text-center"
-      >
+      <div className="w-full max-w-sm flex flex-col items-center text-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-400">
         <p className="text-4xl text-foreground font-serif">Monera</p>
 
         {error ? (
@@ -51,7 +43,7 @@ export function SetupScreen({ error, onRetry }: SetupScreenProps) {
             </p>
           </div>
         )}
-      </motion.div>
+      </div>
     </main>
   );
 }

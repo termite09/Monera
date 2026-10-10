@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { netExpenseTotal } from "@/lib/finance";
-import { useBudget } from "@/hooks/useBudget";
-import { buildReport, monthlyCategoryTotals } from "@/lib/reports";
+import { computeBudget } from "@/lib/budget";
+import { buildPeriodInsights, periodTotalsForYear } from "@/lib/insights";
 import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
-import { getPeriodBounds } from "@/lib/utils";
+import { addMonths, getPeriodBounds } from "@/lib/utils";
 import { Transaction, Settings, RecurringPayment } from "@/types";
 
 const MONTH = "2024-06";
@@ -30,7 +30,7 @@ function tx(p: Partial<Transaction> & { amount: number; type: Transaction["type"
     description: "x",
     currency: "EUR",
     category: "Wants",
-    source: "revolut",
+    source: "statement",
     categorySource: "auto",
     excluded: false,
     ...p,
@@ -66,8 +66,8 @@ function periodScoped(txs: Transaction[]): Transaction[] {
 describe("cross-page spending consistency", () => {
   it("dashboard, reports, and transactions net totals all agree", () => {
     const allTxs = buildFixture();
-    const dashboard = useBudget(allTxs, settings, MONTH).summary.totalExpenses;
-    const reports = buildReport(allTxs, MONTH, PAYDAY).totalSpent;
+    const dashboard = computeBudget(allTxs, settings, MONTH).summary.totalExpenses;
+    const reports = buildPeriodInsights(allTxs, MONTH, PAYDAY).totalSpent;
     const transactionsPage = netExpenseTotal(periodScoped(allTxs));
 
     // Needs 200+800, Wants (100+40)-30, Savings 150, excluded 500 ignored, salary not counted
@@ -78,7 +78,7 @@ describe("cross-page spending consistency", () => {
 
   it("year overview month total matches the dashboard category figures", () => {
     const allTxs = buildFixture();
-    const june = monthlyCategoryTotals(allTxs, 2024, PAYDAY)[5]; // index 5 = June
+    const june = periodTotalsForYear(allTxs, 2024, PAYDAY)[5]; // index 5 = June
     expect(june.needs).toBe(1000);
     expect(june.wants).toBe(110);
     expect(june.savings).toBe(150);
@@ -87,21 +87,21 @@ describe("cross-page spending consistency", () => {
 
   it("the manual transaction is counted everywhere (drop it -> every total falls by 40)", () => {
     const without = buildFixture(false);
-    expect(useBudget(without, settings, MONTH).summary.totalExpenses).toBe(1220);
-    expect(buildReport(without, MONTH, PAYDAY).totalSpent).toBe(1220);
+    expect(computeBudget(without, settings, MONTH).summary.totalExpenses).toBe(1220);
+    expect(buildPeriodInsights(without, MONTH, PAYDAY).totalSpent).toBe(1220);
     expect(netExpenseTotal(periodScoped(without))).toBe(1220);
   });
 
   it("the recurring bill is counted everywhere (without it Needs falls by 800)", () => {
     const noRecurring = buildFixture().filter((t) => t.source !== "recurring");
-    expect(monthlyCategoryTotals(noRecurring, 2024, PAYDAY)[5].needs).toBe(200);
-    expect(buildReport(noRecurring, MONTH, PAYDAY).totalSpent).toBe(460); // 200 + 110 + 150
+    expect(periodTotalsForYear(noRecurring, 2024, PAYDAY)[5].needs).toBe(200);
+    expect(buildPeriodInsights(noRecurring, MONTH, PAYDAY).totalSpent).toBe(460); // 200 + 110 + 150
   });
 
   it("the refund reduces Wants identically across surfaces", () => {
     const allTxs = buildFixture();
-    expect(useBudget(allTxs, settings, MONTH).summary.wants).toBe(110);
-    expect(monthlyCategoryTotals(allTxs, 2024, PAYDAY)[5].wants).toBe(110);
+    expect(computeBudget(allTxs, settings, MONTH).summary.wants).toBe(110);
+    expect(periodTotalsForYear(allTxs, 2024, PAYDAY)[5].wants).toBe(110);
   });
 });
 
@@ -119,14 +119,14 @@ describe("vs-last-period includes the previous period's recurring bills", () => 
   it("a period's Savings total is the same as current and as previous", () => {
     // As CURRENT May: real 50 + recurring 189 = 239
     const mayCurrent = [...real, ...getRecurringTransactions(rentBill, "2024-05", PAYDAY, "EUR")];
-    const mayAsCurrent = buildReport(mayCurrent, "2024-05", PAYDAY).byCategory.find((c) => c.category === "Savings")!.total;
+    const mayAsCurrent = buildPeriodInsights(mayCurrent, "2024-05", PAYDAY).byCategory.Savings;
     expect(mayAsCurrent).toBe(239);
 
     // Viewed from June: the page spans recurring across [prev, current] periods.
-    const { start: curStart, end: curEnd } = getPeriodBounds("2024-06", PAYDAY);
-    const prevStart = new Date(curStart.getFullYear(), curStart.getMonth() - 1, curStart.getDate());
+    const prevStart = getPeriodBounds(addMonths("2024-06", -1), PAYDAY).start;
+    const curEnd = getPeriodBounds("2024-06", PAYDAY).end;
     const juneAllTxs = [...real, ...getRecurringInRange(rentBill, prevStart, curEnd, PAYDAY, "EUR")];
-    const report = buildReport(juneAllTxs, "2024-06", PAYDAY);
+    const report = buildPeriodInsights(juneAllTxs, "2024-06", PAYDAY);
 
     // Previous period (May) Savings must match its current-period value.
     expect(report.prevByCategory.Savings).toBe(239);

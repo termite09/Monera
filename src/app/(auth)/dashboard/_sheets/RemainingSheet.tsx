@@ -1,9 +1,9 @@
-import { MonthSummary } from "@/types";
+import { PeriodSummary } from "@/types";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/utils";
 
 interface Props {
-  summary: MonthSummary;
+  summary: PeriodSummary;
   /** Pay counted this period — the deposit if it arrived, otherwise the expected amount. */
   salaryUsed: number;
   salaryFromStatement: boolean;

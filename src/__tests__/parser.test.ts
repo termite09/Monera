@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { parseRevolutCSV } from "@/lib/parser/revolut";
 import { generateId } from "@/lib/utils";
+import { parseMoney } from "@/lib/parser/csv";
+import { parseStatementDate } from "@/lib/parser/dates";
+import { parseCSV } from "@/lib/parser";
 
 const HEADER = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance";
 
@@ -90,5 +93,41 @@ describe("parseRevolutCSV", () => {
     const { transactions, errors } = parseRevolutCSV("");
     expect(transactions).toHaveLength(0);
     expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("parseMoney", () => {
+  it("reads the formats banks use", () => {
+    expect(parseMoney("-12.50")).toBe(-12.5);
+    expect(parseMoney("1,234.56")).toBe(1234.56);
+    expect(parseMoney("1.234,56")).toBe(1234.56);
+    expect(parseMoney("12,50")).toBe(12.5);
+    expect(parseMoney("1,234")).toBe(1234);
+    expect(parseMoney("€ -7.00")).toBe(-7);
+  });
+
+  it("returns NaN when there's no number", () => {
+    expect(parseMoney("")).toBeNaN();
+    expect(parseMoney("n/a")).toBeNaN();
+  });
+});
+
+describe("parseStatementDate", () => {
+  it("accepts ISO, European and (when unambiguous) US dates", () => {
+    expect(parseStatementDate("2024-06-10 14:02:11")).toBe("2024-06-10");
+    expect(parseStatementDate("10/06/2024")).toBe("2024-06-10");
+    expect(parseStatementDate("06/30/2024")).toBe("2024-06-30");
+    expect(parseStatementDate("31/02/2024")).toBeNull();
+  });
+});
+
+describe("parseCSV — generic bank exports", () => {
+  it("reads a debit/credit export with thousands separators", () => {
+    const csv = 'Date,Details,Paid out,Paid in\n10/06/2024,Rent,"1,250.00",\n11/06/2024,Salary,,"2,400.00"';
+    const { transactions } = parseCSV(csv);
+    expect(transactions.map((t) => [t.description, t.type, t.amount])).toEqual([
+      ["Rent", "expense", 1250],
+      ["Salary", "income", 2400],
+    ]);
   });
 });

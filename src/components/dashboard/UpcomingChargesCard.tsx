@@ -3,38 +3,35 @@
 import { useRouter } from "next/navigation";
 import { CalendarClock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatShortDate, MS_PER_DAY } from "@/lib/utils";
-import type { SafeToSpendBillItem } from "@/lib/safeToSpend";
+import { formatCurrency, formatShortDate, roundMoney, formatWeekdayDate, parseDateStr, MS_PER_DAY } from "@/lib/utils";
+import { billKind, type UpcomingBill } from "@/lib/safeToSpend";
+import type { PeriodTiming } from "@/types";
 
 interface Props {
   /** Exactly the charges Safe to spend holds back before payday. */
-  charges: SafeToSpendBillItem[];
-  periodTiming: "current" | "past" | "future";
+  charges: UpcomingBill[];
+  periodTiming: PeriodTiming;
+  /** "YYYY-MM-DD" */
+  today: string;
   /** e.g. "24 Oct" */
   paydayLabel: string;
 }
 
-function whenLabel(dateStr: string): string {
-  const today = new Date();
-  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const target = new Date(dateStr + "T00:00:00");
-  const diffDays = Math.round((target.getTime() - todayMidnight.getTime()) / MS_PER_DAY);
+function whenLabel(dateStr: string, today: string): string {
+  const diffDays = Math.round((parseDateStr(dateStr).getTime() - parseDateStr(today).getTime()) / MS_PER_DAY);
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Tomorrow";
-  return target.toLocaleDateString("en-GB", { weekday: "short" }) + " " + formatShortDate(dateStr);
+  return formatWeekdayDate(dateStr);
 }
 
-function kindLabel(c: SafeToSpendBillItem): string {
-  if (c.estimated) return c.lastChargeDate ? `Expected · last charged ${formatShortDate(c.lastChargeDate)}` : "Expected";
-  if (c.category === "Savings") return "Savings transfer";
-  if (c.source === "manual") return "Added by you";
-  return "Regular bill";
+function kindLabel(c: UpcomingBill): string {
+  return c.estimated && c.lastChargeDate ? `${billKind(c)} · last charged ${formatShortDate(c.lastChargeDate)}` : billKind(c);
 }
 
-export function UpcomingChargesCard({ charges, periodTiming, paydayLabel }: Props) {
+export function UpcomingChargesCard({ charges, periodTiming, today, paydayLabel }: Props) {
   const router = useRouter();
   const hasEstimated = charges.some((c) => c.estimated);
-  const total = charges.reduce((s, c) => s + c.amount, 0);
+  const total = roundMoney(charges.reduce((s, c) => s + c.amount, 0));
 
   return (
     <Card className="md:flex md:flex-col">
@@ -67,7 +64,7 @@ export function UpcomingChargesCard({ charges, periodTiming, paydayLabel }: Prop
                     {charge.estimated && <span aria-label="about">~</span>}
                     {formatCurrency(charge.amount)}
                   </p>
-                  <p className="text-xs text-muted-foreground">{whenLabel(charge.date)}</p>
+                  <p className="text-xs text-muted-foreground">{whenLabel(charge.date, today)}</p>
                 </div>
               </li>
             ))}

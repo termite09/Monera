@@ -2,11 +2,14 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Category } from "@/types";
 
+export const MS_PER_DAY = 86_400_000;
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", GBP: "£", USD: "$" };
+const SYMBOL_CODES: Record<string, string> = { "€": "EUR", "£": "GBP", "$": "USD" };
 
 /** Turns an ISO code ("GBP") into its symbol ("£"); symbols pass through unchanged. */
 export function currencySymbol(currency: string): string {
@@ -14,12 +17,18 @@ export function currencySymbol(currency: string): string {
   return /^[A-Z]{3}$/.test(currency) ? `${currency} ` : currency;
 }
 
-// The currency every amount is shown in. Set once per render by AppDataProvider
-// from the user's statements, so formatCurrency() call sites don't each need it
-// threaded through.
+/** Turns a symbol ("€") into its ISO code ("EUR"); codes pass through unchanged. */
+export function currencyCode(currency: string): string {
+  return SYMBOL_CODES[currency.trim()] ?? currency;
+}
+
+// The currency every amount is shown in. Set by AppDataProvider from the user's
+// statements, so formatCurrency() call sites don't each need it threaded through.
+// Only ever changed in the browser, so the server's copy can't leak between users.
 let displayCurrency = "€";
 
 export function setDisplayCurrency(currency: string): void {
+  if (typeof window === "undefined") return;
   displayCurrency = currencySymbol(currency);
 }
 
@@ -32,7 +41,8 @@ export function dominantCurrency(transactions: { currency: string; source: strin
   const counts = new Map<string, number>();
   for (const tx of transactions) {
     if (tx.source === "recurring" || !tx.currency) continue;
-    counts.set(tx.currency, (counts.get(tx.currency) ?? 0) + 1);
+    const code = currencyCode(tx.currency);
+    counts.set(code, (counts.get(code) ?? 0) + 1);
   }
   let best: string | null = null;
   let bestCount = 0;
@@ -40,74 +50,147 @@ export function dominantCurrency(transactions: { currency: string; source: strin
   return best;
 }
 
+// Building an Intl formatter is the expensive part of formatting, so each one
+// is created once and reused for every amount and date on screen.
+const moneyFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dayMonthFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+const dayMonthYearFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const monthYearShortFormat = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" });
+const monthYearLongFormat = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" });
+const monthShortFormat = new Intl.DateTimeFormat("en-GB", { month: "short" });
+const weekdayShortFormat = new Intl.DateTimeFormat("en-GB", { weekday: "short" });
+const longDateFormat = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
+
 export function formatCurrency(amount: number, currency?: string): string {
   const symbol = currency ? currencySymbol(currency) : displayCurrency;
-  return `${symbol}${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${symbol}${moneyFormat.format(amount)}`;
 }
 
 // en-GB abbreviates September as "Sept"; every other month is three letters.
 // One style everywhere: "7 Sep", "24 Sep – 23 Oct", "7 Sep 2025".
 const evenMonth = (s: string) => s.replace("Sept", "Sep");
 
-export function formatDate(dateStr: string): string {
-  // Date-only strings ("YYYY-MM-DD") must be pinned to local midnight, otherwise
-  // they parse as UTC and render a day early in negative-offset timezones. Full
-  // ISO timestamps (e.g. Drive's createdTime) already carry a zone, so pass through.
-  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
-  const date = new Date(isDateOnly ? dateStr + "T00:00:00" : dateStr);
-  return evenMonth(date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+/** A "YYYY-MM-DD" date at local midnight (a bare ISO date would parse as UTC). */
+export function parseDateStr(dateStr: string): Date {
+  return new Date(dateStr + "T00:00:00");
 }
 
+export function formatDate(dateStr: string): string {
+  // Full ISO timestamps (e.g. Drive's createdTime) already carry a zone, so only
+  // date-only strings are pinned to local midnight.
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+  return evenMonth(dayMonthYearFormat.format(isDateOnly ? parseDateStr(dateStr) : new Date(dateStr)));
+}
+
+/** "7 Sep" */
 export function formatShortDate(dateStr: string): string {
-  return evenMonth(new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+  return evenMonth(dayMonthFormat.format(parseDateStr(dateStr)));
+}
+
+/** "Sep 2025" (short) or "September 2025" (long) for a "YYYY-MM" key. */
+export function formatMonthYear(monthKey: string, style: "short" | "long" = "short"): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const date = new Date(y, m - 1, 1);
+  return style === "long" ? monthYearLongFormat.format(date) : evenMonth(monthYearShortFormat.format(date));
+}
+
+/** "Sep" */
+export function formatMonthShort(dateStr: string): string {
+  return evenMonth(monthShortFormat.format(parseDateStr(dateStr)));
+}
+
+/** "Mon 7 Sep" */
+export function formatWeekdayDate(dateStr: string): string {
+  return `${weekdayShortFormat.format(parseDateStr(dateStr))} ${formatShortDate(dateStr)}`;
+}
+
+/** "Monday 7 September" */
+export function formatLongDate(date: Date): string {
+  return longDateFormat.format(date);
+}
+
+export function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+/** A day of the month, moved to the month's last day when the month is shorter (31 → 28 Feb). */
+export function clampDayToMonth(year: number, monthIndex: number, day: number): number {
+  return Math.min(day, daysInMonth(year, monthIndex));
+}
+
+/** The day pay lands in a given month — paydays on the 29th–31st fall on the last day of shorter months. */
+export function paydayIn(year: number, monthIndex: number, paydayOfMonth: number): number {
+  return clampDayToMonth(year, monthIndex, paydayOfMonth);
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** "YYYY-MM" for a year and 0-based month index; out-of-range months roll over (-1 → previous December). */
+export function toMonthKey(year: number, monthIndex: number): string {
+  const d = new Date(year, monthIndex, 1);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+/** Steps a "YYYY-MM" key by `n` months (negative goes back). */
+export function addMonths(monthKey: string, n: number): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  return toMonthKey(y, m - 1 + n);
+}
+
+/** Returns a YYYY-MM-DD string for the given date with no time component. */
+export function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 /**
- * The day pay lands in a given month. Paydays on the 29th–31st fall on the
- * month's last day when the month is shorter (e.g. the 31st → 28 Feb).
+ * The pay-period key ("YYYY-MM") a date belongs to. A period is keyed by the
+ * month it starts in, so with payday on the 24th, 10 Oct belongs to "YYYY-09".
  */
-export function paydayIn(year: number, monthIndex: number, paydayOfMonth: number): number {
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  return Math.min(paydayOfMonth, daysInMonth);
+export function getPeriodKey(date: Date | string, paydayOfMonth = 1): string {
+  const d = typeof date === "string" ? parseDateStr(date) : date;
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  return d.getDate() >= paydayIn(y, m, paydayOfMonth) ? toMonthKey(y, m) : toMonthKey(y, m - 1);
 }
 
-export function getMonthKey(date: Date | string, paydayOfMonth = 1): string {
-  const d = typeof date === "string" ? new Date(date + "T00:00:00") : date;
-  if (paydayOfMonth <= 1) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }
-  if (d.getDate() >= paydayIn(d.getFullYear(), d.getMonth(), paydayOfMonth)) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }
-  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-  return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
-}
-
-export function getPeriodBounds(monthKey: string, paydayOfMonth = 1): { start: Date; end: Date } {
-  const [year, month] = monthKey.split("-").map(Number);
+export function getPeriodBounds(periodKey: string, paydayOfMonth = 1): { start: Date; end: Date } {
+  const [year, month] = periodKey.split("-").map(Number);
   const start = new Date(year, month - 1, paydayIn(year, month - 1, paydayOfMonth));
   const end = new Date(year, month, paydayIn(year, month, paydayOfMonth));
   end.setMilliseconds(-1);
   return { start, end };
 }
 
+/** First and last day of a pay period as "YYYY-MM-DD", for cheap string comparisons. */
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export function getPeriodRange(periodKey: string, paydayOfMonth = 1): DateRange {
+  const { start, end } = getPeriodBounds(periodKey, paydayOfMonth);
+  return { from: toDateStr(start), to: toDateStr(end) };
+}
+
+/** True when a "YYYY-MM-DD" date falls inside the range (inclusive). ISO dates sort as strings. */
+export function inRange(dateStr: string, range: DateRange): boolean {
+  return dateStr >= range.from && dateStr <= range.to;
+}
+
 /**
  * Days from `now` until payday, counting today — "15 days left" on the 9th when
- * payday is the 24th. Safe to spend and the "By payday" projection share this so
- * they never disagree about how much of the period remains.
+ * payday is the 24th. Safe to spend, the bills list and the projection all use
+ * this so they never disagree about how much of the period remains.
  */
-export function daysToPayday(monthKey: string, paydayOfMonth: number, now: Date): number {
-  const { end } = getPeriodBounds(monthKey, paydayOfMonth);
+export function daysToPayday(periodKey: string, paydayOfMonth: number, now: Date): number {
+  const { end } = getPeriodBounds(periodKey, paydayOfMonth);
   return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
 }
 
-export function getMonthLabel(monthKey: string, paydayOfMonth = 1): string {
-  const [year, month] = monthKey.split("-").map(Number);
-  if (paydayOfMonth <= 1) {
-    return new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  }
-  const { start, end } = getPeriodBounds(monthKey, paydayOfMonth);
-  const fmt = (d: Date) => evenMonth(d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+export function getPeriodLabel(periodKey: string, paydayOfMonth = 1): string {
+  if (paydayOfMonth <= 1) return formatMonthYear(periodKey, "long");
+  const { start, end } = getPeriodBounds(periodKey, paydayOfMonth);
+  const fmt = (d: Date) => evenMonth(dayMonthFormat.format(d));
   // Add the year only when it isn't this year, so stepping back across January
   // stays unambiguous without cluttering the everyday label.
   if (start.getFullYear() !== end.getFullYear()) {
@@ -117,29 +200,21 @@ export function getMonthLabel(monthKey: string, paydayOfMonth = 1): string {
   return `${fmt(start)} – ${fmt(end)}${yearSuffix}`;
 }
 
-export function getCurrentMonth(paydayOfMonth = 1): string {
-  return getMonthKey(new Date(), paydayOfMonth);
+export function getCurrentPeriodKey(paydayOfMonth = 1): string {
+  return getPeriodKey(new Date(), paydayOfMonth);
 }
 
 /**
- * Every payday-period key (`YYYY-MM`) overlapping the date span `[from, to]`,
- * in chronological order. Used to generate recurring bills across an arbitrary
- * range. Returns [] when `from` is after `to`.
+ * Every pay-period key overlapping the date span `[from, to]`, in order. Used to
+ * generate recurring bills across an arbitrary range. Returns [] when `from` is
+ * after `to`.
  */
 export function periodKeysBetween(from: Date, to: Date, paydayOfMonth = 1): string[] {
-  const startKey = getMonthKey(from, paydayOfMonth);
-  const endKey = getMonthKey(to, paydayOfMonth);
-  if (startKey > endKey) return [];
-
+  const endKey = getPeriodKey(to, paydayOfMonth);
   const keys: string[] = [];
-  let [y, m] = startKey.split("-").map(Number); // m is 1-based
-  // Cap defensively so a bad range can never spin forever.
-  for (let i = 0; i < 1200; i++) {
-    const key = `${y}-${String(m).padStart(2, "0")}`;
+  // Capped so a bad range can never spin forever.
+  for (let key = getPeriodKey(from, paydayOfMonth); key <= endKey && keys.length < 1200; key = addMonths(key, 1)) {
     keys.push(key);
-    if (key === endKey) break;
-    m++;
-    if (m > 12) { m = 1; y++; }
   }
   return keys;
 }
@@ -147,9 +222,7 @@ export function periodKeysBetween(from: Date, to: Date, paydayOfMonth = 1): stri
 export function generateId(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }
   return Math.abs(hash).toString(36);
 }
@@ -172,39 +245,35 @@ export function occurrenceId(baseKey: string, counts: Map<string, number>): stri
  * lightness; green/amber/red are reserved for budget status. Resolves through
  * theme tokens so it follows dark mode (works for SVG strokes and inline styles).
  */
+const CATEGORY_COLORS: Record<Category, string> = {
+  Needs: "var(--cat-needs)",
+  Wants: "var(--cat-wants)",
+  Savings: "var(--cat-savings)",
+  Uncategorized: "var(--muted-foreground)",
+};
+
 export function getCategoryColor(category: Category): string {
-  const colors: Record<Category, string> = {
-    Needs: "var(--cat-needs)",
-    Wants: "var(--cat-wants)",
-    Savings: "var(--cat-savings)",
-    Uncategorized: "var(--muted-foreground)",
-  };
-  return colors[category];
+  return CATEGORY_COLORS[category];
 }
 
+const CATEGORY_SWATCHES: Record<Category, string> = {
+  Needs: "bg-cat-needs",
+  Wants: "bg-cat-wants",
+  Savings: "bg-cat-savings",
+  Uncategorized: "bg-muted-foreground/40",
+};
+
 /** Background class for a category swatch (always shown next to its label). */
-export function getCategorySwatchClass(category: string): string {
-  const classes: Record<string, string> = {
-    Needs: "bg-cat-needs",
-    Wants: "bg-cat-wants",
-    Savings: "bg-cat-savings",
-    Uncategorized: "bg-muted-foreground/40",
-  };
-  return classes[category] ?? "bg-muted-foreground/40";
+export function getCategorySwatchClass(category: Category): string {
+  return CATEGORY_SWATCHES[category];
 }
 
 /**
  * Text class for a category label. Labels stay in readable ink — the swatch
  * carries the category colour — so Wants never reads as a warning.
  */
-export function getCategoryTextClass(category: string): string {
-  return category === "Uncategorized" || !["Needs", "Wants", "Savings"].includes(category)
-    ? "text-muted-foreground"
-    : "text-foreground";
-}
-
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
+export function getCategoryTextClass(category: Category): string {
+  return category === "Uncategorized" ? "text-muted-foreground" : "text-foreground";
 }
 
 /**
@@ -228,15 +297,6 @@ export function ordinal(n: number): string {
   return `${n}th`;
 }
 
-export function getPrevMonthKey(monthKey: string): string {
-  const [y, m] = monthKey.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+export function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
-
-/** Returns a YYYY-MM-DD string for the given date with no time component. */
-export function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-export const MS_PER_DAY = 86_400_000;

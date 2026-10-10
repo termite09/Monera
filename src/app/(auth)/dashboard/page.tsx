@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import type { WeekdayChartMode } from "@/components/charts/WeekdayChart";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -18,16 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Segmented } from "@/components/ui/segmented";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { AppTour } from "@/components/onboarding/AppTour";
-import { useAppData } from "@/contexts/AppDataContext";
-import { useBudget } from "@/hooks/useBudget";
-import { getRecurringTransactions } from "@/lib/recurring";
-import { computeSafeToSpend, dailyAllowance, nextPayday } from "@/lib/safeToSpend";
-import { getPeriodBounds, formatDate, formatShortDate, formatCurrency, roundMoney, toDateStr, getCurrentMonth, getMonthKey, cleanDescription } from "@/lib/utils";
-import { getChartDateRange, buildWeekdayData, fullDayName } from "@/components/charts/WeekdayChart";
-import { WEEKDAY_LABELS } from "@/config/constants";
-import { detectSubscriptions } from "@/lib/reports";
-import { getUpcomingCharges } from "@/lib/upcomingCharges";
 import { UpcomingChargesCard } from "@/components/dashboard/UpcomingChargesCard";
+import { useAppData } from "@/contexts/AppDataContext";
+import { useToday } from "@/hooks/useToday";
+import { dailyAllowance } from "@/lib/safeToSpend";
+import { addMonths, cleanDescription, formatCurrency, formatDate, formatLongDate, formatShortDate, parseDateStr, toDateStr } from "@/lib/utils";
+import { buildWeekdayData, chartRangeLabel, fullDayName, weekdayTransactions, type WeekdayChartMode, type WeekdayPoint } from "@/lib/weekday";
+import { useDashboardData } from "./useDashboardData";
 import { IncomeSheet } from "./_sheets/IncomeSheet";
 import { ExpensesSheet } from "./_sheets/ExpensesSheet";
 import { SavingsSheet } from "./_sheets/SavingsSheet";
@@ -62,282 +58,85 @@ const CHART_MODES: { value: WeekdayChartMode; label: string }[] = [
   { value: "year", label: "Year" },
 ];
 
-const longDate = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+const EMPTY_CHART_LABEL: Record<WeekdayChartMode, string> = {
+  week: "No spending this week",
+  month: "No spending this calendar month",
+  period: "No spending this period",
+  year: "No spending this year",
+};
+
+const DONUTS = [
+  { category: "Needs", allocation: "needs", info: "Essential spending — rent, groceries, bills, transport." },
+  { category: "Wants", allocation: "wants", info: "Everything optional — eating out, shopping, subscriptions." },
+  { category: "Savings", allocation: "savings", info: "Money you put aside or invest." },
+] as const;
 
 type SheetKind = "income" | "expenses" | "savings" | "remaining" | "weekday" | "safe";
 
+/** The current calendar month as "YYYY-MM" — the Month chart is calendar-based, not pay periods. */
+const thisCalendarMonth = () => toDateStr(new Date()).slice(0, 7);
+
+const money = (n: number) => <span className="font-mono tabular-nums font-medium text-foreground">{formatCurrency(n)}</span>;
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { month, setMonth, transactions, settings, isLoading, ready, txError, refetch, updateSettings } = useAppData();
-
-  const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("week");
-  const [sheet, setSheet] = useState<SheetKind | null>(null);
-  const [expandedCat, setExpandedCat] = useState<string | null>(null);
-  const [weekdayFilter, setWeekdayFilter] = useState<{ label: string; dateStr: string | null } | null>(null);
-  // The "Month" tab gets its own month selector, independent of the header period.
-  // Month mode is plain calendar-month based (not payday periods), so it defaults
-  // to the current calendar month — `getMonthKey(_, 1)` strips any payday offset.
-  const [chartMonth, setChartMonth] = useState<string>(() => getMonthKey(new Date(), 1));
-  const paydayOfMonth = settings.paydayOfMonth ?? 1;
-
-  // In Month mode the chart follows its own picker; every other mode follows the
-  // dashboard's selected period.
-  const chartKey = weekdayMode === "month" ? chartMonth : month;
-
-  // Pure-derived from the chart mode/period — no state or effect needed.
-  const chartDateRange = getChartDateRange(weekdayMode, chartKey, paydayOfMonth);
-
-  const stepChartMonth = useCallback((delta: number) => {
-    setChartMonth((prev) => {
-      const [y, m] = prev.split("-").map(Number);
-      const d = new Date(y, m - 1 + delta, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    });
-  }, []);
-
-  const selectWeekdayMode = useCallback((m: WeekdayChartMode) => {
-    // Re-seed the Month picker to the current calendar month each time the tab is
-    // chosen, so it always opens on today's month regardless of payday offset.
-    if (m === "month") setChartMonth(getMonthKey(new Date(), 1));
-    setWeekdayMode(m);
-  }, []);
-
-  // Onboarding shows until the user completes the wizard (which persists
-  // `onboarded: true`), regardless of whether they uploaded first — so payday,
-  // salary, and budget split always get collected. Guarded by `ready` to avoid
-  // a flash before settings load.
-  const showOnboarding = ready && !settings.onboarded;
-  // Onboarded but no data yet → guide the user to import a statement instead of
-  // showing zero-value cards. Excludes the load-error case (so the retry banner
-  // shows instead) and recurring-only accounts (which do render real budget
-  // data). Manual transactions live in `transactions`, so they're counted too.
-  const showEmptyState =
-    ready && !isLoading && !txError && settings.onboarded &&
-    transactions.length === 0 && (settings.recurringPayments?.length ?? 0) === 0;
-
-  const recurringTxs = useMemo(
-    () => getRecurringTransactions(settings.recurringPayments ?? [], month, paydayOfMonth, settings.currency ?? "EUR"),
-    [settings.recurringPayments, month, paydayOfMonth, settings.currency]
-  );
-  const allTxs = useMemo(() => [...transactions, ...recurringTxs], [transactions, recurringTxs]);
-  const todayStr = useMemo(() => toDateStr(new Date()), []);
-  const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= todayStr), [allTxs, todayStr]);
-
+  const { periodKey, setPeriodKey, transactions, settings, currency, isLoading, ready, txError, refetch, updateSettings } = useAppData();
+  const { paydayOfMonth } = settings;
+  const today = useToday();
   const {
-    summary, budgetAllocations, salaryBasis, additionalIncome,
-    salaryUsed, salaryFromStatement, salaryTxIds, unconfirmedSalaryTx,
-  } = useBudget(currentTxs, settings, month);
-  // Detected subscriptions expected before payday. Safe to spend holds them back,
-  // and the "Upcoming bills" card lists exactly what Safe to spend holds back.
-  const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
-  const estimatedCharges = useMemo(() => {
-    const today = new Date(todayStr + "T00:00:00");
-    const end = getPeriodBounds(month, paydayOfMonth).end;
-    const daysToPayday = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / 86400000));
-    const subs = allSubscriptions.filter((s) => !(settings.excludedSubscriptions ?? []).includes(s.name));
-    return getUpcomingCharges([], subs, today, daysToPayday)
-      .filter((c) => c.isEstimated)
-      .map((c) => ({ name: c.name, amount: c.amount, date: c.date, lastChargeDate: c.lastChargeDate }));
-  }, [allSubscriptions, settings.excludedSubscriptions, todayStr, month, paydayOfMonth]);
+    range, currentTxs, budget, safeInfo, periodExpenseTxs, periodIncomeTxs, periodSavingsTxs,
+    latestImported, timing, noStatement, dueBy, payday,
+  } = useDashboardData({ transactions, settings, currency, periodKey, today });
+  const { summary, budgetAllocations, uncategorizedExpense, unconfirmedSalaryTx } = budget;
 
-  const safeInfo = useMemo(
-    () => computeSafeToSpend(allTxs, settings, month, summary, new Date(), budgetAllocations.savings, estimatedCharges),
-    [allTxs, settings, month, summary, budgetAllocations.savings, estimatedCharges]
-  );
-
-  // How current the numbers are: the newest transaction from an imported statement.
-  const latestImported = useMemo(
-    () => transactions.reduce<string | null>((latest, t) => (t.source === "revolut" && (!latest || t.date > latest) ? t.date : latest), null),
-    [transactions]
-  );
-  const periodStartStr = toDateStr(getPeriodBounds(month, paydayOfMonth).start);
-  const periodHasStatement = latestImported !== null && latestImported >= periodStartStr;
-
-  // "Is this your pay?" — confirming saves a salary keyword so the deposit is
-  // recognised every period; dismissing hides it for this visit.
+  const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const [expandedCat, setExpandedCat] = useState<"Needs" | "Wants" | null>(null);
+  const [weekdayPoint, setWeekdayPoint] = useState<WeekdayPoint | null>(null);
   const [salaryPromptDismissed, setSalaryPromptDismissed] = useState(false);
-  const confirmSalary = useCallback(async () => {
-    if (!unconfirmedSalaryTx) return;
-    const keyword = cleanDescription(unconfirmedSalaryTx.description).toLowerCase();
-    await updateSettings({ ...settings, salaryKeywords: [...(settings.salaryKeywords ?? []), keyword] });
-  }, [unconfirmedSalaryTx, settings, updateSettings]);
-  const configuredIncome = settings.monthlyBudgets[month]?.income ?? 0;
 
-  // Period transactions for drill-down sheets
-  const periodExpenseTxs = useMemo(() => {
-    const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return currentTxs
-      .filter((tx) => {
-        if (tx.excluded || tx.type !== "expense") return false;
-        const d = new Date(tx.date + "T00:00:00");
-        return d >= start && d <= end;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [currentTxs, month, paydayOfMonth]);
-
-  const uncategorizedExpense = roundMoney(
-    periodExpenseTxs.filter((t) => t.category === "Uncategorized").reduce((s, t) => s + t.amount, 0)
+  // The chart: Month mode has its own month picker; every other mode follows the
+  // pay period in the header.
+  const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("week");
+  const [chartMonth, setChartMonth] = useState(thisCalendarMonth);
+  const chartKey = weekdayMode === "month" ? chartMonth : periodKey;
+  const todayDate = useMemo(() => parseDateStr(today), [today]);
+  const chartData = useMemo(
+    () => buildWeekdayData(currentTxs, weekdayMode, chartKey, paydayOfMonth, todayDate),
+    [currentTxs, weekdayMode, chartKey, paydayOfMonth, todayDate]
   );
+  const chartLabel = chartRangeLabel(weekdayMode, chartKey, paydayOfMonth, todayDate);
 
-  const periodIncomeTxs = useMemo(() => {
-    const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return currentTxs.filter((tx) => {
-      if (tx.type !== "income" || tx.excluded) return false;
-      const d = new Date(tx.date + "T00:00:00");
-      return d >= start && d <= end;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [currentTxs, month, paydayOfMonth]);
-
-  const periodSavingsTxs = useMemo(() => {
-    const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return currentTxs.filter((tx) => {
-      if (tx.category !== "Savings" || tx.type !== "expense" || tx.excluded) return false;
-      const d = new Date(tx.date + "T00:00:00");
-      return d >= start && d <= end;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [currentTxs, month, paydayOfMonth]);
-
-  const handleDayClick = useCallback((label: string, dateStr: string | null) => {
-    setWeekdayFilter({ label, dateStr });
-    setSheet("weekday");
+  const selectWeekdayMode = useCallback((mode: WeekdayChartMode) => {
+    // The Month picker always opens on the current calendar month.
+    if (mode === "month") setChartMonth(thisCalendarMonth());
+    setWeekdayMode(mode);
   }, []);
 
   const closeSheet = useCallback(() => {
     setSheet(null);
     setExpandedCat(null);
-    setWeekdayFilter(null);
+    setWeekdayPoint(null);
+  }, []);
+  const goTo = (href: string) => { closeSheet(); router.push(href); };
+
+  const handleDayClick = useCallback((point: WeekdayPoint) => {
+    setWeekdayPoint(point);
+    setSheet("weekday");
   }, []);
 
-  // Weekday drill-down transactions. Every branch is bounded to the same date
-  // range the tapped bar represents, so the sheet's contents always reconcile
-  // with the bar — never the user's entire history.
-  const weekdayTxs = useMemo(() => {
-    if (!weekdayFilter) return [];
-    const { label, dateStr } = weekdayFilter;
+  // "Is this your pay?" — confirming saves a salary keyword so the deposit is
+  // recognised every period; dismissing hides it for this visit.
+  const confirmSalary = async () => {
+    if (!unconfirmedSalaryTx) return;
+    const keyword = cleanDescription(unconfirmedSalaryTx.description).toLowerCase();
+    await updateSettings({ ...settings, salaryKeywords: [...settings.salaryKeywords, keyword] });
+  };
 
-    // Week mode: one exact calendar date.
-    if (weekdayMode === "week" && dateStr && dateStr.length === 10) {
-      return currentTxs
-        .filter((t) => !t.excluded && t.date === dateStr)
-        .sort((a, b) => b.date.localeCompare(a.date));
-    }
-
-    // Period / month / year: a single weekday within the visible range only.
-    const dayIdx = WEEKDAY_LABELS.indexOf(label);
-    if (dayIdx === -1) return [];
-    let start: Date, end: Date;
-    if (weekdayMode === "month") {
-      const [y, m] = chartMonth.split("-").map(Number);
-      start = new Date(y, m - 1, 1);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(y, m, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (weekdayMode === "year") {
-      const [y] = month.split("-").map(Number);
-      start = new Date(y, 0, 1);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(y, 11, 31);
-      end.setHours(23, 59, 59, 999);
-    } else {
-      ({ start, end } = getPeriodBounds(month, paydayOfMonth));
-    }
-    return currentTxs
-      .filter((t) => {
-        if (t.excluded) return false;
-        const d = new Date(t.date + "T00:00:00");
-        if (d < start || d > end) return false;
-        return (d.getDay() + 6) % 7 === dayIdx;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [weekdayFilter, weekdayMode, currentTxs, month, chartMonth, paydayOfMonth]);
-
-  // Where the selected period sits relative to today, for the date line and the
-  // fallback copy when "safe to spend" doesn't apply.
-  const currentKey = getCurrentMonth(paydayOfMonth);
-  const periodTiming = month === currentKey ? "current" : month < currentKey ? "past" : "future";
-  const payday = nextPayday(month, paydayOfMonth);
-  const paydayLabel = longDate(payday);
-  const money = (n: number) => <span className="font-mono tabular-nums font-medium text-foreground">{formatCurrency(n)}</span>;
-
-  // The one tile that answers "can I spend?": forward-looking in the live period,
-  // the final "Remaining" otherwise.
-  const allowance = safeInfo.applicable ? dailyAllowance(safeInfo.safe, safeInfo.daysLeft) : null;
-  // Bills still to come, by category — the circles count them so that
-  // Needs left + Wants left is exactly Safe to spend.
-  const dueBy = { Needs: 0, Wants: 0, Savings: 0 };
-  for (const b of safeInfo.applicable ? safeInfo.billItems : []) {
-    if (b.category === "Needs") dueBy.Needs += b.amount;
-    else if (b.category === "Savings") dueBy.Savings += b.amount;
-    else dueBy.Wants += b.amount; // Wants and anything not yet sorted
-  }
-  // Unsorted spending counts against Wants, the flexible budget.
-  const wantsSpent = summary.wants + uncategorizedExpense;
-
-  const freshness = latestImported ? (
-    <>
-      Statement up to {formatShortDate(latestImported)}
-    </>
-  ) : null;
-  const noStatement = periodTiming === "current" && !periodHasStatement;
-  const heroCard = noStatement
-    ? {
-        // No statement covers this period yet — a confident number would be a guess.
-        label: "Safe to spend",
-        amount: null,
-        negative: false,
-        sentence: <>Add this pay period&apos;s statement to see what&apos;s safe to spend before payday on {paydayLabel}.</>,
-        note: latestImported ? <>Your latest statement ends {formatShortDate(latestImported)}.</> : null,
-        onClick: () => router.push("/upload"),
-      }
-    : safeInfo.applicable
-    ? {
-        label: "Safe to spend",
-        amount: safeInfo.safe,
-        negative: safeInfo.safe < 0,
-        sentence:
-          safeInfo.safe < 0 ? <>You&apos;ve spent {money(-safeInfo.safe)} more than is safe before payday on {paydayLabel}.</>
-          : allowance !== null && safeInfo.daysLeft > 1 ? <>About {money(allowance)} a day for the next {safeInfo.daysLeft} days, until payday on {paydayLabel}.</>
-          : allowance !== null ? <>Payday is tomorrow, {paydayLabel}.</>
-          : <>Nothing left to spend safely before payday on {paydayLabel}.</>,
-        note: freshness,
-        onClick: () => setSheet("safe" as const),
-      }
-    : {
-        label: "Remaining",
-        amount: summary.remaining,
-        negative: summary.remaining < 0,
-        sentence:
-          safeInfo.reason === "no-income" ? <>Add your pay in Settings to see what&apos;s safe to spend before payday.</>
-          : periodTiming === "future" ? <>This pay period hasn&apos;t started yet.</>
-          : summary.remaining >= 0 ? <>Left over from this pay period.</>
-          : <>You spent more than came in this pay period.</>,
-        note: periodTiming === "current" ? freshness : null,
-        onClick: () => setSheet("remaining" as const),
-      };
-
-  const summaryCards = [
-    {
-      // Until the pay shows up in a statement, the figure is only what the user
-      // told us to expect — so no "+", which would read as money received.
-      label: "Income",
-      amount: summary.income, sign: salaryBasis > 0 && !salaryFromStatement ? "" : "+", onClick: () => setSheet("income"),
-    },
-    // No statement for this period yet: we don't know what was spent or saved.
-    { label: "Spent", amount: noStatement ? null : summary.totalExpenses - summary.savings, onClick: () => setSheet("expenses") },
-    { label: "Saved", amount: noStatement ? null : summary.savings, onClick: () => setSheet("savings") },
-  ];
-
-  // One-line takeaway so the chart reads without an axis.
-  const chartPeak = buildWeekdayData(currentTxs, weekdayMode, chartKey, paydayOfMonth).find((d) => d.isMax);
-  const chartScope =
-    weekdayMode === "month" ? `in ${chartDateRange.split(" ")[0]}`
-    : weekdayMode === "year" ? "this year"
-    : "this period";
-  const chartTakeaway = !chartPeak ? null
-    : weekdayMode === "week" ? <>Most spent this week: {fullDayName(chartPeak.day)}, {money(chartPeak.amount)}.</>
-    : <>{fullDayName(chartPeak.day)}s cost you the most {chartScope}: {money(chartPeak.amount)}.</>;
-
-  if (showOnboarding) {
+  // Onboarding shows until the user completes the wizard (which persists
+  // `onboarded: true`), regardless of whether they uploaded first — so payday,
+  // salary, and budget split always get collected. Guarded by `ready` to avoid
+  // a flash before settings load.
+  if (ready && !settings.onboarded) {
     return (
       <PageShell>
         <Onboarding />
@@ -345,10 +144,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (showEmptyState) {
+  // Onboarded but no data yet → guide the user to import a statement instead of
+  // showing zero-value cards. Excludes the load-error case (so the retry banner
+  // shows instead) and bills-only accounts (which do render real budget data).
+  if (ready && !isLoading && !txError && transactions.length === 0 && settings.recurringPayments.length === 0) {
     return (
       <PageShell>
-        <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+        <Header periodKey={periodKey} onPeriodChange={setPeriodKey} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
         <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6">
           <Card>
             <CardContent className="py-14 flex flex-col items-center text-center gap-4">
@@ -359,9 +161,8 @@ export default function DashboardPage() {
                   Import a Revolut statement to see your spending, budgets, and insights here.
                 </p>
               </div>
-              <Button onClick={() => router.push("/upload")}>
-                <Upload size={16} className="mr-1.5" />
-                Import a statement
+              <Button asChild>
+                <Link href="/upload"><Upload size={16} className="mr-1.5" aria-hidden />Import a statement</Link>
               </Button>
             </CardContent>
           </Card>
@@ -370,19 +171,74 @@ export default function DashboardPage() {
     );
   }
 
+  const paydayLabel = formatLongDate(payday);
+  const freshness = latestImported ? <>Statement up to {formatShortDate(latestImported)}</> : null;
+
+  // The one tile that answers "can I spend?": forward-looking in the live period,
+  // the final "Remaining" otherwise.
+  const allowance = safeInfo.applicable ? dailyAllowance(safeInfo.safe, safeInfo.daysLeft) : null;
+  const heroCard = safeInfo.applicable
+    ? {
+        label: "Safe to spend",
+        amount: safeInfo.safe,
+        negative: safeInfo.safe < 0,
+        sentence:
+          safeInfo.safe < 0 ? <>You&apos;ve spent {money(-safeInfo.safe)} more than is safe before payday on {paydayLabel}.</>
+          : allowance !== null && safeInfo.daysLeft > 1 ? <>About {money(allowance)} a day for the next {safeInfo.daysLeft} days, until payday on {paydayLabel}.</>
+          : allowance !== null ? <>Payday is tomorrow, {paydayLabel}.</>
+          : <>Nothing left to spend safely before payday on {paydayLabel}.</>,
+        note: freshness,
+        onClick: () => setSheet("safe"),
+      }
+    : {
+        label: "Remaining",
+        amount: summary.remaining,
+        negative: summary.remaining < 0,
+        sentence:
+          safeInfo.reason === "no-income" ? <>Add your pay in Settings to see what&apos;s safe to spend before payday.</>
+          : timing === "future" ? <>This pay period hasn&apos;t started yet.</>
+          : summary.remaining >= 0 ? <>Left over from this pay period.</>
+          : <>You spent more than came in this pay period.</>,
+        note: timing === "current" ? freshness : null,
+        onClick: () => setSheet("remaining"),
+      };
+
+  const summaryCards = [
+    // Until the pay shows up in a statement, the figure is only what the user
+    // told us to expect — so no "+", which would read as money received.
+    { label: "Income", amount: summary.income, sign: budget.salaryBasis > 0 && !budget.salaryFromStatement ? "" : "+", onClick: () => setSheet("income") },
+    // No statement for this period yet: we don't know what was spent or saved.
+    { label: "Spent", amount: noStatement ? null : summary.totalExpenses - summary.savings, onClick: () => setSheet("expenses") },
+    { label: "Saved", amount: noStatement ? null : summary.savings, onClick: () => setSheet("savings") },
+  ];
+
+  const donutSpent = {
+    Needs: summary.needs,
+    // Unsorted spending counts against Wants, the flexible budget.
+    Wants: summary.wants + uncategorizedExpense,
+    Savings: summary.savings,
+  };
+
+  // One-line takeaway so the chart reads without an axis.
+  const chartPeak = chartData.find((d) => d.isMax);
+  const chartScope = weekdayMode === "month" ? `in ${chartLabel.split(" ")[0]}` : weekdayMode === "year" ? "this year" : "this period";
+  const chartTakeaway = !chartPeak ? null
+    : weekdayMode === "week" ? <>Most spent this week: {fullDayName(chartPeak.day)}, {money(chartPeak.amount)}.</>
+    : <>{fullDayName(chartPeak.day)}s cost you the most {chartScope}: {money(chartPeak.amount)}.</>;
+
   return (
     <PageShell>
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
+      <Header periodKey={periodKey} onPeriodChange={setPeriodKey} paydayOfMonth={paydayOfMonth} isLoading={isLoading} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-3 pt-4 md:max-w-none md:px-6 md:pt-3 md:pb-0">
         <h1 className="sr-only">Dashboard</h1>
         <p className="text-base text-muted-foreground">
-          {periodTiming === "current" ? (
-            <><span className="font-semibold text-foreground">Today</span> · {longDate(new Date())}</>
-          ) : periodTiming === "past" ? (
-            <><span className="font-semibold text-foreground">Past pay period</span> · ended {longDate(new Date(payday.getTime() - 86400000))}</>
+          {timing === "current" ? (
+            <><span className="font-semibold text-foreground">Today</span> · {formatLongDate(todayDate)}</>
+          ) : timing === "past" ? (
+            <><span className="font-semibold text-foreground">Past pay period</span> · ended {formatLongDate(parseDateStr(range.to))}</>
           ) : (
-            <><span className="font-semibold text-foreground">Upcoming pay period</span> · starts {longDate(getPeriodBounds(month, paydayOfMonth).start)}</>
+            <><span className="font-semibold text-foreground">Upcoming pay period</span> · starts {formatLongDate(parseDateStr(range.from))}</>
           )}
         </p>
 
@@ -414,8 +270,10 @@ export default function DashboardPage() {
                 <section aria-labelledby="safe-heading" className="rounded-xl border border-border bg-card p-5 md:px-6 flex flex-col gap-1.5">
                   <h2 id="safe-heading" className="text-sm font-semibold text-foreground">Safe to spend</h2>
                   <p className="font-mono tabular-nums font-medium text-3xl sm:text-4xl leading-tight text-muted-foreground" aria-hidden>—</p>
-                  <p className="text-base leading-relaxed text-foreground/80 max-w-[52ch]">{heroCard.sentence}</p>
-                  {heroCard.note && <p className="text-xs text-muted-foreground">{heroCard.note}</p>}
+                  <p className="text-base leading-relaxed text-foreground/80 max-w-[52ch]">
+                    Add this pay period&apos;s statement to see what&apos;s safe to spend before payday on {paydayLabel}.
+                  </p>
+                  {latestImported && <p className="text-xs text-muted-foreground">Your latest statement ends {formatShortDate(latestImported)}.</p>}
                   <Button asChild className="mt-2 self-start">
                     <Link href="/upload"><Upload size={16} className="mr-1.5" aria-hidden />Add this period&apos;s statement</Link>
                   </Button>
@@ -443,7 +301,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex gap-2 shrink-0">
               <Button size="sm" onClick={confirmSalary}>Yes, that&apos;s my pay</Button>
-              <Button size="sm" variant="outline" onClick={() => { setSalaryPromptDismissed(true); router.push("/settings?tab=setup"); }}>
+              <Button size="sm" variant="outline" onClick={() => { setSalaryPromptDismissed(true); router.push("/settings?tab=basics"); }}>
                 No
               </Button>
             </div>
@@ -459,33 +317,21 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="px-4 pb-5 md:px-6">
             <div className="grid grid-cols-3 gap-3 mt-2 md:max-w-2xl md:mx-auto">
-              <BudgetDonut
-                category="Needs"
-                spent={summary.needs}
-                due={dueBy.Needs}
-                allocated={budgetAllocations.needs}
-                expected={periodTiming === "current" && !periodHasStatement}
-                info="Essential spending — rent, groceries, bills, transport."
-                onClick={() => { setSheet("expenses"); setExpandedCat("Needs"); }}
-              />
-              <BudgetDonut
-                category="Wants"
-                spent={wantsSpent}
-                due={dueBy.Wants}
-                allocated={budgetAllocations.wants}
-                expected={periodTiming === "current" && !periodHasStatement}
-                info="Everything optional — eating out, shopping, subscriptions."
-                onClick={() => { setSheet("expenses"); setExpandedCat("Wants"); }}
-              />
-              <BudgetDonut
-                category="Savings"
-                spent={summary.savings}
-                due={dueBy.Savings}
-                allocated={budgetAllocations.savings}
-                expected={periodTiming === "current" && !periodHasStatement}
-                info="Money you put aside or invest."
-                onClick={() => setSheet("savings")}
-              />
+              {DONUTS.map(({ category, allocation, info }) => (
+                <BudgetDonut
+                  key={category}
+                  category={category}
+                  spent={donutSpent[category]}
+                  due={dueBy[category]}
+                  allocated={budgetAllocations[allocation]}
+                  expected={noStatement}
+                  info={info}
+                  onClick={() => {
+                    if (category !== "Savings") setExpandedCat(category);
+                    setSheet(category === "Savings" ? "savings" : "expenses");
+                  }}
+                />
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -493,8 +339,9 @@ export default function DashboardPage() {
         {/* Support row: Upcoming + Weekday side-by-side on desktop */}
         <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:items-start">
           <UpcomingChargesCard
-            charges={safeInfo.applicable ? safeInfo.billItems : []}
-            periodTiming={periodTiming}
+            charges={safeInfo.billItems}
+            periodTiming={timing}
+            today={today}
             paydayLabel={formatShortDate(toDateStr(payday))}
           />
 
@@ -516,16 +363,16 @@ export default function DashboardPage() {
               <div className="px-4 md:px-6 flex items-center gap-1 md:shrink-0">
                 <button
                   type="button"
-                  onClick={() => stepChartMonth(-1)}
+                  onClick={() => setChartMonth((m) => addMonths(m, -1))}
                   className="flex items-center justify-center size-11 sm:size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   aria-label="Previous month"
                 >
                   <ChevronLeft size={16} aria-hidden />
                 </button>
-                <span className="text-sm font-medium text-foreground w-32 text-center" aria-live="polite">{chartDateRange}</span>
+                <span className="text-sm font-medium text-foreground w-32 text-center" aria-live="polite">{chartLabel}</span>
                 <button
                   type="button"
-                  onClick={() => stepChartMonth(1)}
+                  onClick={() => setChartMonth((m) => addMonths(m, 1))}
                   className="flex items-center justify-center size-11 sm:size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   aria-label="Next month"
                 >
@@ -534,21 +381,17 @@ export default function DashboardPage() {
               </div>
             )}
             <p className="px-4 md:px-6 text-sm text-muted-foreground pb-2 md:shrink-0">
-              {chartTakeaway ?? (weekdayMode === "month" && !noStatement ? "No spending in this month." : chartDateRange)}
+              {chartTakeaway ?? (weekdayMode === "month" && !noStatement ? "No spending in this month." : chartLabel)}
             </p>
             <CardContent className="px-4 pb-4 md:px-6 md:flex-1 md:min-h-0 md:flex md:flex-col">
               <WeekdayChart
-                transactions={currentTxs}
-                monthKey={chartKey}
-                paydayOfMonth={paydayOfMonth}
-                mode={weekdayMode}
+                data={chartData}
                 onDayClick={handleDayClick}
-                emptyLabel={noStatement ? "No statement yet" : undefined}
+                emptyLabel={noStatement ? "No statement yet" : EMPTY_CHART_LABEL[weekdayMode]}
               />
             </CardContent>
           </Card>
         </div>
-
       </div>
 
       {/* Drill-down sheet */}
@@ -556,12 +399,12 @@ export default function DashboardPage() {
         <SheetContent side="bottom" className="max-h-[60vh] flex flex-col overflow-hidden pt-3 pb-4 px-4">
           {sheet === "income" && (
             <IncomeSheet
-              salaryBasis={salaryBasis}
-              salaryFromStatement={salaryFromStatement}
-              salaryTxIds={salaryTxIds}
-              configuredIncome={configuredIncome}
+              salaryBasis={budget.salaryBasis}
+              salaryFromStatement={budget.salaryFromStatement}
+              salaryTxIds={budget.salaryTxIds}
+              configuredIncome={settings.monthlyBudgets[periodKey]?.income ?? 0}
               periodIncomeTxs={periodIncomeTxs}
-              onManage={() => { closeSheet(); router.push("/transactions"); }}
+              onManage={() => goTo("/transactions")}
             />
           )}
           {sheet === "expenses" && (
@@ -571,36 +414,32 @@ export default function DashboardPage() {
               periodExpenseTxs={periodExpenseTxs}
               expandedCat={expandedCat}
               setExpandedCat={setExpandedCat}
-              onSort={() => { closeSheet(); router.push("/transactions?category=Uncategorized"); }}
+              onSort={() => goTo("/transactions?category=Uncategorized")}
               budget={{ Needs: budgetAllocations.needs, Wants: budgetAllocations.wants }}
             />
           )}
           {sheet === "savings" && (
-            <SavingsSheet
-              periodSavingsTxs={periodSavingsTxs}
-              onSettings={() => { closeSheet(); router.push("/settings?tab=setup"); }}
-            />
+            <SavingsSheet periodSavingsTxs={periodSavingsTxs} onSettings={() => goTo("/settings?tab=basics")} />
           )}
           {sheet === "remaining" && (
             <RemainingSheet
               summary={summary}
-              salaryUsed={salaryUsed}
-              salaryFromStatement={salaryFromStatement}
-              additionalIncome={additionalIncome}
-              onReview={() => { closeSheet(); router.push("/transactions"); }}
+              salaryUsed={budget.salaryUsed}
+              salaryFromStatement={budget.salaryFromStatement}
+              additionalIncome={budget.additionalIncome}
+              onReview={() => goTo("/transactions")}
             />
           )}
-          {sheet === "safe" && (
-            <SafeToSpendSheet safeInfo={safeInfo} />
-          )}
-          {sheet === "weekday" && weekdayFilter && (
+          {sheet === "safe" && <SafeToSpendSheet safeInfo={safeInfo} />}
+          {sheet === "weekday" && weekdayPoint && (
             <WeekdaySheet
-              weekdayTxs={weekdayTxs}
-              chartDateRange={chartDateRange}
+              point={weekdayPoint}
+              transactions={weekdayTransactions(currentTxs, weekdayMode, chartKey, paydayOfMonth, todayDate, weekdayPoint)}
+              rangeLabel={chartLabel}
               title={
-                weekdayMode === "week" && weekdayFilter.dateStr
-                  ? `${weekdayFilter.label} · ${formatDate(weekdayFilter.dateStr)}`
-                  : `${weekdayFilter.label} spending`
+                weekdayPoint.dateStr
+                  ? `${weekdayPoint.day} · ${formatDate(weekdayPoint.dateStr)}`
+                  : `${weekdayPoint.day} spending`
               }
             />
           )}

@@ -1,17 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { computeSafeToSpend, dailyAllowance, nextPayday } from "@/lib/safeToSpend";
-import { Transaction, Settings, MonthSummary } from "@/types";
+import { computeSafeToSpend, dailyAllowance, nextPayday, type ExpectedCharge } from "@/lib/safeToSpend";
+import { Transaction, PeriodSummary } from "@/types";
 
-const baseSettings: Settings = {
-  currency: "€",
-  paydayOfMonth: 1,
-  defaultBudgetRule: { needs: 30, wants: 60, savings: 10 },
-  monthlyBudgets: {},
-  salaryKeywords: [],
-  selfTransferKeywords: [],
-  savingsVaultKeywords: [],
-  recurringPayments: [],
-};
 
 let seq = 0;
 function tx(partial: Partial<Transaction> & { amount: number; type: Transaction["type"]; date: string }): Transaction {
@@ -20,19 +10,23 @@ function tx(partial: Partial<Transaction> & { amount: number; type: Transaction[
     description: "x",
     currency: "EUR",
     category: "Wants",
-    source: "revolut",
+    source: "statement",
     categorySource: "auto",
     excluded: false,
     ...partial,
   };
 }
 
-function summaryWith(income: number): MonthSummary {
+function summaryWith(income: number): PeriodSummary {
   return { income, totalExpenses: 0, needs: 0, wants: 0, savings: 0, remaining: 0 };
 }
 
 // Payday 1 → "2024-06" runs Jun 1 – Jun 30. "now" sits mid-period.
 const NOW = new Date("2024-06-15T12:00:00");
+
+function safe(transactions: Transaction[], summary: PeriodSummary, now = NOW, savingsTarget = 0, expectedCharges: ExpectedCharge[] = []) {
+  return computeSafeToSpend({ transactions, periodKey: "2024-06", paydayOfMonth: 1, summary, now, savingsTarget, expectedCharges });
+}
 
 describe("computeSafeToSpend", () => {
   it("sums income minus spend, savings, and upcoming payments (with refund netting)", () => {
@@ -43,13 +37,13 @@ describe("computeSafeToSpend", () => {
       tx({ amount: 80, type: "expense", category: "Savings", date: "2024-06-08" }),
       tx({ amount: 50, type: "expense", category: "Needs", date: "2024-06-25", description: "Netflix" }), // upcoming bill
     ];
-    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW);
+    const r = safe(txs, summaryWith(2000), NOW);
 
     expect(r.applicable).toBe(true);
     expect(r.spentSoFar).toBe(270); // 100 + (200 − 30)
     expect(r.savedSoFar).toBe(80);
     expect(r.billsDue).toBe(50);
-    expect(r.billItems).toEqual([{ name: "Netflix", amount: 50, date: "2024-06-25", source: "revolut", category: "Needs" }]);
+    expect(r.billItems).toEqual([{ name: "Netflix", amount: 50, date: "2024-06-25", source: "statement", category: "Needs" }]);
     expect(r.safe).toBe(1600); // 2000 − 270 − 80 − 50
     expect(r.daysLeft).toBeGreaterThan(0);
   });
@@ -59,17 +53,17 @@ describe("computeSafeToSpend", () => {
       tx({ amount: 80, type: "expense", category: "Savings", date: "2024-06-08" }), // saved so far
       tx({ amount: 100, type: "expense", category: "Savings", date: "2024-06-25", source: "recurring" }), // scheduled
     ];
-    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 300);
+    const r = safe(txs, summaryWith(2000), NOW, 300);
     expect(r.savingsSetAside).toBe(120); // 300 target − 80 saved − 100 scheduled
     expect(r.safe).toBe(1700); // 2000 − 80 saved − 100 due − 120 set aside
   });
 
   it("holds back detected subscriptions due before payday, but not twice", () => {
     const txs = [tx({ amount: 12.99, type: "expense", category: "Wants", date: "2024-06-20", description: "Netflix", source: "recurring" })];
-    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 0, [
-      { name: "Spotify", amount: 10.99, date: "2024-06-22" },
-      { name: "Netflix", amount: 12.99, date: "2024-06-20" }, // already a bill
-      { name: "Gym", amount: 30, date: "2024-07-03" }, // after payday
+    const r = safe(txs, summaryWith(2000), NOW, 0, [
+      { name: "Spotify", amount: 10.99, date: "2024-06-22", lastChargeDate: "2024-05-22" },
+      { name: "Netflix", amount: 12.99, date: "2024-06-20", lastChargeDate: "2024-05-20" }, // already a bill
+      { name: "Gym", amount: 30, date: "2024-07-03", lastChargeDate: "2024-06-03" }, // after payday
     ]);
     expect(r.billsDue).toBe(23.98);
     expect(r.billItems.map((b) => b.name)).toEqual(["Netflix", "Spotify"]);
@@ -78,18 +72,18 @@ describe("computeSafeToSpend", () => {
 
   it("holds nothing back once the savings target is reached", () => {
     const txs = [tx({ amount: 400, type: "expense", category: "Savings", date: "2024-06-08" })];
-    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(2000), NOW, 300);
+    const r = safe(txs, summaryWith(2000), NOW, 300);
     expect(r.savingsSetAside).toBe(0);
   });
 
   it("is not applicable for a period that doesn't contain today", () => {
-    const r = computeSafeToSpend([], baseSettings, "2024-06", summaryWith(2000), new Date("2024-08-15T12:00:00"));
+    const r = safe([], summaryWith(2000), new Date("2024-08-15T12:00:00"));
     expect(r.applicable).toBe(false);
     expect(r.reason).toBe("not-current-period");
   });
 
   it("is not applicable when there is no income", () => {
-    const r = computeSafeToSpend([], baseSettings, "2024-06", summaryWith(0), NOW);
+    const r = safe([], summaryWith(0), NOW);
     expect(r.applicable).toBe(false);
     expect(r.reason).toBe("no-income");
   });
@@ -99,7 +93,7 @@ describe("computeSafeToSpend", () => {
       tx({ amount: 40, type: "expense", category: "Wants", date: "2024-06-14" }), // incurred
       tx({ amount: 60, type: "expense", category: "Wants", date: "2024-06-20", description: "Gym" }), // upcoming
     ];
-    const r = computeSafeToSpend(txs, baseSettings, "2024-06", summaryWith(1000), NOW);
+    const r = safe(txs, summaryWith(1000), NOW);
     expect(r.spentSoFar).toBe(40);
     expect(r.billsDue).toBe(60);
     expect(r.safe).toBe(900); // 1000 − 40 − 0 − 60

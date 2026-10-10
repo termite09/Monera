@@ -1,5 +1,6 @@
 export type Category = "Needs" | "Wants" | "Savings" | "Uncategorized";
-export type TransactionSource = "revolut" | "manual" | "recurring";
+/** "statement" = imported from a bank export, "recurring" = generated from a bill in Settings. */
+export type TransactionSource = "statement" | "manual" | "recurring";
 export type CategorySource = "auto" | "override" | "manual";
 export type TransactionType = "expense" | "income";
 
@@ -17,7 +18,8 @@ export interface Transaction {
   excluded: boolean;
 }
 
-export interface MonthlyBudget {
+/** Pay and split for one pay period, overriding the defaults. */
+export interface PeriodBudget {
   month: string;
   income: number;
   budgetRule: {
@@ -40,12 +42,14 @@ export interface RecurringPayment {
 }
 
 export interface Settings {
+  /** ISO currency code, e.g. "EUR". Only the fallback when no statement says otherwise. */
   currency: string;
   paydayOfMonth: number;
   /** Standing monthly salary, used as income for every period unless that period has its own configured income. 0 = fall back to statement-detected income. */
   defaultIncome?: number;
   defaultBudgetRule: { needs: number; wants: number; savings: number };
-  monthlyBudgets: Record<string, MonthlyBudget>;
+  /** Per-period overrides keyed by pay-period key ("YYYY-MM"); the stored name predates pay periods. */
+  monthlyBudgets: Record<string, PeriodBudget>;
   /** Descriptions identifying your salary — excluded from "received from others". */
   salaryKeywords: string[];
   /** Descriptions identifying transfers between your own accounts — dropped entirely. */
@@ -85,7 +89,7 @@ export interface ParsedCSV {
   errors: string[];
 }
 
-export interface MonthSummary {
+export interface PeriodSummary {
   income: number;
   totalExpenses: number;
   needs: number;
@@ -93,3 +97,6 @@ export interface MonthSummary {
   savings: number;
   remaining: number;
 }
+
+/** Where a pay period sits relative to today. */
+export type PeriodTiming = "current" | "past" | "future";

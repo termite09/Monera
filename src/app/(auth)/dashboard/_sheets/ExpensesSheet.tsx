@@ -1,26 +1,26 @@
-import { Transaction, Category, MonthSummary } from "@/types";
+import { Transaction, Category, PeriodSummary } from "@/types";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { formatCurrency, formatDate, cleanDescription, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, cleanDescription, cn, getCategorySwatchClass } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
 interface Props {
-  summary: MonthSummary;
+  summary: PeriodSummary;
   uncategorizedExpense: number;
   periodExpenseTxs: Transaction[];
-  expandedCat: string | null;
-  setExpandedCat: (cat: string | null) => void;
+  expandedCat: "Needs" | "Wants" | null;
+  setExpandedCat: (cat: "Needs" | "Wants" | null) => void;
   /** Opens Transactions filtered to unsorted items. */
   onSort: () => void;
-  /** This period's budgets and bills still due, to explain each circle. */
+  /** This period's Needs and Wants budgets, to explain each circle. */
   budget: { Needs: number; Wants: number };
 }
 
 export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs, expandedCat, setExpandedCat, onSort, budget }: Props) {
   // Not-yet-sorted spending counts as Wants (the flexible budget), as it does on
   // the dashboard circle — so the numbers match wherever you look.
-  const categories: { label: string; amount: number; dot: string; key: Category; includes: Category[] }[] = [
-    { label: "Needs", amount: summary.needs, dot: "bg-cat-needs", key: "Needs", includes: ["Needs"] },
-    { label: "Wants", amount: summary.wants + uncategorizedExpense, dot: "bg-cat-wants", key: "Wants", includes: ["Wants", "Uncategorized"] },
+  const categories: { key: "Needs" | "Wants"; amount: number; includes: Category[] }[] = [
+    { key: "Needs", amount: summary.needs, includes: ["Needs"] },
+    { key: "Wants", amount: summary.wants + uncategorizedExpense, includes: ["Wants", "Uncategorized"] },
   ];
 
   return (
@@ -40,17 +40,17 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
                 onClick={() => setExpandedCat(isOpen ? null : cat.key)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors text-left w-full"
               >
-                <span className={cn("size-2.5 rounded-sm shrink-0", cat.dot)} aria-hidden />
+                <span className={cn("size-2.5 rounded-sm shrink-0", getCategorySwatchClass(cat.key))} aria-hidden />
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium">{cat.label}</span>
-                  {budget[cat.key as "Needs" | "Wants"] > 0 && (
+                  <span className="block text-sm font-medium">{cat.key}</span>
+                  {budget[cat.key] > 0 && (
                     <span className="block text-xs text-muted-foreground">
-                      of <span className="font-mono tabular-nums">{formatCurrency(budget[cat.key as "Needs" | "Wants"])}</span> budget
+                      of <span className="font-mono tabular-nums">{formatCurrency(budget[cat.key])}</span> budget
                     </span>
                   )}
                 </span>
                 <span className="text-sm tabular-nums font-mono text-foreground mr-1">{formatCurrency(cat.amount)}</span>
-                <ChevronRight size={14} className={cn("text-muted-foreground shrink-0 transition-transform duration-200", isOpen && "rotate-90")} />
+                <ChevronRight size={14} className={cn("text-muted-foreground shrink-0 transition-transform duration-200", isOpen && "rotate-90")} aria-hidden />
               </button>
               {isOpen && (
                 <div className="mx-3 mb-1 rounded-xl border border-border overflow-hidden">

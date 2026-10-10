@@ -1,13 +1,12 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { getMonthLabel } from "@/lib/utils";
+import { addMonths, getPeriodLabel } from "@/lib/utils";
 
 interface HeaderProps {
-  month: string;
-  onMonthChange: (month: string) => void;
+  periodKey: string;
+  onPeriodChange: (periodKey: string) => void;
   paydayOfMonth?: number;
   isLoading?: boolean;
   /** When set, replaces the prev/next arrows with a plain label. */
@@ -16,43 +15,17 @@ interface HeaderProps {
   showPeriod?: boolean;
 }
 
-export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = false, navLabel, showPeriod = true }: HeaderProps) {
-  const [year, monthNum] = month.split("-").map(Number);
-  const monthLabel = getMonthLabel(month, paydayOfMonth);
-  const reduceMotion = useReducedMotion();
-
-  const prevMonth = () => {
-    const d = new Date(year, monthNum - 2, 1);
-    onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  };
-
-  const nextMonth = () => {
-    const d = new Date(year, monthNum, 1);
-    onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  };
-
+export function Header({ periodKey, onPeriodChange, paydayOfMonth = 1, isLoading = false, navLabel, showPeriod = true }: HeaderProps) {
   return (
     <header
       className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      {/* Top loading bar */}
-      <AnimatePresence>
-        {isLoading && (
-          <div className="absolute top-0 inset-x-0 h-0.5 overflow-hidden" role="status" aria-label="Loading">
-            {reduceMotion ? (
-              <div className="h-full bg-primary/60" />
-            ) : (
-              <motion.div
-                className="h-full bg-primary"
-                initial={{ x: "-100%" }}
-                animate={{ x: "100%" }}
-                transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
-              />
-            )}
-          </div>
-        )}
-      </AnimatePresence>
+      {isLoading && (
+        <div className="absolute top-0 inset-x-0 h-0.5 overflow-hidden" role="status" aria-label="Loading">
+          <div className="h-full bg-primary/60 motion-safe:bg-primary motion-safe:animate-loading-sweep" />
+        </div>
+      )}
 
       <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between lg:max-w-none lg:px-6">
         <span className="text-base font-semibold text-foreground lg:hidden font-serif">
@@ -64,14 +37,14 @@ export function Header({ month, onMonthChange, paydayOfMonth = 1, isLoading = fa
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (
             <>
-              <Button variant="ghost" size="icon" onClick={prevMonth} className="size-11 sm:size-9 text-muted-foreground" aria-label="Previous pay period">
-                <ChevronLeft size={16} />
+              <Button variant="ghost" size="icon" onClick={() => onPeriodChange(addMonths(periodKey, -1))} className="size-11 sm:size-9 text-muted-foreground" aria-label="Previous pay period">
+                <ChevronLeft size={16} aria-hidden />
               </Button>
               <span className="text-sm font-medium text-foreground min-w-35 text-center" aria-live="polite">
-                {monthLabel}
+                {getPeriodLabel(periodKey, paydayOfMonth)}
               </span>
-              <Button variant="ghost" size="icon" onClick={nextMonth} className="size-11 sm:size-9 text-muted-foreground" aria-label="Next pay period">
-                <ChevronRight size={16} />
+              <Button variant="ghost" size="icon" onClick={() => onPeriodChange(addMonths(periodKey, 1))} className="size-11 sm:size-9 text-muted-foreground" aria-label="Next pay period">
+                <ChevronRight size={16} aria-hidden />
               </Button>
             </>
           )}

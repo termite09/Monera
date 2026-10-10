@@ -22,7 +22,7 @@ There is no Monera backend, no database, and no account data on any third-party 
 | **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
 | **Powerful transaction list** | Separate Expenses, Savings, Income and All lists, so the Expenses total always matches the dashboard's Spent. Multi-column sort, category filter, custom date ranges, and full-text search scoped to the selected period — all persisted across navigation. Export what's on screen as CSV. Keyboard shortcuts: `/` jumps to search, `Esc` clears a selection. Large lists load 50 transactions at a time. |
 | **Bulk editing & undo** | Inline checkboxes let you multi-select transactions to exclude, re-categorize, or reset to rule defaults. Every change — leaving out, counting again, moving category, deleting a manual entry — can be undone for a few seconds. |
-| **Reports & insights** | A forecast of what's likely left at payday at your current pace (with a warning if Needs or Wants is heading over), a comparison with last period up to the same day, savings rate against your own target, top merchants, and subscription detection (optional spending charged about once a month at a steady price). |
+| **Insights** | A comparison with last period up to the same day, savings rate against your own target, where your money went by merchant, a year view by pay period, and subscription detection (optional spending charged monthly or every other month at a steady price). |
 | **Tappable drill-downs** | Every figure traces to its transactions: tap a dashboard card, a budget circle, or any chart bar — including a specific weekday, month, or year — to see the exact transactions and the calculation behind it. |
 | **Spending by day** | Switch the weekday chart between Week, Month, Period, and Year ranges. Each mode shows 7 bars (Mon–Sun) aggregated over the selected window, with a dedicated month picker for the Month view. Hovering a bar and tapping into its drill-down both show the same Spent / Received / Net breakdown, and only transactions that have actually happened are counted — recurring bills or manual entries dated in the future never inflate the total. |
 | **Year overview** | The Year tab shows spending (Needs and Wants) for each payday period across the calendar year, with the running period highlighted, spent and saved totals for the year, and click-through to any period on the dashboard. |
@@ -104,6 +104,7 @@ src/
 │   ├── (auth)/
 │   │   ├── dashboard/
 │   │   │   ├── page.tsx         # Dashboard — summary cards, budget donuts, weekday chart
+│   │   │   ├── useDashboardData.ts # Everything the dashboard derives for one pay period
 │   │   │   └── _sheets/         # Drill-down sheet components (income, expenses, savings…)
 │   │   ├── insights/
 │   │   │   ├── page.tsx         # Insights — tab switcher and shared data memos
@@ -120,12 +121,13 @@ src/
 ├── hooks/                       # useDrive, useTransactions, useSettings, useBudget …
 ├── lib/
 │   ├── finance.ts               # Single source of truth for period spend and refund netting
-│   ├── reports.ts               # Analytics, subscription detection
-│   ├── insights.ts              # Plain-language insight generation
+│   ├── budget.ts                # Income, spending and allocations for one pay period
+│   ├── insights.ts              # Period comparison, merchants, subscription detection
 │   ├── safeToSpend.ts           # Forward-looking "safe to spend" calculation
-│   ├── forecast.ts              # Where Needs and Wants land by payday at the current pace
+│   ├── weekday.ts               # Spending-by-weekday chart data
+│   ├── statements.ts            # Reading, checking and saving uploaded statements
 │   ├── migrateSettings.ts       # Version-aware settings migration (fills missing defaults on load)
-│   ├── parser/                  # CSV / XLSX parsing and date handling
+│   ├── parser/                  # CSV / XLSX parsing, amounts and dates
 │   ├── spreadsheet.ts           # XLSX → CSV conversion
 │   └── google/                  # Drive API wrappers and folder helpers
 └── types/                       # Shared TypeScript types
@@ -153,7 +155,8 @@ Monera/
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 | `npm run lint` | Lint with ESLint |
-| `npm test` | Run the test suite (Vitest) |
+| `npm test` | Run the unit tests (Vitest) |
+| `npm run test:e2e` | Run the end-to-end tests (Playwright) |
 
 ---
 
@@ -184,10 +187,13 @@ The app builds with `next build` and runs as a standard serverless Next.js appli
 ## Testing
 
 ```bash
-npm test
+npm test            # unit tests
+npm run test:e2e    # end-to-end tests in a real browser
 ```
 
-The test suite covers the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, upcoming charge estimation, payday forecasts, plain-language load-error messages, settings migration, and the insights engine.
+The unit tests cover the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, upcoming charge estimation, Drive pagination, plain-language load-error messages, and settings migration.
+
+The end-to-end tests (`tests/e2e/`) drive a production build through every screen: first-run setup, the dashboard and its drill-downs, transactions (search, filters, category changes, leave out, undo, add/edit/delete, CSV export), Insights, statement upload (CSV and Excel), every Settings tab, sign-out, expired sessions, Drive outages, offline mode, and the phone layout. They need no Google account: sign-in uses a session cookie signed with a test secret, and Google Drive is replaced by an in-memory fake inside the browser (`tests/e2e/support/fakeDrive.ts`). The clock is fixed at 15 June 2026 so every figure is predictable. The first run needs the browsers installed: `npx playwright install chromium`.
 
 ---
 

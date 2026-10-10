@@ -9,9 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useBudget } from "@/hooks/useBudget";
-import { buildReport, detectSubscriptions, merchantKey, displayName } from "@/lib/reports";
+import { useToday } from "@/hooks/useToday";
+import { buildPeriodInsights, detectSubscriptions, groupByMerchant } from "@/lib/insights";
 import { getRecurringInRange } from "@/lib/recurring";
-import { getPeriodBounds, toDateStr } from "@/lib/utils";
+import { addMonths, getPeriodBounds, getPeriodRange, inRange } from "@/lib/utils";
 import { Segmented, TabPanel } from "@/components/ui/segmented";
 
 import { OverviewTab } from "./_tabs/OverviewTab";
@@ -19,7 +20,7 @@ import { MerchantsTab } from "./_tabs/MerchantsTab";
 import { SubscriptionsTab } from "./_tabs/SubscriptionsTab";
 import { YearTab } from "./_tabs/YearTab";
 
-const REPORTS_SLIDES = [
+const INSIGHTS_SLIDES = [
   {
     title: "Your insights",
     body: "Overview shows how much of your pay you kept and how this period compares with the last.",
@@ -30,105 +31,73 @@ const REPORTS_SLIDES = [
   },
 ];
 
-type ReportTab = "overview" | "merchants" | "subscriptions" | "year";
+type InsightsTab = "overview" | "merchants" | "subscriptions" | "year";
 
-const REPORT_TABS: { id: ReportTab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "merchants", label: "Merchants" },
-  { id: "subscriptions", label: "Subscriptions" },
-  { id: "year", label: "Year" },
+const INSIGHTS_TABS: { value: InsightsTab; label: string }[] = [
+  { value: "overview", label: "Overview" },
+  { value: "merchants", label: "Merchants" },
+  { value: "subscriptions", label: "Subscriptions" },
+  { value: "year", label: "Year" },
 ];
 
-const isReportTab = (v: string | null): v is ReportTab =>
-  v === "overview" || v === "merchants" || v === "subscriptions" || v === "year";
+const isInsightsTab = (v: string | null): v is InsightsTab => INSIGHTS_TABS.some((t) => t.value === v);
 
-export default function ReportsPage() {
-  const { month, setMonth, transactions, settings, isLoading, txError, refetch, updateSettings } = useAppData();
+export default function InsightsPage() {
+  const { periodKey, setPeriodKey, transactions, settings, currency, isLoading, txError, refetch, updateSettings } = useAppData();
+  const { paydayOfMonth } = settings;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<ReportTab>(() => {
+  const today = useToday();
+  const [tab, setTab] = useState<InsightsTab>(() => {
     const t = searchParams.get("tab");
-    return isReportTab(t) ? t : "overview";
+    return isInsightsTab(t) ? t : "overview";
   });
-  const paydayOfMonth = settings.paydayOfMonth ?? 1;
 
-  // Include recurring bills for BOTH the current and the previous period, so
-  // buildReport's "vs last period" comparison sees the previous period's
-  // recurring bills too.
-  const allTxs = useMemo(() => {
-    const { start: curStart, end: curEnd } = getPeriodBounds(month, paydayOfMonth);
-    const prevStart = new Date(curStart.getFullYear(), curStart.getMonth() - 1, curStart.getDate());
-    const recurringTxs = getRecurringInRange(
-      settings.recurringPayments ?? [],
-      prevStart,
-      curEnd,
-      paydayOfMonth,
-      settings.currency ?? "EUR"
-    );
-    return [...transactions, ...recurringTxs];
-  }, [transactions, settings.recurringPayments, settings.currency, month, paydayOfMonth]);
+  // Recurring bills for BOTH this and the previous period, so the "vs last
+  // period" comparison sees last period's bills too. Only what has happened counts.
+  const currentTxs = useMemo(() => {
+    const from = getPeriodBounds(addMonths(periodKey, -1), paydayOfMonth).start;
+    const to = getPeriodBounds(periodKey, paydayOfMonth).end;
+    const bills = getRecurringInRange(settings.recurringPayments, from, to, paydayOfMonth, currency);
+    return [...transactions, ...bills].filter((tx) => tx.date <= today);
+  }, [transactions, settings.recurringPayments, currency, periodKey, paydayOfMonth, today]);
 
-  const todayStr = useMemo(() => toDateStr(new Date()), []);
-  const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= todayStr), [allTxs, todayStr]);
-
-  const report = useMemo(
-    () => buildReport(currentTxs, month, paydayOfMonth, new Date()),
-    [currentTxs, month, paydayOfMonth]
+  const insights = useMemo(
+    () => buildPeriodInsights(currentTxs, periodKey, paydayOfMonth, new Date()),
+    [currentTxs, periodKey, paydayOfMonth]
   );
-  const { summary } = useBudget(currentTxs, settings, month);
+  const { summary } = useBudget(currentTxs, settings, periodKey);
   const savingsRate = summary.income > 0 ? Math.round((summary.savings / summary.income) * 100) : null;
 
-  const periodExpenseTxs = useMemo(() => {
-    const { start, end } = getPeriodBounds(month, paydayOfMonth);
-    return currentTxs
-      .filter((tx) => {
-        if (tx.excluded || tx.type !== "expense") return false;
-        const d = new Date(tx.date + "T00:00:00");
-        return d >= start && d <= end;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [currentTxs, month, paydayOfMonth]);
-
   const hiddenMerchants = useMemo(() => settings.hiddenMerchants ?? [], [settings.hiddenMerchants]);
-
-  const allMerchants = useMemo(() => {
-    // Group by the normalised shop name so "Wolt" and "Wolt 123" are one place.
-    const map = new Map<string, { name: string; total: number; count: number }>();
-    for (const tx of periodExpenseTxs) {
-      if (tx.category === "Savings") continue;
-      const key = merchantKey(tx.description) || "other";
-      const prev = map.get(key) ?? { name: displayName(tx.description), total: 0, count: 0 };
-      map.set(key, { name: prev.name, total: prev.total + tx.amount, count: prev.count + 1 });
-    }
-    return [...map.entries()]
-      .map(([key, { name, total, count }]) => ({ key, name, total: Math.round(total * 100) / 100, count }))
-      .sort((a, b) => b.total - a.total)
-      .filter((m) => !hiddenMerchants.includes(m.name));
-  }, [periodExpenseTxs, hiddenMerchants]);
+  // Where the money went this period: spending only (savings moves aren't shops).
+  const merchants = useMemo(() => {
+    const range = getPeriodRange(periodKey, paydayOfMonth);
+    const spending = currentTxs.filter(
+      (tx) => !tx.excluded && tx.type === "expense" && tx.category !== "Savings" && inRange(tx.date, range)
+    );
+    return groupByMerchant(spending).filter((m) => !hiddenMerchants.includes(m.name));
+  }, [currentTxs, periodKey, paydayOfMonth, hiddenMerchants]);
 
   // Subscriptions span all history, not just the selected period.
   const allSubscriptions = useMemo(() => detectSubscriptions(transactions), [transactions]);
   const subscriptions = useMemo(
-    () => allSubscriptions.filter((s) => !(settings.excludedSubscriptions ?? []).includes(s.name)),
+    () => allSubscriptions.filter((s) => !settings.excludedSubscriptions?.includes(s.name)),
     [allSubscriptions, settings.excludedSubscriptions]
   );
-  const excludedSubCount = allSubscriptions.length - subscriptions.length;
 
   return (
     <PageShell>
       {/* Year and Subscriptions aren't about one pay period, so no period arrows there. */}
-      <Header month={month} onMonthChange={setMonth} paydayOfMonth={paydayOfMonth} isLoading={isLoading} showPeriod={tab === "overview" || tab === "merchants"} />
+      <Header periodKey={periodKey} onPeriodChange={setPeriodKey} paydayOfMonth={paydayOfMonth} isLoading={isLoading} showPeriod={tab === "overview" || tab === "merchants"} />
 
       <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4 pt-5 md:max-w-none md:px-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Insights</h1>
-        </div>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">Insights</h1>
 
         {txError && <ErrorState message={txError} onRetry={refetch} />}
 
-        {/* Sub-tab switcher */}
         <Segmented
-          items={REPORT_TABS.map((t) => ({ value: t.id, label: t.label }))}
+          items={INSIGHTS_TABS}
           value={tab}
           onChange={setTab}
           label="Insights sections"
@@ -138,61 +107,59 @@ export default function ReportsPage() {
         />
 
         <TabPanel idPrefix="insights" value={tab} className="flex flex-col gap-4">
-        {isLoading ? (
-          <div className="flex flex-col gap-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-        ) : (
-          <>
-            {tab === "overview" && (
-              <OverviewTab
-                report={report}
-                savingsRate={savingsRate}
-                savingsTargetPct={settings.monthlyBudgets[month]?.budgetRule.savings ?? settings.defaultBudgetRule.savings}
-              />
-            )}
-            {tab === "merchants" && (
-              <MerchantsTab
-                report={report}
-                allMerchants={allMerchants}
-                periodExpenseTxs={periodExpenseTxs}
-                hiddenMerchants={hiddenMerchants}
-                onHide={(name) => updateSettings({ ...settings, hiddenMerchants: [...hiddenMerchants, name] })}
-                onResetHidden={() => updateSettings({ ...settings, hiddenMerchants: [] })}
-              />
-            )}
-            {tab === "subscriptions" && (
-              <SubscriptionsTab
-                recurringPayments={settings.recurringPayments ?? []}
-                subscriptions={subscriptions}
-                transactions={transactions}
-                paydayOfMonth={paydayOfMonth}
-                excludedSubCount={excludedSubCount}
-                onExclude={(name) =>
-                  updateSettings({
-                    ...settings,
-                    excludedSubscriptions: [...(settings.excludedSubscriptions ?? []), name],
-                  })
-                }
-                onRestore={() => updateSettings({ ...settings, excludedSubscriptions: [] })}
-              />
-            )}
-            {tab === "year" && (
-              <YearTab
-                transactions={transactions}
-                recurringPayments={settings.recurringPayments ?? []}
-                currency={settings.currency ?? "EUR"}
-                paydayOfMonth={paydayOfMonth}
-                onMonthClick={(key) => { setMonth(key); router.push("/dashboard"); }}
-              />
-            )}
-          </>
-        )}
+          {isLoading ? (
+            <div className="flex flex-col gap-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : (
+            <>
+              {tab === "overview" && (
+                <OverviewTab
+                  insights={insights}
+                  savingsRate={savingsRate}
+                  savingsTargetPct={(settings.monthlyBudgets[periodKey]?.budgetRule ?? settings.defaultBudgetRule).savings}
+                />
+              )}
+              {tab === "merchants" && (
+                <MerchantsTab
+                  hasSpending={insights.txCount > 0}
+                  periodSpending={insights.spending}
+                  merchants={merchants}
+                  hiddenCount={hiddenMerchants.length}
+                  onHide={(name) => updateSettings({ ...settings, hiddenMerchants: [...hiddenMerchants, name] })}
+                  onResetHidden={() => updateSettings({ ...settings, hiddenMerchants: [] })}
+                />
+              )}
+              {tab === "subscriptions" && (
+                <SubscriptionsTab
+                  recurringPayments={settings.recurringPayments}
+                  subscriptions={subscriptions}
+                  transactions={transactions}
+                  paydayOfMonth={paydayOfMonth}
+                  today={today}
+                  hiddenCount={allSubscriptions.length - subscriptions.length}
+                  onHide={(name) => updateSettings({ ...settings, excludedSubscriptions: [...(settings.excludedSubscriptions ?? []), name] })}
+                  onRestore={() => updateSettings({ ...settings, excludedSubscriptions: [] })}
+                />
+              )}
+              {tab === "year" && (
+                <YearTab
+                  transactions={transactions}
+                  recurringPayments={settings.recurringPayments}
+                  currency={currency}
+                  paydayOfMonth={paydayOfMonth}
+                  today={today}
+                  onPeriodClick={(key) => { setPeriodKey(key); router.push("/dashboard"); }}
+                />
+              )}
+            </>
+          )}
         </TabPanel>
       </div>
 
-      <AppTour pageKey="reports" slides={REPORTS_SLIDES} />
+      {/* The tour's saved key is still "reports", from before this page was renamed. */}
+      <AppTour pageKey="reports" slides={INSIGHTS_SLIDES} />
     </PageShell>
   );
 }

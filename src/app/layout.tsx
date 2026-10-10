@@ -4,9 +4,6 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
-import { auth } from "@/auth";
-
-export const dynamic = "force-dynamic";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -78,16 +75,14 @@ export const viewport: Viewport = {
   themeColor: "#1C3557",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
   return (
     <html
       lang="en"
@@ -95,7 +90,7 @@ export default async function RootLayout({
       className={`${dmSans.variable} ${dmSerifDisplay.variable} ${dmMono.variable}`}
     >
       <body>
-        <Providers session={session}>
+        <Providers>
           {children}
         </Providers>
         <ServiceWorkerRegistrar />

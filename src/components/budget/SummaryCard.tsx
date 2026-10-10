@@ -1,9 +1,9 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface SummaryCardProps {
   label: string;
@@ -36,7 +36,7 @@ export function SummaryCard({
   className,
   onClick,
 }: SummaryCardProps) {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [animated, setAnimated] = useState(0);
   const rafRef = useRef<number>(0);
 

@@ -2,17 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, List, PieChart, Upload, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NAV_ITEMS } from "./navItems";
 import { useAppData } from "@/contexts/AppDataContext";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: List },
-  { href: "/insights", label: "Insights", icon: PieChart },
-  { href: "/upload", label: "Statements", icon: Upload },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
 
 export function BottomBar() {
   const pathname = usePathname();
@@ -28,7 +20,7 @@ export function BottomBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-3">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link

@@ -1,17 +1,11 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
-import type { Session } from "next-auth";
 import { ReactNode, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-interface ProvidersProps {
-  children: ReactNode;
-  session?: Session | null;
-}
-
-export function Providers({ children, session }: ProvidersProps) {
+export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -26,15 +20,19 @@ export function Providers({ children, session }: ProvidersProps) {
       })
   );
 
-  // Refetch the NextAuth session every 4 minutes (and on focus) so the access
-  // token stays fresh — the server refreshes it before it expires.
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider session={session} refetchInterval={4 * 60} refetchOnWindowFocus>
-        <TooltipProvider delayDuration={300}>
-          {children}
-        </TooltipProvider>
-      </SessionProvider>
+      <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+      {/* Styled like the app's undo bar: flat, ink on light, above the phone's bottom bar. */}
+      <Toaster
+        position="bottom-center"
+        offset={16}
+        mobileOffset={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
+        toastOptions={{
+          unstyled: true,
+          classNames: { toast: "flex w-full items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background" },
+        }}
+      />
     </QueryClientProvider>
   );
 }

@@ -1,43 +1,28 @@
-export function parseRevolutDate(dateStr: string): string | null {
+function validDate(year: number, month: number, day: number): boolean {
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() + 1 === month && d.getDate() === day;
+}
+
+/**
+ * A statement date as "YYYY-MM-DD", or null. Accepts ISO ("2024-06-10 14:02:11"),
+ * European ("10/06/2024", "10-06-2024") and, when the European reading is
+ * impossible, US ("06/30/2024") formats.
+ */
+export function parseStatementDate(dateStr: string): string | null {
   if (!dateStr) return null;
 
-  // Try ISO format: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS
-  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) {
-    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const eu = dateStr.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
+  if (eu && validDate(Number(eu[3]), Number(eu[2]), Number(eu[1]))) {
+    return `${eu[3]}-${eu[2]}-${eu[1]}`;
   }
 
-  // Try European format: DD/MM/YYYY or DD-MM-YYYY
-  const euMatch = dateStr.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-  if (euMatch) {
-    const day = parseInt(euMatch[1]);
-    const month = parseInt(euMatch[2]);
-    const year = parseInt(euMatch[3]);
-    const d = new Date(year, month - 1, day);
-    if (d.getFullYear() === year && d.getMonth() + 1 === month && d.getDate() === day) {
-      return `${euMatch[3]}-${euMatch[2]}-${euMatch[1]}`;
-    }
-  }
-
-  // Try US format: MM/DD/YYYY
-  const usMatch = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (usMatch) {
-    const month = parseInt(usMatch[1]);
-    const day = parseInt(usMatch[2]);
-    const year = parseInt(usMatch[3]);
-    if (month <= 12 && day <= 31) {
-      const d = new Date(year, month - 1, day);
-      if (d.getFullYear() === year && d.getMonth() + 1 === month && d.getDate() === day) {
-        return `${usMatch[3]}-${usMatch[1]}-${usMatch[2]}`;
-      }
-    }
+  const us = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (us && validDate(Number(us[3]), Number(us[1]), Number(us[2]))) {
+    return `${us[3]}-${us[1]}-${us[2]}`;
   }
 
   return null;
-}
-
-export function normalizeAmount(amountStr: string): number {
-  // Handle comma as decimal separator (European format)
-  const normalized = amountStr.replace(/\s/g, "").replace(",", ".");
-  return parseFloat(normalized);
 }

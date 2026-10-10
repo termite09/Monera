@@ -6,11 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppData } from "@/contexts/AppDataContext";
-import { useAuth } from "@/hooks/useAuth";
-import { uploadCSV } from "@/lib/google/drive";
-import { parseCSV } from "@/lib/parser";
-import { readSpreadsheetAsCsv, csvFileName } from "@/lib/spreadsheet";
-import { cn, formatCurrency, getDisplayCurrency, ordinal } from "@/lib/utils";
+import { readStatement, saveStatement, statementErrorMessage } from "@/lib/statements";
+import { cn, formatCurrency, getDisplayCurrency, ordinal, plural } from "@/lib/utils";
 import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
 import { markOnboardedThisSession } from "@/components/onboarding/AppTour";
 
@@ -24,17 +21,16 @@ const SPLIT_ROWS = [
 ] as const;
 
 export function Onboarding() {
-  const { structure, settings, transactions, updateSettings, refetch } = useAppData();
-  const { accessToken } = useAuth();
+  const { accessToken, structure, settings, transactions, updateSettings, refetch } = useAppData();
 
   const [step, setStep] = useState<Step>("payday");
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [uploadMsg, setUploadMsg] = useState("");
   // A fresh account's payday is the default 1; leave it empty so it's a real choice.
-  const [payday, setPayday] = useState(settings.onboarded || (settings.paydayOfMonth ?? 1) > 1 ? String(settings.paydayOfMonth) : "");
+  const [payday, setPayday] = useState(settings.onboarded || settings.paydayOfMonth > 1 ? String(settings.paydayOfMonth) : "");
   const [salary, setSalary] = useState(settings.defaultIncome ? String(settings.defaultIncome) : "");
   // New accounts start from the 50 / 30 / 20 split the copy recommends.
-  const [split, setSplit] = useState(settings.onboarded && settings.defaultBudgetRule ? settings.defaultBudgetRule : { needs: 50, wants: 30, savings: 20 });
+  const [split, setSplit] = useState(settings.onboarded ? settings.defaultBudgetRule : { needs: 50, wants: 30, savings: 20 });
   const [finishing, setFinishing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -42,7 +38,7 @@ export function Onboarding() {
   const uploaded = uploadState === "done" || transactions.length > 0;
   const splitTotal = split.needs + split.wants + split.savings;
   const splitValid = splitTotal === 100;
-  const paydayNum = parseInt(payday);
+  const paydayNum = parseInt(payday, 10);
   const paydayValid = paydayNum >= 1 && paydayNum <= 31;
   const pay = Math.max(0, parseFloat(salary) || 0);
   const symbol = getDisplayCurrency().trim();
@@ -52,21 +48,14 @@ export function Onboarding() {
     setUploadState("uploading");
     setUploadMsg("");
     try {
-      const content = await readSpreadsheetAsCsv(file);
-      const { transactions: parsed } = parseCSV(content);
-      // Don't save a file we can't read anything from.
-      if (parsed.length === 0) {
-        setUploadState("error");
-        setUploadMsg("We couldn't find any transactions in this file. Is it a statement export from Revolut?");
-        return;
-      }
-      await uploadCSV(accessToken, csvFileName(file.name), structure.revolutExportsId, content);
+      const statement = await readStatement(file);
+      await saveStatement(accessToken, structure, statement);
       setUploadState("done");
-      setUploadMsg(`Added ${parsed.length} transaction${parsed.length === 1 ? "" : "s"}.`);
+      setUploadMsg(`Added ${plural(statement.count, "transaction")}.`);
       refetch();
-    } catch {
+    } catch (err) {
       setUploadState("error");
-      setUploadMsg("We couldn't add this file. Check it's a CSV or Excel export and try again.");
+      setUploadMsg(statementErrorMessage(err));
     }
   };
 
@@ -202,7 +191,7 @@ export function Onboarding() {
                         min={0}
                         max={100}
                         value={String(split[key])}
-                        onChange={(e) => setSplit((s) => ({ ...s, [key]: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) }))}
+                        onChange={(e) => setSplit((s) => ({ ...s, [key]: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) }))}
                         className="h-11 w-16 text-right font-mono tabular-nums"
                       />
                       <span className="text-sm text-muted-foreground">%</span>
