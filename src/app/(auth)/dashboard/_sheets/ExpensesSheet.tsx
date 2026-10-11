@@ -1,6 +1,8 @@
 import { Transaction, Category, PeriodSummary } from "@/types";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { formatCurrency, formatDate, cleanDescription, cn, getCategorySwatchClass } from "@/lib/utils";
+import { formatCurrency, formatDate, cleanDescription } from "@/lib/format";
+import { getCategorySwatchClass } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
 interface Props {

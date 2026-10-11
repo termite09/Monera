@@ -1,15 +1,16 @@
-import { useCallback, useMemo, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Transaction, Category, CategoryRule, Settings } from "@/types";
-import { DriveStructure, listStatementFiles, readAppFile, writeAppFile } from "@/lib/google/folders";
+import { DriveStructure, listStatementFiles, readAppFile, updateAppFile } from "@/lib/google/folders";
 import { readFile, writeFile } from "@/lib/google/drive";
 import { parseCSV } from "@/lib/parser";
 import { applyCategorizationRules } from "@/lib/categorizer";
 import { filterInternalTransfers } from "@/lib/transfers";
 import { mergeTransactions } from "@/lib/dedup";
 import { DriveAuthError } from "@/lib/errors";
-import { notifySaveFailed } from "@/lib/notify";
-import { currencyCode, generateId } from "@/lib/utils";
+import { currencyCode } from "@/lib/format";
+import { generateId } from "@/lib/utils";
+import { useWriteQueue } from "@/hooks/useWriteQueue";
 
 type ParseCache = Record<string, Transaction[]>;
 type Overrides = Record<string, Category>;
@@ -33,14 +34,6 @@ function cacheKey(f: { id: string; size?: string }): string {
 
 const without = <T,>(record: Record<string, T>, ids: Set<string>) =>
   Object.fromEntries(Object.entries(record).filter(([id]) => !ids.has(id)));
-
-/**
- * Read-modify-write of one JSON file in Drive. No fallback on purpose: if the
- * file is unreadable the write fails rather than replacing it.
- */
-function updateFile<T>(token: string, fileId: string, change: (current: T) => T): Promise<void> {
-  return readAppFile<T>(token, fileId).then((current) => writeAppFile(token, fileId, change(current)));
-}
 
 // Reads everything that makes up the transaction list (manual entries, category
 // overrides, exclusions, CSV files + the parse cache) and returns the merged raw
@@ -88,44 +81,40 @@ export function useTransactions(
   rules: CategoryRule[],
   settings: Settings
 ) {
-  const qc = useQueryClient();
   const queryKey = useMemo(() => ["transactions", structure?.appDataId ?? "none"], [structure?.appDataId]);
-
   // Every Drive write goes through this one queue, so two quick changes to the
   // same file never read-modify-write over each other.
-  const writeQueue = useRef<Promise<void>>(Promise.resolve());
-  // Counts changes made on screen, so a load can tell one happened while it ran.
-  const changeCount = useRef(0);
+  const { afterSaves, save } = useWriteQueue<TxData>(queryKey);
 
   const query = useQuery({
     queryKey,
-    // A load that finished on top of a change made meanwhile would undo it on
-    // screen. So read only once pending saves have landed, and read again if
-    // another change came in while reading.
-    queryFn: async () => {
-      for (;;) {
-        const seen = changeCount.current;
-        await writeQueue.current;
-        const loaded = await loadTxData(accessToken as string, structure as DriveStructure);
-        if (changeCount.current === seen) return loaded;
-      }
-    },
+    queryFn: () => afterSaves(() => loadTxData(accessToken as string, structure as DriveStructure)),
     enabled: !!accessToken && !!structure,
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
   });
 
   const data = query.data;
   const { selfTransferKeywords, savingsVaultKeywords } = settings;
-  const transactions = useMemo(() => {
-    if (!data) return [];
-    const excluded = new Set(data.excludedIds);
-    // Drop internal money movements (self-transfers, savings-vault mirrors) using
-    // the user's configured keywords before categorizing.
-    const visible = filterInternalTransfers(data.rawTxs, { selfTransferKeywords, savingsVaultKeywords });
-    return applyCategorizationRules(visible, rules, data.overrides).map((tx) =>
-      excluded.has(tx.id) ? { ...tx, excluded: true } : tx
-    );
-  }, [data, rules, selfTransferKeywords, savingsVaultKeywords]);
+  /**
+   * Applies rules and the user's own changes (category moves, leave-outs). Also
+   * used for bills, which are made from Settings rather than loaded, so a bill
+   * can be moved or left out for one period like any other transaction.
+   */
+  const applyUserChanges = useCallback(
+    (txs: Transaction[]): Transaction[] => {
+      if (!data) return txs;
+      const excluded = new Set(data.excludedIds);
+      return applyCategorizationRules(txs, rules, data.overrides).map((tx) => (excluded.has(tx.id) ? { ...tx, excluded: true } : tx));
+    },
+    [data, rules]
+  );
+
+  // Drop internal money movements (self-transfers, savings-vault mirrors) using
+  // the user's configured keywords before categorizing.
+  const transactions = useMemo(
+    () => (data ? applyUserChanges(filterInternalTransfers(data.rawTxs, { selfTransferKeywords, savingsVaultKeywords })) : []),
+    [data, applyUserChanges, selfTransferKeywords, savingsVaultKeywords]
+  );
 
   const needsReauth = query.error instanceof DriveAuthError;
   const error =
@@ -134,24 +123,15 @@ export function useTransactions(
       : null;
 
   /**
-   * Shows a change instantly, then saves it to Drive in the queue. If the save
-   * fails, the list is re-read from Drive (the source of truth) rather than
-   * restoring a snapshot that might also undo other changes made meanwhile.
+   * Shows a change instantly, then saves it to Drive in the queue. The screen
+   * keeps the optimistic copy: a save writes single files, not the whole set.
    */
   const mutate = useCallback(
-    (optimistic: (d: TxData) => TxData, save: (token: string, s: DriveStructure) => Promise<void>): Promise<void> => {
+    (optimistic: (d: TxData) => TxData, write: (token: string, s: DriveStructure) => Promise<unknown>): Promise<void> => {
       if (!accessToken || !structure) return Promise.resolve();
-      changeCount.current += 1;
-      qc.setQueryData<TxData>(queryKey, (old) => (old ? optimistic(old) : old));
-      const run = writeQueue.current.then(() => save(accessToken, structure));
-      writeQueue.current = run.catch(() => {});
-      return run.catch((err) => {
-        qc.invalidateQueries({ queryKey });
-        notifySaveFailed();
-        throw err;
-      });
+      return save(optimistic, () => write(accessToken, structure).then(() => undefined));
     },
-    [accessToken, structure, qc, queryKey]
+    [accessToken, structure, save]
   );
 
   const addManualTransaction = useCallback(
@@ -164,7 +144,7 @@ export function useTransactions(
       };
       return mutate(
         (d) => ({ ...d, rawTxs: [newTx, ...d.rawTxs] }),
-        (token, s) => updateFile<Transaction[]>(token, s.fileIds.manualTransactions, (all) => [newTx, ...all])
+        (token, s) => updateAppFile<Transaction[]>(token, s.fileIds.manualTransactions, (all) => [newTx, ...all])
       );
     },
     [mutate]
@@ -181,10 +161,10 @@ export function useTransactions(
         }),
         (token, s) =>
           Promise.all([
-            updateFile<Transaction[]>(token, s.fileIds.manualTransactions, (all) => all.filter((t) => t.id !== txId)),
-            updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, ids)),
-            updateFile<string[]>(token, s.fileIds.excludedTransactions, (all) => all.filter((id) => id !== txId)),
-          ]).then(() => {})
+            updateAppFile<Transaction[]>(token, s.fileIds.manualTransactions, (all) => all.filter((t) => t.id !== txId)),
+            updateAppFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, ids)),
+            updateAppFile<string[]>(token, s.fileIds.excludedTransactions, (all) => all.filter((id) => id !== txId)),
+          ])
       );
     },
     [mutate]
@@ -200,9 +180,9 @@ export function useTransactions(
         (d) => ({ ...d, rawTxs: apply(d.rawTxs), overrides: without(d.overrides, ids) }),
         (token, s) =>
           Promise.all([
-            updateFile<Transaction[]>(token, s.fileIds.manualTransactions, apply),
-            updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, ids)),
-          ]).then(() => {})
+            updateAppFile<Transaction[]>(token, s.fileIds.manualTransactions, apply),
+            updateAppFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, ids)),
+          ])
       );
     },
     [mutate]
@@ -214,7 +194,7 @@ export function useTransactions(
       const changes = Object.fromEntries(updates.map(({ txId, category }) => [txId, category]));
       return mutate(
         (d) => ({ ...d, overrides: { ...d.overrides, ...changes } }),
-        (token, s) => updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => ({ ...o, ...changes }))
+        (token, s) => updateAppFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => ({ ...o, ...changes }))
       );
     },
     [mutate]
@@ -235,7 +215,7 @@ export function useTransactions(
       };
       return mutate(
         (d) => ({ ...d, excludedIds: apply(d.excludedIds) }),
-        (token, s) => updateFile<string[]>(token, s.fileIds.excludedTransactions, apply)
+        (token, s) => updateAppFile<string[]>(token, s.fileIds.excludedTransactions, apply)
       );
     },
     [mutate]
@@ -251,9 +231,9 @@ export function useTransactions(
         (d) => ({ ...d, overrides: without(d.overrides, idSet), excludedIds: include(d.excludedIds) }),
         (token, s) =>
           Promise.all([
-            updateFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, idSet)),
-            updateFile<string[]>(token, s.fileIds.excludedTransactions, include),
-          ]).then(() => {})
+            updateAppFile<Overrides>(token, s.fileIds.categoryOverrides, (o) => without(o, idSet)),
+            updateAppFile<string[]>(token, s.fileIds.excludedTransactions, include),
+          ])
       );
     },
     [mutate]
@@ -261,6 +241,7 @@ export function useTransactions(
 
   return {
     transactions,
+    applyUserChanges,
     isLoading: query.isPending,
     hasLoaded: query.isSuccess,
     error,

@@ -4,6 +4,7 @@ import { CategoryRule } from "@/types";
 import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
 import { DriveAuthError } from "@/lib/errors";
 import { notifySaveFailed } from "@/lib/notify";
+import { useWriteQueue } from "@/hooks/useWriteQueue";
 
 // Legacy format: old saves wrote a bare CategoryRule[] and seeded built-in
 // defaults; this keyword marked a list the user had customized. Uncustomized
@@ -19,36 +20,35 @@ export function useRules(accessToken: string | undefined, structure: DriveStruct
   const fileId = structure?.fileIds.categoryRules;
   const queryKey = useMemo(() => ["rules", fileId ?? "none"], [fileId]);
 
+  const { afterSaves, save } = useWriteQueue<CategoryRule[]>(queryKey);
+
   const query = useQuery({
     queryKey,
-    queryFn: async () => {
-      const raw = await readAppFile<StoredRulesFile | CategoryRule[]>(accessToken as string, fileId as string);
-      if (Array.isArray(raw)) return raw.some((r) => r.keyword === LEGACY_MARKER) ? raw : NO_RULES;
-      return raw?.v === 1 && raw.customized ? raw.rules : NO_RULES;
-    },
+    queryFn: () =>
+      afterSaves(async () => {
+        const raw = await readAppFile<StoredRulesFile | CategoryRule[]>(accessToken as string, fileId as string);
+        if (Array.isArray(raw)) return raw.some((r) => r.keyword === LEGACY_MARKER) ? raw : NO_RULES;
+        return raw?.v === 1 && raw.customized ? raw.rules : NO_RULES;
+      }),
     enabled: !!accessToken && !!fileId,
+    // Small file, so re-read on coming back to the app: picks up another device's changes.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
   });
 
   const updateRules = useCallback(
-    async (next: CategoryRule[]) => {
-      if (!accessToken || !fileId) return;
-      const prev = qc.getQueryData(queryKey);
+    (next: CategoryRule[]): Promise<void> => {
+      if (!accessToken || !fileId) return Promise.resolve();
       // Saving before the real rules have loaded would replace them, so refuse instead.
-      if (!prev) {
+      if (!qc.getQueryData(queryKey)) {
         notifySaveFailed();
-        throw new Error("Rules haven't loaded yet");
+        return Promise.reject(new Error("Rules haven't loaded yet"));
       }
-      qc.setQueryData(queryKey, next);
-      try {
-        await writeAppFile(accessToken, fileId, { v: 1, customized: true, rules: next } satisfies StoredRulesFile);
-      } catch (err) {
-        qc.setQueryData(queryKey, prev);
-        notifySaveFailed();
-        throw err;
-      }
+      // The Rules form edits the whole list, so a save is the whole list.
+      return save(() => next, () => writeAppFile(accessToken, fileId, { v: 1, customized: true, rules: next } satisfies StoredRulesFile));
     },
-    [accessToken, fileId, qc, queryKey]
+    [accessToken, fileId, qc, queryKey, save]
   );
 
   // Loaded means read from Drive; a failed read is an error, not "no rules".

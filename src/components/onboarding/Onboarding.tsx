@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppData } from "@/contexts/AppDataContext";
 import { readStatement, saveStatement, statementErrorMessage } from "@/lib/statements";
-import { cn, formatCurrency, getDisplayCurrency, ordinal, plural } from "@/lib/utils";
+import { formatCurrency, getDisplayCurrency, ordinal, plural } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
 import { markOnboardedThisSession } from "@/components/onboarding/AppTour";
 
@@ -68,13 +69,13 @@ export function Onboarding() {
       // in one write. Tours wait until the next visit so the first look at the
       // dashboard isn't covered by a sheet.
       markOnboardedThisSession();
-      await updateSettings({
-        ...settings,
+      await updateSettings((s) => ({
+        ...s,
         paydayOfMonth: day,
         defaultIncome: pay,
         defaultBudgetRule: split,
         onboarded: true,
-      });
+      }));
     } finally {
       setFinishing(false);
     }

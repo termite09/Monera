@@ -1,5 +1,6 @@
 import { Transaction, Settings, PeriodSummary } from "@/types";
-import { getPeriodRange, inRange, roundMoney } from "@/lib/utils";
+import { getPeriodRange, inRange } from "@/lib/periods";
+import { roundMoney } from "@/lib/utils";
 import { getPeriodSpend } from "@/lib/finance";
 
 function matchesKeyword(tx: Transaction, keywords: string[]): boolean {

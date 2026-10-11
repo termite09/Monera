@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import type { Transaction, Settings, PeriodTiming } from "@/types";
 import { useBudget } from "@/hooks/useBudget";
-import { getRecurringTransactions } from "@/lib/recurring";
 import { computeSafeToSpend, expectedSubscriptionCharges, nextPayday } from "@/lib/safeToSpend";
 import { detectSubscriptions } from "@/lib/insights";
-import { getCurrentPeriodKey, getPeriodRange, inRange, parseDateStr } from "@/lib/utils";
+import { getCurrentPeriodKey, getPeriodRange, inRange, parseDateStr } from "@/lib/periods";
 
 /** Everything the dashboard shows for one pay period, derived from the app's data. */
-export function useDashboardData({ transactions, settings, currency, periodKey, today }: {
+export function useDashboardData({ transactions, bills, settings, periodKey, today }: {
   transactions: Transaction[];
+  /** From the app data: the bills between two dates. */
+  bills: (from: string, to: string) => Transaction[];
   settings: Settings;
-  currency: string;
   periodKey: string;
   /** "YYYY-MM-DD" */
   today: string;
@@ -20,10 +20,7 @@ export function useDashboardData({ transactions, settings, currency, periodKey, 
 
   // The period's bills join the imported transactions; only what has happened
   // so far counts towards the figures (later bills are "still due").
-  const allTxs = useMemo(
-    () => [...transactions, ...getRecurringTransactions(settings.recurringPayments, periodKey, paydayOfMonth, currency)],
-    [transactions, settings.recurringPayments, periodKey, paydayOfMonth, currency]
-  );
+  const allTxs = useMemo(() => [...transactions, ...bills(range.from, range.to)], [transactions, bills, range]);
   const currentTxs = useMemo(() => allTxs.filter((tx) => tx.date <= today), [allTxs, today]);
 
   const budget = useBudget(currentTxs, settings, periodKey);

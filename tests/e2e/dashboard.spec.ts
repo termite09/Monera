@@ -1,5 +1,5 @@
 import { test, expect } from "./support/fixtures";
-import { account } from "./support/data";
+import { account, revolutCsv } from "./support/data";
 
 test.describe("dashboard", () => {
   test.beforeEach(async ({ page, drive }) => {
@@ -145,4 +145,14 @@ test.describe("dashboard states", () => {
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect.poll(() => drive.appFile<{ tourPages: Record<string, boolean> }>("settings").tourPages.dashboard).toBe(true);
   });
+});
+
+test("leaves out transactions in another currency, and says so", async ({ page, drive }) => {
+  const seeded = account();
+  // A GBP account's statement next to the EUR one: its amounts can't be added to euros.
+  seeded.statements.push({ name: "revolut-gbp.csv", csv: revolutCsv([["Card Payment", "2026-06-11", "Pret", -8.5]]).replaceAll(",EUR,", ",GBP,") });
+  drive.seed(seeded);
+  await page.goto("/dashboard");
+  await expect(page.getByText("1 transaction in GBP isn't counted. Monera counts only EUR, your main currency.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Spent: €187.99. Show details" })).toBeVisible();
 });

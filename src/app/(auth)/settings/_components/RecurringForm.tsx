@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
-import { generateId, formatCurrency, ordinal, getCurrentPeriodKey, getDisplayCurrency } from "@/lib/utils";
+import { getCurrentPeriodKey } from "@/lib/periods";
+import { formatCurrency, ordinal, getDisplayCurrency } from "@/lib/format";
+import { generateId } from "@/lib/utils";
 import { BUDGET_CATEGORIES, MONTH_NAMES } from "@/config/constants";
 import { billPeriodLabel } from "@/lib/recurring";
 import { useSaveStatus } from "@/hooks/useSaveStatus";
 import { Category, RecurringPayment, Settings } from "@/types";
+import type { SettingsChange } from "@/hooks/useSettings";
 import { SaveButton } from "./SaveButton";
 
 const PAGE_SIZE = 10;
@@ -47,7 +50,7 @@ const validBill = (b: Pick<RecurringPayment, "name" | "amount" | "dayOfMonth" | 
 /** Bills paid from other accounts. Mount with a `key` to reset. */
 export function RecurringForm({ settings, updateSettings }: {
   settings: Settings;
-  updateSettings: (s: Settings) => Promise<void>;
+  updateSettings: (change: SettingsChange) => Promise<void>;
 }) {
   // A new bill starts in the pay period running today, not the calendar month.
   const currentPeriod = getCurrentPeriodKey(settings.paydayOfMonth);
@@ -254,7 +257,7 @@ export function RecurringForm({ settings, updateSettings }: {
         </CardContent>
       </Card>
 
-      <SaveButton status={status} onClick={() => run(() => updateSettings({ ...settings, recurringPayments: items }))} disabled={!dirty} label="Save bills" />
+      <SaveButton status={status} onClick={() => run(() => updateSettings((s) => ({ ...s, recurringPayments: items })))} disabled={!dirty} label="Save bills" />
     </div>
   );
 }

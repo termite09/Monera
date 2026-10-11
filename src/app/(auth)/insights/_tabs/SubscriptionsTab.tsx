@@ -3,20 +3,20 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, CalendarClock, CreditCard } from "lucide-react";
 import { Transaction, RecurringPayment } from "@/types";
-import {
-  formatCurrency, formatDate, formatMonthShort, cleanDescription, cn, ordinal, getCategoryTextClass,
-  getCategorySwatchClass, parseDateStr, plural, roundMoney,
-} from "@/lib/utils";
+import { formatCurrency, formatDate, formatShortDate, formatMonthShort, formatMonthYear, cleanDescription, ordinal } from "@/lib/format";
+import { getCategoryTextClass, getCategorySwatchClass } from "@/lib/categories";
+import { cn, roundMoney } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { merchantKey, monthlyCost, type Subscription } from "@/lib/insights";
-import { billPeriodLabel, getRecurringInRange } from "@/lib/recurring";
+import { billPeriodLabel } from "@/lib/recurring";
 
 interface Props {
   recurringPayments: RecurringPayment[];
+  /** Every bill charged so far, from the app data. */
+  billsPaid: Transaction[];
   /** Already filtered — hidden subscriptions removed by the parent. */
   subscriptions: Subscription[];
   transactions: Transaction[];
-  paydayOfMonth: number;
   /** "YYYY-MM-DD" */
   today: string;
   /** How many detected subscriptions are currently hidden. */
@@ -25,16 +25,23 @@ interface Props {
   onRestore: () => void;
 }
 
-export function SubscriptionsTab({ recurringPayments, subscriptions, transactions, paydayOfMonth, today, hiddenCount, onHide, onRestore }: Props) {
+export function SubscriptionsTab({ recurringPayments, billsPaid, subscriptions, transactions, today, hiddenCount, onHide, onRestore }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
-  // Bills only count from your first statement onwards — before that Monera knows nothing.
-  const earliestDate = useMemo(
-    () => transactions.reduce<string | null>((min, t) => (t.source !== "recurring" && (!min || t.date < min) ? t.date : min), null),
-    [transactions]
-  );
-  const timesPaid = (p: RecurringPayment) =>
-    earliestDate ? getRecurringInRange([p], parseDateStr(earliestDate), parseDateStr(today), paydayOfMonth).length : 0;
+  // Each bill's total so far (periods it was left out of don't count), since its
+  // first charge, which is later for a bill that started later.
+  const paid = useMemo(() => {
+    const byBill = new Map<string, { total: number; from: string }>();
+    for (const t of billsPaid) {
+      if (t.excluded || !t.billId) continue;
+      const b = byBill.get(t.billId);
+      byBill.set(t.billId, { total: roundMoney((b?.total ?? 0) + t.amount), from: b && b.from < t.date ? b.from : t.date });
+    }
+    return byBill;
+  }, [billsPaid]);
+  // The year only when it isn't this year: "Mar" / "Mar 2025", "5 Jun" / "5 Jun 2025".
+  const thisYear = (date: string) => date.slice(0, 4) === today.slice(0, 4);
+  const since = (date: string) => (thisYear(date) ? formatMonthShort(date) : formatMonthYear(date.slice(0, 7)));
 
   const billsMonthly = roundMoney(recurringPayments.reduce((s, p) => s + p.amount, 0));
   const subsMonthly = roundMoney(subscriptions.reduce((s, sub) => s + monthlyCost(sub), 0));
@@ -59,7 +66,7 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
             <div className="flex flex-col divide-y divide-border">
               {recurringPayments.map((p) => {
                 const badge = billPeriodLabel(p);
-                const count = timesPaid(p);
+                const paidSoFar = paid.get(p.id);
                 return (
                   <div key={p.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                     <div className="flex-1 min-w-0">
@@ -79,9 +86,9 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       <span className="block text-sm font-medium tabular-nums text-foreground font-mono">
                         {formatCurrency(p.amount)}<span className="font-sans font-normal text-muted-foreground"> a month</span>
                       </span>
-                      {count > 0 && earliestDate && (
+                      {paidSoFar && paidSoFar.total > 0 && (
                         <span className="block text-xs text-muted-foreground">
-                          paid {plural(count, "time")} since {formatMonthShort(earliestDate)}
+                          <span className="font-mono tabular-nums">{formatCurrency(paidSoFar.total)}</span> paid since {since(paidSoFar.from)}
                         </span>
                       )}
                     </span>
@@ -137,11 +144,16 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                       >
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm text-foreground wrap-break-word">{s.name}</span>
+                          <span className="block text-xs text-muted-foreground">Last charged {thisYear(s.lastDate) ? formatShortDate(s.lastDate) : formatDate(s.lastDate)}</span>
+                        </span>
+                        <span className="text-right shrink-0">
+                          <span className="block text-sm font-medium tabular-nums text-foreground font-mono">
+                            {formatCurrency(s.amount)}<span className="font-sans font-normal text-muted-foreground">{s.everyMonths === 2 ? " every 2 months" : " a month"}</span>
+                          </span>
                           <span className="block text-xs text-muted-foreground">
-                            {s.everyMonths === 2 ? "Every 2 months" : "Monthly"} · seen in {s.months} months · last {formatDate(s.lastDate)}
+                            <span className="font-mono tabular-nums">{formatCurrency(s.total)}</span> paid since {since(s.firstDate)}
                           </span>
                         </span>
-                        <span className="text-sm font-medium tabular-nums text-foreground shrink-0 font-mono">~{formatCurrency(s.amount)}</span>
                         <ChevronDown
                           size={14}
                           aria-hidden
@@ -160,9 +172,6 @@ export function SubscriptionsTab({ recurringPayments, subscriptions, transaction
                     </div>
                     {isOpen && (
                       <div className="mx-4 mb-3 rounded-lg bg-secondary/50">
-                        <p className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-                          <span className="font-mono tabular-nums">{formatCurrency(s.total)}</span> across {plural(charges.length, "charge")} so far
-                        </p>
                         <div className="divide-y divide-border">
                           {charges.map((tx) => (
                             <div key={tx.id} className="flex items-start gap-3 px-3 py-2.5">

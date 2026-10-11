@@ -75,7 +75,9 @@ describe("detectSubscriptions", () => {
     expect(subs[0].name).toBe("Netflix");
     expect(subs[0].amount).toBe(12.99);
     expect(subs[0].months).toBe(3);
+    expect(subs[0].firstDate).toBe("2024-04-12");
     expect(subs[0].lastDate).toBe("2024-06-12");
+    expect(subs[0].total).toBe(38.97);
   });
 
   it("ignores merchants with inconsistent (variable) amounts", () => {
@@ -112,9 +114,7 @@ describe("detectSubscriptions", () => {
     expect(subs).toHaveLength(1);
   });
 
-  it("rounds the representative (median) amount to clean cents", () => {
-    // Even-count charges: raw median (12.99 + 13.49) / 2 = 13.2399999… without
-    // rounding. The representative amount must be a clean 13.24.
+  it("shows the latest price after a price rise, not the typical one", () => {
     const subs = detectSubscriptions([
       tx({ amount: 12.99, type: "expense", description: "Disney", date: "2024-03-12" }),
       tx({ amount: 12.99, type: "expense", description: "Disney", date: "2024-04-12" }),
@@ -122,7 +122,7 @@ describe("detectSubscriptions", () => {
       tx({ amount: 13.49, type: "expense", description: "Disney", date: "2024-06-12" }),
     ]);
     expect(subs).toHaveLength(1);
-    expect(subs[0].amount).toBe(13.24);
+    expect(subs[0].amount).toBe(13.49);
   });
 });
 
@@ -163,6 +163,17 @@ describe("buildPeriodInsights — fair comparison", () => {
     expect(report.comparedToSamePoint).toBe(false);
     expect(report.prevSpending).toBe(580);
   });
+
+  it("never reaches past the end of a shorter last period", () => {
+    // 31 March, payday 1: compare with all of February, not 1–3 March.
+    const txs = [
+      tx({ amount: 40, type: "expense", category: "Wants", date: "2024-02-20" }),
+      tx({ amount: 999, type: "expense", category: "Wants", date: "2024-03-02" }), // this period
+    ];
+    const report = buildPeriodInsights(txs, "2024-03", 1, new Date(2024, 2, 31));
+    expect(report.comparedToSamePoint).toBe(true);
+    expect(report.prevSpending).toBe(40);
+  });
 });
 
 describe("detectSubscriptions — steady prices only", () => {
@@ -184,7 +195,6 @@ describe("buildPeriodInsights — spending", () => {
       tx({ amount: 150, type: "expense", category: "Savings", date: "2024-06-02" }),
     ];
     const r = buildPeriodInsights(txs, "2024-06", 1, now);
-    expect(r.totalSpent).toBe(250);
     expect(r.spending).toBe(100);
   });
 });

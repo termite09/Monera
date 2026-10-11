@@ -1,5 +1,7 @@
 import { Transaction, RecurringPayment } from "@/types";
-import { getPeriodBounds, generateId, periodKeysBetween, toDateStr, clampDayToMonth, formatMonthYear } from "@/lib/utils";
+import { getPeriodBounds, getPeriodKey, getPeriodRange, parseDateStr, periodKeysBetween, toDateStr, clampDayToMonth } from "@/lib/periods";
+import { formatMonthYear } from "@/lib/format";
+import { generateId } from "@/lib/utils";
 
 /**
  * Expands configured recurring payments into synthetic expense transactions
@@ -38,6 +40,7 @@ export function getRecurringTransactions(
       source: "recurring",
       categorySource: "manual",
       excluded: false,
+      billId: r.id,
     });
   }
 
@@ -72,6 +75,31 @@ export function getRecurringInRange(
   }
 
   return out;
+}
+
+/**
+ * The day regular bills start counting: the start of the pay period holding the
+ * first transaction Monera has, or of today's period when there are none yet.
+ * Before that Monera knows nothing about the user's money, so it mustn't invent
+ * spending from their bills.
+ */
+export function billsStartDate(transactions: Transaction[], paydayOfMonth: number, today: string): string {
+  const first = transactions.reduce((min, t) => (t.source !== "recurring" && t.date < min ? t.date : min), today);
+  return getPeriodRange(getPeriodKey(first, paydayOfMonth), paydayOfMonth).from;
+}
+
+/** The bills falling between `from` and `to` ("YYYY-MM-DD", inclusive), never before `start`. */
+export function billsBetween(
+  recurring: RecurringPayment[],
+  from: string,
+  to: string,
+  start: string,
+  paydayOfMonth: number,
+  currency: string
+): Transaction[] {
+  const first = from > start ? from : start;
+  if (first > to) return [];
+  return getRecurringInRange(recurring, parseDateStr(first), parseDateStr(to), paydayOfMonth, currency);
 }
 
 /** "Sep 2025 – Mar 2026", "From Sep 2025", "Until Mar 2026", or null when a bill applies to every period. */

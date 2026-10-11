@@ -1,5 +1,6 @@
 import { Transaction, PeriodSummary, TransactionSource, Category } from "@/types";
-import { getPeriodBounds, roundMoney, toDateStr, daysToPayday, getPeriodRange, inRange } from "@/lib/utils";
+import { getPeriodBounds, toDateStr, daysToPayday, getPeriodRange, inRange } from "@/lib/periods";
+import { roundMoney } from "@/lib/utils";
 import { netExpenseByCategory, netExpenseTotal } from "@/lib/finance";
 import { nextChargeDate, type Subscription } from "@/lib/insights";
 

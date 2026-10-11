@@ -87,3 +87,18 @@ test.describe("statements", () => {
     await expect(page.getByText("Choose Excel or CSV as the format.")).toBeVisible();
   });
 });
+
+test("shows the newest 5 statements, and 5 more each time", async ({ page, drive }) => {
+  const base = account();
+  // Seeded oldest first, so old-1 is the oldest and old-6 the newest.
+  const older = Array.from({ length: 6 }, (_, i) => ({ name: `old-${i + 1}.csv`, csv: STATEMENT_CSV }));
+  drive.seed({ ...base, statements: [...older, ...base.statements] });
+  await page.goto("/upload");
+  await expect(page.getByText("revolut-2026-06.csv")).toBeVisible();
+  await expect(page.getByText("old-3.csv")).toBeVisible();
+  await expect(page.getByText("old-2.csv")).toBeHidden();
+
+  await page.getByRole("button", { name: "Load more (2 remaining)" }).click();
+  await expect(page.getByText("old-1.csv")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Load more/ })).toBeHidden();
+});

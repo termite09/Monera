@@ -1,54 +1,50 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings } from "@/types";
-import { DriveStructure, readAppFile, writeAppFile } from "@/lib/google/folders";
+import { DriveStructure, readAppFile, updateAppFile } from "@/lib/google/folders";
 import { DEFAULT_SETTINGS } from "@/config/constants";
 import { DriveAuthError } from "@/lib/errors";
 import { notifySaveFailed } from "@/lib/notify";
 import { migrateSettings } from "@/lib/migrateSettings";
+import { useWriteQueue } from "@/hooks/useWriteQueue";
+
+const upToDate = (stored: Partial<Settings>): Settings => migrateSettings(stored, DEFAULT_SETTINGS).migrated;
+
+/** A change to settings, made to the latest copy so quick changes never undo each other. */
+export type SettingsChange = (current: Settings) => Settings;
 
 export function useSettings(accessToken: string | undefined, structure: DriveStructure | null) {
   const qc = useQueryClient();
   const fileId = structure?.fileIds.settings;
   const queryKey = useMemo(() => ["settings", fileId ?? "none"], [fileId]);
+  const { afterSaves, save } = useWriteQueue<Settings>(queryKey);
 
   const query = useQuery({
     queryKey,
-    queryFn: async () => {
-      const s = await readAppFile<Partial<Settings>>(accessToken as string, fileId as string);
-      const { migrated, changed } = migrateSettings(s, DEFAULT_SETTINGS);
-      if (changed) {
-        // Persist missing-key backfill and version stamp without blocking the return.
-        writeAppFile(accessToken as string, fileId as string, migrated).catch(() => {
-          // Best-effort — failures are non-fatal; the user will get defaults in memory.
-        });
-      }
-      return migrated;
-    },
+    queryFn: () =>
+      // Older files are brought up to date in memory; the next save stores that.
+      afterSaves(async () => upToDate(await readAppFile<Partial<Settings>>(accessToken as string, fileId as string))),
     enabled: !!accessToken && !!fileId,
+    // Small file, so re-read on coming back to the app: picks up another device's changes.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     retry: (count, err) => !(err instanceof DriveAuthError) && count < 1,
   });
 
   const updateSettings = useCallback(
-    async (newSettings: Settings) => {
-      if (!accessToken || !fileId) return;
-      const prev = qc.getQueryData(queryKey);
+    (change: SettingsChange): Promise<void> => {
+      if (!accessToken || !fileId) return Promise.resolve();
       // Saving before the real settings have loaded would write the defaults
       // over them (bills, budgets, keywords), so refuse instead.
-      if (!prev) {
+      if (!qc.getQueryData(queryKey)) {
         notifySaveFailed();
-        throw new Error("Settings haven't loaded yet");
+        return Promise.reject(new Error("Settings haven't loaded yet"));
       }
-      qc.setQueryData(queryKey, newSettings);
-      try {
-        await writeAppFile(accessToken, fileId, newSettings);
-      } catch (err) {
-        qc.setQueryData(queryKey, prev);
-        notifySaveFailed();
-        throw err;
-      }
+      // Saves run in order, and each applies its change to the copy in Drive
+      // right then, so a change made on another device isn't written over.
+      return save(change, () => updateAppFile<Settings>(accessToken, fileId, (stored) => change(upToDate(stored))));
     },
-    [accessToken, fileId, qc, queryKey]
+    [accessToken, fileId, qc, queryKey, save]
   );
 
   // Loaded means read from Drive. A failed read is an error, never "defaults":

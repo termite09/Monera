@@ -3,7 +3,6 @@ import { test, expect, type Page } from "./support/fixtures";
 import { account, manualTransaction } from "./support/data";
 
 const summary = (page: Page) => page.getByText(/\d+ transactions? · /);
-const rowCheckboxes = (page: Page) => page.getByRole("checkbox", { name: /^Select (?!all)/ });
 
 async function open(page: Page) {
   await page.goto("/transactions");
@@ -26,6 +25,15 @@ test.describe("transactions list", () => {
     await expect(page.getByText("Upcoming")).toBeVisible();
     // Declined payments and top-ups never make it in.
     await expect(page.getByText("Declined shop")).toHaveCount(0);
+  });
+
+  test("a bill can be left out for one period, and safe to spend counts it", async ({ page, drive }) => {
+    await page.getByRole("checkbox", { name: "Select Rent, −€800.00" }).click();
+    await page.getByRole("region", { name: "Selected transactions" }).getByRole("button", { name: "Leave out" }).click();
+    await expect.poll(() => drive.appFile<string[]>("excludedTransactions").length).toBe(1);
+    await page.goto("/dashboard");
+    // €612.01 + the €800 rent no longer due.
+    await expect(page.getByRole("button", { name: "Safe to spend: €1,412.01. Show details" })).toBeVisible();
   });
 
   test("searches descriptions, with / as a shortcut", async ({ page }) => {
@@ -64,10 +72,12 @@ test.describe("transactions list", () => {
   });
 
   test("sorts by amount both ways", async ({ page }) => {
+    // Read from the amounts column: bill rows (Rent) have no tick box.
+    const firstAmount = () => page.getByText(/^[−+]€[\d,.]+$/).first();
     await page.getByRole("button", { name: /^Sort by amount/ }).click();
-    await expect(rowCheckboxes(page).first()).toHaveAccessibleName("Select Netflix, −€12.99");
+    await expect(firstAmount()).toHaveText("−€12.99");
     await page.getByRole("button", { name: /^Sort by amount/ }).click();
-    await expect(rowCheckboxes(page).first()).toHaveAccessibleName("Select Rent, −€800.00");
+    await expect(firstAmount()).toHaveText("−€800.00");
   });
 
   test("moves one transaction to another category, with undo", async ({ page, drive }) => {

@@ -1,5 +1,4 @@
 import { DriveFile } from "@/types";
-import { getCached, setCached, invalidateCache } from "@/lib/cache";
 import { DriveAuthError } from "@/lib/errors";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -111,18 +110,18 @@ export async function createFolder(
   return data.id;
 }
 
+/**
+ * Always fetched fresh: saves read a file, change it and write it back, so a
+ * stale copy would overwrite changes made on another device. Loaded data is
+ * cached by React Query instead.
+ */
 export async function readFile(accessToken: string, fileId: string): Promise<string> {
-  const cached = getCached<string>(`file:${fileId}`);
-  if (cached !== null) return cached;
-
   const res = await driveRequest(
     `${DRIVE_API}/files/${fileId}?alt=media`,
     accessToken
   );
   if (!res.ok) throw new Error(`Drive readFile failed: ${res.statusText}`);
-  const content = await res.text();
-  setCached(`file:${fileId}`, content);
-  return content;
+  return res.text();
 }
 
 export async function writeFile(
@@ -140,7 +139,6 @@ export async function writeFile(
     }
   );
   if (!res.ok) throw new Error(`Drive writeFile failed: ${res.statusText}`);
-  invalidateCache(`file:${fileId}`);
 }
 
 export async function createFile(
@@ -185,5 +183,4 @@ export async function deleteFile(accessToken: string, fileId: string): Promise<v
     method: "DELETE",
   });
   if (!res.ok && res.status !== 204) throw new Error(`Drive deleteFile failed: ${res.statusText}`);
-  invalidateCache(`file:${fileId}`);
 }

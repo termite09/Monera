@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { getRecurringInRange } from "@/lib/recurring";
-import { periodKeysBetween } from "@/lib/utils";
-import { RecurringPayment } from "@/types";
+import { billsBetween, billsStartDate, getRecurringInRange } from "@/lib/recurring";
+import { periodKeysBetween } from "@/lib/periods";
+import { RecurringPayment, Transaction } from "@/types";
 
 const bill = (over: Partial<RecurringPayment> = {}): RecurringPayment => ({
   id: "rent",
@@ -50,5 +50,28 @@ describe("getRecurringInRange", () => {
 
   it("returns nothing for an empty recurring list", () => {
     expect(getRecurringInRange([], new Date(2024, 0, 1), new Date(2024, 11, 31), 1)).toEqual([]);
+  });
+});
+
+describe("when bills start counting", () => {
+  const spent = (date: string): Transaction => ({
+    id: date, date, description: "Lidl", amount: 10, type: "expense", currency: "EUR",
+    category: "Needs", source: "statement", categorySource: "auto", excluded: false,
+  });
+
+  it("starts at the pay period of the first transaction", () => {
+    // Payday 24: 10 March belongs to the period that started 24 February.
+    expect(billsStartDate([spent("2026-04-02"), spent("2026-03-10")], 24, "2026-06-15")).toBe("2026-02-24");
+  });
+
+  it("starts at today's period when there are no transactions yet", () => {
+    expect(billsStartDate([], 1, "2026-06-15")).toBe("2026-06-01");
+  });
+
+  it("never invents bills before that, and keeps their bill's id", () => {
+    const out = billsBetween([bill({ dayOfMonth: 20 })], "2026-01-01", "2026-06-30", "2026-05-01", 1, "EUR");
+    expect(out.map((t) => t.date)).toEqual(["2026-05-20", "2026-06-20"]);
+    expect(out.every((t) => t.billId === "rent")).toBe(true);
+    expect(billsBetween([bill()], "2026-01-01", "2026-03-31", "2026-05-01", 1, "EUR")).toEqual([]);
   });
 });

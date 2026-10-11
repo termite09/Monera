@@ -1,16 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { formatCurrency, formatDate, cleanDescription, cn } from "@/lib/utils";
+import { ArrowDown, ArrowUp, ChevronDown } from "lucide-react";
+import { formatCurrency, formatDate, cleanDescription } from "@/lib/format";
+import { cn, roundMoney } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MerchantGroup } from "@/lib/insights";
 
 interface Props {
   /** Any spending at all this period (before hiding merchants). */
   hasSpending: boolean;
-  /** All spending this period, so hiding a place never changes the share figure. */
+  /** All spending this period, whatever is hidden, after refunds. */
   periodSpending: number;
+  /** What every merchant row adds up to (hidden ones too), before refunds. */
+  charged: number;
+  refunded: number;
+  /** Last period's spending — only up to the same day while this period runs. */
+  prevSpending: number;
+  comparedToSamePoint: boolean;
   /** Visible merchants, biggest first. */
   merchants: MerchantGroup[];
   hiddenCount: number;
@@ -21,7 +28,7 @@ interface Props {
 const TOP_N = 5;
 const TXS_SHOWN = 20;
 
-export function MerchantsTab({ hasSpending, periodSpending, merchants, hiddenCount, onHide, onResetHidden }: Props) {
+export function MerchantsTab({ hasSpending, periodSpending, charged, refunded, prevSpending, comparedToSamePoint, merchants, hiddenCount, onHide, onResetHidden }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAllFor, setShowAllFor] = useState<Set<string>>(new Set());
   const [showAllMerchants, setShowAllMerchants] = useState(false);
@@ -39,9 +46,8 @@ export function MerchantsTab({ hasSpending, periodSpending, merchants, hiddenCou
 
   const maxTotal = Math.max(1, ...merchants.map((m) => m.total));
   const visible = showAllMerchants ? merchants : merchants.slice(0, TOP_N);
-  const topShare = periodSpending > 0
-    ? Math.round((merchants.slice(0, TOP_N).reduce((s, m) => s + m.total, 0) / periodSpending) * 100)
-    : 0;
+  const diff = roundMoney(periodSpending - prevSpending);
+  const lastPeriod = comparedToSamePoint ? "this time last period" : "last period";
 
   return (
     <Card>
@@ -58,10 +64,30 @@ export function MerchantsTab({ hasSpending, periodSpending, merchants, hiddenCou
             </button>
           )}
         </div>
+        {/* Spent this period, and the change since last period: arrow and words, never colour alone. */}
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
-          {merchants.length > TOP_N
-            ? `Your top ${TOP_N} places took ${topShare}% of your spending this period.`
-            : "Every place you spent money this period."}
+          <span className="font-medium text-foreground tabular-nums font-mono">{formatCurrency(periodSpending)}</span>
+          {comparedToSamePoint ? " spent so far" : " spent"}
+          {/* The rows below are charges; this makes them add up to the figure above. */}
+          {refunded > 0 && (
+            <>
+              {" "}(<span className="tabular-nums font-mono">{formatCurrency(charged)}</span> − <span className="tabular-nums font-mono">{formatCurrency(refunded)}</span> refunded)
+            </>
+          )}
+          {prevSpending > 0 && (
+            <>
+              {" · "}
+              {diff === 0 ? (
+                `the same as ${lastPeriod}`
+              ) : (
+                <>
+                  {diff > 0 ? <ArrowUp size={12} className="inline align-[-1px]" aria-hidden /> : <ArrowDown size={12} className="inline align-[-1px]" aria-hidden />}
+                  <span className="tabular-nums font-mono">{formatCurrency(Math.abs(diff))}</span>
+                  {diff > 0 ? " more" : " less"} than {lastPeriod}
+                </>
+              )}
+            </>
+          )}
         </p>
       </CardHeader>
       <CardContent className="px-0 pb-2">

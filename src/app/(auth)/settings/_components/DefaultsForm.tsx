@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ordinal, getDisplayCurrency } from "@/lib/utils";
+import { ordinal, getDisplayCurrency } from "@/lib/format";
 import { useSaveStatus } from "@/hooks/useSaveStatus";
 import type { Settings } from "@/types";
+import type { SettingsChange } from "@/hooks/useSettings";
 import { RecognisingPay } from "./RecognisingPay";
 import { SaveButton } from "./SaveButton";
 import { BudgetSplitFields, fromSplitDraft, splitTotal, toSplitDraft } from "./BudgetSplitFields";
@@ -17,7 +18,7 @@ const incomeText = (n: number | undefined) => (n ? String(n) : "");
 /** Basics: payday, standing pay, budget split and the keywords that recognise pay. Mount with a `key` to reset. */
 export function DefaultsForm({ settings, updateSettings }: {
   settings: Settings;
-  updateSettings: (s: Settings) => Promise<void>;
+  updateSettings: (change: SettingsChange) => Promise<void>;
 }) {
   const [payday, setPayday] = useState(String(settings.paydayOfMonth));
   const [split, setSplit] = useState(() => toSplitDraft(settings.defaultBudgetRule));
@@ -41,15 +42,15 @@ export function DefaultsForm({ settings, updateSettings }: {
   const handleSave = () => {
     if (total !== 100) return;
     run(() =>
-      updateSettings({
-        ...settings,
+      updateSettings((s) => ({
+        ...s,
         paydayOfMonth: paydayNum,
         defaultIncome: Math.max(0, parseFloat(defaultIncome) || 0),
         defaultBudgetRule: fromSplitDraft(split),
         salaryKeywords: salary,
         selfTransferKeywords: selfTransfer,
         savingsVaultKeywords: savingsVault,
-      })
+      }))
     );
   };
 

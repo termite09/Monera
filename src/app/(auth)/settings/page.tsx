@@ -8,13 +8,13 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { useAppData } from "@/contexts/AppDataContext";
-import { getPeriodLabel } from "@/lib/utils";
+import { getPeriodLabel } from "@/lib/format";
 import { signOutAndClear } from "@/lib/session";
 import { Segmented, TabPanel } from "@/components/ui/segmented";
-import { PeriodForm } from "@/components/settings/PeriodForm";
-import { DefaultsForm } from "@/components/settings/DefaultsForm";
-import { RecurringForm } from "@/components/settings/RecurringForm";
-import { RulesForm } from "@/components/settings/RulesForm";
+import { PeriodForm } from "./_components/PeriodForm";
+import { DefaultsForm } from "./_components/DefaultsForm";
+import { RecurringForm } from "./_components/RecurringForm";
+import { RulesForm } from "./_components/RulesForm";
 import { AppTour } from "@/components/onboarding/AppTour";
 
 const SETTINGS_SLIDES = [
@@ -60,9 +60,9 @@ export default function SettingsPage() {
   const [tab, setTab] = useState(() => tabFromParam(searchParams.get("tab")));
 
   const replayGuide = useCallback(async () => {
-    await updateSettings({ ...settings, tourPages: {} });
+    await updateSettings((s) => ({ ...s, tourPages: {} }));
     router.push("/dashboard");
-  }, [settings, updateSettings, router]);
+  }, [updateSettings, router]);
 
   // Forms copy settings into local state when they mount; remounting them once
   // the real settings arrive from Drive replaces the defaults they started with.

@@ -8,21 +8,21 @@ import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/Modal";
+import { LoadMore } from "@/components/ui/LoadMore";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { TransactionRow } from "@/components/transactions/TransactionRow";
-import { TransactionForm } from "@/components/transactions/TransactionForm";
+import { TransactionRow } from "./_components/TransactionRow";
+import { TransactionForm } from "./_components/TransactionForm";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToday } from "@/hooks/useToday";
 import { TransactionFilters, type ListType, type RangeMode, type CategoryFilter } from "./_components/TransactionFilters";
 import { BulkActionBar } from "./_components/BulkActionBar";
-import { getRecurringTransactions, getRecurringInRange } from "@/lib/recurring";
 import { netExpenseTotal } from "@/lib/finance";
-import {
-  getPeriodRange, inRange, parseDateStr, formatCurrency, formatShortDate, roundMoney, cn, cleanDescription,
-  getCategorySwatchClass, plural,
-} from "@/lib/utils";
+import { getPeriodRange, inRange } from "@/lib/periods";
+import { formatCurrency, formatShortDate, cleanDescription, plural } from "@/lib/format";
+import { getCategorySwatchClass } from "@/lib/categories";
+import { roundMoney, cn } from "@/lib/utils";
 import { BUDGET_CATEGORIES } from "@/config/constants";
 import { Category, Transaction } from "@/types";
 
@@ -121,7 +121,7 @@ function SortHeader({ field, sort, onSort, className }: {
 
 export default function TransactionsPage() {
   const {
-    periodKey, setPeriodKey, transactions, settings, currency, isLoading, txError,
+    periodKey, setPeriodKey, transactions, bills, settings, currency, isLoading, txError,
     addManualTransaction, deleteManualTransaction, updateManualTransaction, bulkUpdateCategory, updateCategory,
     bulkExclude, bulkResetToDefault, refetch,
   } = useAppData();
@@ -193,17 +193,14 @@ export default function TransactionsPage() {
   // with that span's recurring bills, narrowed by category and search.
   const scopedTxs = useMemo(() => {
     const range = customActive ? { from: customFrom, to: customTo } : getPeriodRange(periodKey, paydayOfMonth);
-    const bills = customActive
-      ? getRecurringInRange(settings.recurringPayments, parseDateStr(customFrom), parseDateStr(customTo), paydayOfMonth, currency)
-      : getRecurringTransactions(settings.recurringPayments, periodKey, paydayOfMonth, currency);
     const query = search.trim().toLowerCase();
-    return [...transactions, ...bills].filter(
+    return [...transactions, ...bills(range.from, range.to)].filter(
       (t) =>
         inRange(t.date, range) &&
         (category === "All" || t.category === category) &&
         (!query || t.description.toLowerCase().includes(query))
     );
-  }, [transactions, settings.recurringPayments, currency, periodKey, paydayOfMonth, category, search, customActive, customFrom, customTo]);
+  }, [transactions, bills, periodKey, paydayOfMonth, category, search, customActive, customFrom, customTo]);
 
   const filtered = useMemo(() => {
     const compare = compareBy[sortField];
@@ -310,7 +307,7 @@ export default function TransactionsPage() {
   };
 
   const handleBulkCategoryChange = async (cat: Category) => {
-    const moved = transactions.filter((t) => selected.has(t.id) && t.type !== "income");
+    const moved = scopedTxs.filter((t) => selected.has(t.id) && t.type !== "income");
     clearSelection();
     setSelectCatSheet(false);
     if (moved.length === 0) return;
@@ -492,14 +489,7 @@ export default function TransactionsPage() {
                       />
                     );
                   })}
-                  {filtered.length > visibleRows.length && (
-                    <button type="button"
-                      onClick={() => setPage((p) => p + 1)}
-                      className="w-full py-3 text-sm text-primary hover:bg-secondary/50 transition-colors"
-                    >
-                      Load more ({filtered.length - visibleRows.length} remaining)
-                    </button>
-                  )}
+                  <LoadMore remaining={filtered.length - visibleRows.length} onClick={() => setPage((p) => p + 1)} />
                 </div>
               </>
             )}

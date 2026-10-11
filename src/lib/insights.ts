@@ -1,8 +1,7 @@
 import { Transaction, Category } from "@/types";
-import {
-  addMonths, clampDayToMonth, cleanDescription, getPeriodBounds, getPeriodKey, getPeriodRange, inRange,
-  parseDateStr, roundMoney, toDateStr, MS_PER_DAY,
-} from "@/lib/utils";
+import { addMonths, clampDayToMonth, getPeriodBounds, getPeriodKey, getPeriodRange, inRange, parseDateStr, toDateStr, MS_PER_DAY } from "@/lib/periods";
+import { cleanDescription } from "@/lib/format";
+import { roundMoney } from "@/lib/utils";
 import { getPeriodSpend, netExpenseByCategory } from "@/lib/finance";
 
 export interface CategoryTotals {
@@ -70,12 +69,13 @@ export interface Subscription {
   /** merchantKey of the charges, for finding them again. */
   key: string;
   name: string;
-  /** Representative (median) charge. */
+  /** The latest charge — what it costs now, after any price change. */
   amount: number;
   /** Sum of all detected charges. */
   total: number;
   /** Distinct calendar months the charge was seen in. */
   months: number;
+  firstDate: string;
   lastDate: string;
   /** Charged every month (1) or every other month (2). */
   everyMonths: 1 | 2;
@@ -117,8 +117,7 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     // A subscription charges about once a month; a shop you visit often doesn't.
     if (g.amounts.length > g.months.size * 1.25) continue;
 
-    // Round the median to clean cents: it is both the displayed representative
-    // charge and the basis for the tolerance check.
+    // The median, rounded to clean cents, is the basis for the tolerance check.
     const mid = roundMoney(median(g.amounts));
     // A subscription charges the same price, or switches once to a new price
     // (12.99 → 13.99). Shopping at the same shop varies every time, so: at most
@@ -134,12 +133,14 @@ export function detectSubscriptions(transactions: Transaction[]): Subscription[]
     if (medianInterval < 20 || medianInterval > 65) continue;
     if (!intervals.every((iv) => Math.abs(iv - medianInterval) <= medianInterval * 0.5)) continue;
 
+    const latest = g.dates.indexOf(dates[dates.length - 1]);
     subs.push({
       key,
       name: g.name,
-      amount: mid,
+      amount: roundMoney(g.amounts[latest]),
       total: roundMoney(g.amounts.reduce((s, a) => s + a, 0)),
       months: g.months.size,
+      firstDate: dates[0],
       lastDate: dates[dates.length - 1],
       everyMonths: medianInterval > 35 ? 2 : 1,
     });
@@ -163,15 +164,9 @@ export function nextChargeDate(sub: Pick<Subscription, "lastDate" | "everyMonths
 }
 
 export interface PeriodInsights {
-  /** Number of spending transactions in the period. */
-  txCount: number;
-  /** Net spending including savings moves. */
-  totalSpent: number;
   /** Net spending excluding savings — what "spent" means everywhere in Monera. */
   spending: number;
   prevSpending: number;
-  byCategory: Record<Category, number>;
-  prevByCategory: Record<Category, number>;
   /** True when "prev" covers last period only up to the same day as today. */
   comparedToSamePoint: boolean;
 }
@@ -183,7 +178,6 @@ export function buildPeriodInsights(
   paydayOfMonth: number,
   now: Date = new Date()
 ): PeriodInsights {
-  const range = getPeriodRange(periodKey, paydayOfMonth);
   const spend = getPeriodSpend(transactions, periodKey, paydayOfMonth);
 
   // Compare like with like: while a period is still running, set it against last
@@ -193,9 +187,12 @@ export function buildPeriodInsights(
   const prevKey = addMonths(periodKey, -1);
   let prevByCategory: Record<Category, number>;
   if (comparedToSamePoint) {
-    const prevStart = getPeriodBounds(prevKey, paydayOfMonth).start;
-    const cutoff = new Date(prevStart.getTime() + (now.getTime() - start.getTime()));
-    const prevRange = { from: toDateStr(prevStart), to: toDateStr(cutoff) };
+    // Counted in whole days (safe across clock changes), and never past the end of
+    // last period: day 31 of March compares with all of February, not 3 days of March.
+    const prev = getPeriodBounds(prevKey, paydayOfMonth);
+    const daysIn = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - start.getTime()) / MS_PER_DAY);
+    const cutoff = new Date(prev.start.getFullYear(), prev.start.getMonth(), prev.start.getDate() + daysIn);
+    const prevRange = { from: toDateStr(prev.start), to: toDateStr(cutoff < prev.end ? cutoff : prev.end) };
     prevByCategory = netExpenseByCategory(transactions.filter((t) => inRange(t.date, prevRange)));
   } else {
     prevByCategory = getPeriodSpend(transactions, prevKey, paydayOfMonth).byCategory;
@@ -203,12 +200,8 @@ export function buildPeriodInsights(
   const prevTotal = prevByCategory.Needs + prevByCategory.Wants + prevByCategory.Savings + prevByCategory.Uncategorized;
 
   return {
-    txCount: transactions.filter((t) => !t.excluded && t.type === "expense" && inRange(t.date, range)).length,
-    totalSpent: spend.total,
     spending: roundMoney(spend.total - spend.byCategory.Savings),
     prevSpending: roundMoney(prevTotal - prevByCategory.Savings),
-    byCategory: spend.byCategory,
-    prevByCategory,
     comparedToSamePoint,
   };
 }

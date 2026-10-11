@@ -1,6 +1,6 @@
 import { PeriodSummary } from "@/types";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 
 interface Props {
   summary: PeriodSummary;

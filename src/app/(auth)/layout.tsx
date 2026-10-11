@@ -25,7 +25,8 @@ export default async function AuthLayout({
   if (!session?.user) redirect("/login");
 
   // Refetch the session every 4 minutes (and on focus) so the Drive access token
-  // stays fresh — the server refreshes it before it expires.
+  // stays fresh — the server renews it 5 minutes before it expires, so keep this
+  // interval shorter than that.
   return (
     <SessionProvider session={session} refetchInterval={4 * 60} refetchOnWindowFocus>
       <AppDataProvider>

@@ -1,6 +1,6 @@
 import { Transaction } from "@/types";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { formatCurrency, formatDate, cleanDescription } from "@/lib/utils";
+import { formatCurrency, formatDate, cleanDescription } from "@/lib/format";
 
 interface Props {
   /** Pay the user told us to expect (Basics, or a Period override). */

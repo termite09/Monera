@@ -1,5 +1,6 @@
 import { Transaction, Category } from "@/types";
-import { getPeriodRange, inRange, roundMoney } from "@/lib/utils";
+import { getPeriodRange, inRange } from "@/lib/periods";
+import { roundMoney } from "@/lib/utils";
 
 export interface PeriodSpend {
   byCategory: Record<Category, number>;

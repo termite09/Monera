@@ -257,7 +257,7 @@ describe("useBudget — salary keyword behaviour", () => {
 });
 
 describe("dashboard / reports consistency (C1)", () => {
-  it("dashboard totalExpenses equals reports totalSpent when refunds exist", () => {
+  it("dashboard totalExpenses equals Insights spending when refunds exist", () => {
     const txs = [
       tx({ amount: 100, type: "expense", category: "Wants" }),
       tx({ amount: 35, type: "income", category: "Wants" }), // refund
@@ -266,7 +266,7 @@ describe("dashboard / reports consistency (C1)", () => {
     ];
     const { summary } = computeBudget(txs, baseSettings, "2024-06");
     const report = buildPeriodInsights(txs, "2024-06", 1);
-    expect(summary.totalExpenses).toBe(report.totalSpent);
-    expect(report.totalSpent).toBe(265); // (100-35) + 200, salary excluded
+    expect(summary.totalExpenses).toBe(report.spending);
+    expect(report.spending).toBe(265); // (100-35) + 200, salary excluded
   });
 });

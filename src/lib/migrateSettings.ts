@@ -1,6 +1,6 @@
 import { Settings } from "@/types";
 import { SETTINGS_VERSION } from "@/config/constants";
-import { currencyCode } from "@/lib/utils";
+import { currencyCode } from "@/lib/format";
 
 /**
  * Merges `loaded` settings with `defaults`, filling in keys that exist in

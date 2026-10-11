@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { CalendarClock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatShortDate, roundMoney, formatWeekdayDate, parseDateStr, MS_PER_DAY } from "@/lib/utils";
+import { parseDateStr, MS_PER_DAY } from "@/lib/periods";
+import { formatCurrency, formatShortDate, formatWeekdayDate } from "@/lib/format";
+import { roundMoney } from "@/lib/utils";
 import { billKind, type UpcomingBill } from "@/lib/safeToSpend";
 import type { PeriodTiming } from "@/types";
 

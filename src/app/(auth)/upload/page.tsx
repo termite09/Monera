@@ -11,8 +11,12 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { deleteFile } from "@/lib/google/drive";
 import { listStatementFiles } from "@/lib/google/folders";
 import { readStatement, saveStatement, statementErrorMessage, type StatementPreview } from "@/lib/statements";
-import { formatDate, formatShortDate, cn, plural } from "@/lib/utils";
+import { formatDate, formatShortDate, plural } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
+import { LoadMore } from "@/components/ui/LoadMore";
+
+const PAGE_SIZE = 5;
 
 type Status = { kind: "idle" } | { kind: "working" | "success" | "error"; message: string };
 
@@ -24,6 +28,7 @@ export default function UploadPage() {
   const [pending, setPending] = useState<StatementPreview | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filesKey = ["statements", structure?.statementsFolderId ?? "none"];
@@ -77,6 +82,8 @@ export default function UploadPage() {
   };
 
   const existingFiles = files.data ?? [];
+  // Newest first, a page at a time, as on Transactions.
+  const visibleFiles = existingFiles.slice(0, page * PAGE_SIZE);
 
   return (
     <PageShell>
@@ -172,7 +179,7 @@ export default function UploadPage() {
                 </Link>
               </p>
               <button
-                onClick={() => updateSettings({ ...settings, recurringNudgeDismissed: true }).catch(() => {})}
+                onClick={() => updateSettings((s) => ({ ...s, recurringNudgeDismissed: true })).catch(() => {})}
                 type="button"
                 className="shrink-0 size-11 -m-3 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Dismiss"
@@ -196,7 +203,7 @@ export default function UploadPage() {
                 <p className="text-sm text-muted-foreground text-center py-4">No statements added yet</p>
               ) : (
                 <div className="divide-y divide-border">
-                  {existingFiles.map((file) => (
+                  {visibleFiles.map((file) => (
                     <div key={file.id} className="flex items-center gap-3 py-3 px-2">
                       <FileText size={16} className="text-muted-foreground shrink-0" aria-hidden />
                       <div className="flex-1 min-w-0">
@@ -223,6 +230,7 @@ export default function UploadPage() {
                       )}
                     </div>
                   ))}
+                  <LoadMore remaining={existingFiles.length - visibleFiles.length} onClick={() => setPage((p) => p + 1)} className="rounded-md" />
                 </div>
               )}
             </CardContent>

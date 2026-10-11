@@ -1,7 +1,8 @@
 "use client";
 
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { fullDayName, type WeekdayPoint } from "@/lib/weekday";
 
 interface WeekdayChartProps {

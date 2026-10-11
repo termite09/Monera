@@ -74,3 +74,15 @@ export async function readAppFile<T>(accessToken: string, fileId: string, fallba
 export async function writeAppFile(accessToken: string, fileId: string, data: unknown): Promise<void> {
   await writeFile(accessToken, fileId, JSON.stringify(data, null, 2));
 }
+
+/**
+ * Read-modify-write of one JSON file, so a change lands on what's in Drive now
+ * (which may include changes from another device). Returns what was written.
+ * No fallback on purpose: if the file is unreadable the write fails rather
+ * than replacing it.
+ */
+export async function updateAppFile<T>(accessToken: string, fileId: string, change: (current: T) => T): Promise<T> {
+  const next = change(await readAppFile<T>(accessToken, fileId));
+  await writeAppFile(accessToken, fileId, next);
+  return next;
+}

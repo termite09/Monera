@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { getPeriodKey, getPeriodBounds, getPeriodLabel, generateId, formatCurrency, roundMoney, getCategoryTextClass, currencySymbol, dominantCurrency, setDisplayCurrency, addMonths, toMonthKey, getPeriodRange, inRange, currencyCode } from "@/lib/utils";
+import { getPeriodKey, getPeriodBounds, addMonths, toMonthKey, getPeriodRange, inRange } from "@/lib/periods";
+import { getPeriodLabel, formatCurrency, currencySymbol, dominantCurrency, setDisplayCurrency, currencyCode } from "@/lib/format";
+import { getCategoryTextClass } from "@/lib/categories";
+import { generateId, roundMoney, addOnce } from "@/lib/utils";
 
 describe("roundMoney", () => {
   it("eliminates floating-point accumulation drift to clean cents", () => {
@@ -191,5 +194,13 @@ describe("currencyCode", () => {
       { currency: "EUR", source: "statement" },
       { currency: "GBP", source: "statement" },
     ])).toBe("EUR");
+  });
+});
+
+describe("addOnce", () => {
+  it("adds a new item, and leaves the list alone when it's already there", () => {
+    expect(addOnce(undefined, "Lidl")).toEqual(["Lidl"]);
+    expect(addOnce(["Lidl"], "Wolt")).toEqual(["Lidl", "Wolt"]);
+    expect(addOnce(["Lidl"], "Lidl")).toEqual(["Lidl"]);
   });
 });

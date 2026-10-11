@@ -8,8 +8,8 @@ import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Header } from "@/components/layout/Header";
-import { SummaryCard } from "@/components/budget/SummaryCard";
-import { BudgetDonut } from "@/components/budget/BudgetDonut";
+import { SummaryCard } from "./_components/SummaryCard";
+import { BudgetDonut } from "./_components/BudgetDonut";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,11 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Segmented } from "@/components/ui/segmented";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { AppTour } from "@/components/onboarding/AppTour";
-import { UpcomingChargesCard } from "@/components/dashboard/UpcomingChargesCard";
+import { UpcomingChargesCard } from "./_components/UpcomingChargesCard";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToday } from "@/hooks/useToday";
 import { dailyAllowance } from "@/lib/safeToSpend";
-import { addMonths, cleanDescription, formatCurrency, formatDate, formatLongDate, formatShortDate, parseDateStr, toDateStr } from "@/lib/utils";
+import { addMonths, parseDateStr, toDateStr } from "@/lib/periods";
+import { cleanDescription, formatCurrency, formatDate, formatLongDate, formatShortDate, plural } from "@/lib/format";
+import { addOnce } from "@/lib/utils";
 import { buildWeekdayData, chartRangeLabel, fullDayName, weekdayTransactions, type WeekdayChartMode, type WeekdayPoint } from "@/lib/weekday";
 import { useDashboardData } from "./useDashboardData";
 import { IncomeSheet } from "./_sheets/IncomeSheet";
@@ -32,7 +34,7 @@ import { SafeToSpendSheet } from "./_sheets/SafeToSpendSheet";
 import { WeekdaySheet } from "./_sheets/WeekdaySheet";
 
 const WeekdayChart = dynamic(
-  () => import("@/components/charts/WeekdayChart").then((m) => m.WeekdayChart),
+  () => import("./_components/WeekdayChart").then((m) => m.WeekdayChart),
   { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> }
 );
 
@@ -80,13 +82,13 @@ const money = (n: number) => <span className="font-mono tabular-nums font-medium
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { periodKey, setPeriodKey, transactions, settings, currency, isLoading, ready, txError, refetch, updateSettings } = useAppData();
+  const { periodKey, setPeriodKey, transactions, bills, otherCurrency, settings, currency, isLoading, ready, txError, refetch, updateSettings } = useAppData();
   const { paydayOfMonth } = settings;
   const today = useToday();
   const {
     range, currentTxs, budget, safeInfo, periodExpenseTxs, periodIncomeTxs, periodSavingsTxs,
     latestImported, timing, noStatement, dueBy, payday,
-  } = useDashboardData({ transactions, settings, currency, periodKey, today });
+  } = useDashboardData({ transactions, bills, settings, periodKey, today });
   const { summary, budgetAllocations, uncategorizedExpense, unconfirmedSalaryTx } = budget;
 
   const [sheet, setSheet] = useState<SheetKind | null>(null);
@@ -129,7 +131,7 @@ export default function DashboardPage() {
   const confirmSalary = async () => {
     if (!unconfirmedSalaryTx) return;
     const keyword = cleanDescription(unconfirmedSalaryTx.description).toLowerCase();
-    await updateSettings({ ...settings, salaryKeywords: [...settings.salaryKeywords, keyword] });
+    await updateSettings((s) => ({ ...s, salaryKeywords: addOnce(s.salaryKeywords, keyword) }));
   };
 
   // Onboarding shows until the user completes the wizard (which persists
@@ -243,6 +245,11 @@ export default function DashboardPage() {
         </p>
 
         {txError && <ErrorState message={txError} onRetry={refetch} />}
+        {otherCurrency && (
+          <p className="text-sm text-muted-foreground max-w-[65ch]">
+            {plural(otherCurrency.count, "transaction")} in {otherCurrency.codes.join(" and ")} {otherCurrency.count === 1 ? "isn't" : "aren't"} counted. Monera counts only {currency}, your main currency.
+          </p>
+        )}
 
         {/* Summary: the answer first, then the three figures behind it */}
         <div className="grid gap-2 sm:gap-3 md:grid-cols-[3fr_2fr]">

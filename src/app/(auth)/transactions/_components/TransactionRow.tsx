@@ -3,7 +3,9 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { Repeat, Loader2, Pencil } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency, formatShortDate, cleanDescription, cn, getCategoryTextClass, getCategorySwatchClass } from "@/lib/utils";
+import { formatCurrency, formatShortDate, cleanDescription } from "@/lib/format";
+import { getCategoryTextClass, getCategorySwatchClass } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -139,7 +141,7 @@ export const TransactionRow = memo(function TransactionRow({
           rendered (invisible when hidden) to keep the columns stable. */}
       <div className={cn("flex shrink-0 w-15 sm:w-24 pt-0.5 justify-start", !showCategory && "invisible pointer-events-none")}>
         {!isIncome && (
-          onCategory && !excluded && !selectMode && !isRecurring ? (
+          onCategory && !excluded && !selectMode ? (
             <button
               type="button"
               onClick={(e) => { stop(e); onCategory(tx); }}

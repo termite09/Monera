@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toDateStr } from "@/lib/utils";
+import { toDateStr } from "@/lib/periods";
 
 /**
  * Today's date as "YYYY-MM-DD", rolling over at midnight and whenever the app

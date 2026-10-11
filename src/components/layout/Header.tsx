@@ -2,7 +2,8 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { addMonths, getPeriodLabel } from "@/lib/utils";
+import { addMonths } from "@/lib/periods";
+import { getPeriodLabel } from "@/lib/format";
 
 interface HeaderProps {
   periodKey: string;
@@ -13,9 +14,11 @@ interface HeaderProps {
   navLabel?: string;
   /** False hides the pay-period navigator entirely (screens where it does nothing). */
   showPeriod?: boolean;
+  /** Steps through years instead of pay periods, in the same place. */
+  yearNav?: { year: number; onChange: (year: number) => void };
 }
 
-export function Header({ periodKey, onPeriodChange, paydayOfMonth = 1, isLoading = false, navLabel, showPeriod = true }: HeaderProps) {
+export function Header({ periodKey, onPeriodChange, paydayOfMonth = 1, isLoading = false, navLabel, showPeriod = true, yearNav }: HeaderProps) {
   return (
     <header
       className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b border-border"
@@ -33,7 +36,19 @@ export function Header({ periodKey, onPeriodChange, paydayOfMonth = 1, isLoading
         </span>
 
         <div className="flex items-center gap-1 ml-auto lg:ml-0">
-          {!showPeriod ? null : navLabel ? (
+          {yearNav ? (
+            <>
+              <Button variant="ghost" size="icon" onClick={() => yearNav.onChange(yearNav.year - 1)} className="size-11 sm:size-9 text-muted-foreground" aria-label="Previous year">
+                <ChevronLeft size={16} aria-hidden />
+              </Button>
+              <span className="text-sm font-medium text-foreground min-w-35 text-center tabular-nums" aria-live="polite">
+                {yearNav.year}
+              </span>
+              <Button variant="ghost" size="icon" onClick={() => yearNav.onChange(yearNav.year + 1)} className="size-11 sm:size-9 text-muted-foreground" aria-label="Next year">
+                <ChevronRight size={16} aria-hidden />
+              </Button>
+            </>
+          ) : !showPeriod ? null : navLabel ? (
             <span className="text-sm font-medium text-foreground min-w-35 text-center">{navLabel}</span>
           ) : (
             <>

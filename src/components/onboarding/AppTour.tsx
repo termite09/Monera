@@ -46,10 +46,10 @@ export function AppTour({ pageKey, slides }: AppTourProps) {
     setOpen(false);
     // Save in background — the sheet closes instantly. If the save fails the
     // tour simply shows again next visit, which is harmless.
-    updateSettings({
-      ...settings,
-      tourPages: { ...settings.tourPages, [pageKey]: true },
-    }).catch(() => {});
+    updateSettings((s) => ({
+      ...s,
+      tourPages: { ...s.tourPages, [pageKey]: true },
+    })).catch(() => {});
   };
 
   const current = slides[slide];

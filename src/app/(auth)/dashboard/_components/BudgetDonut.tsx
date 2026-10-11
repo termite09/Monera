@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check } from "lucide-react";
-import { cn, formatCurrency, getCategoryColor, getDisplayCurrency } from "@/lib/utils";
+import { formatCurrency, getDisplayCurrency } from "@/lib/format";
+import { getCategoryColor } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 import { InfoIcon } from "@/components/ui/InfoIcon";
 import type { Category } from "@/types";
 
@@ -128,19 +129,6 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
           {caption && <span className="text-xs text-muted-foreground leading-none mt-1">{caption}</span>}
         </span>
       </button>
-
-      {status === "over" && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-status-over-bg px-2 py-0.5 text-xs font-medium text-status-over">
-          <AlertCircle size={12} aria-hidden />
-          Over budget
-        </span>
-      )}
-      {status === "met" && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-status-ok-bg px-2 py-0.5 text-xs font-medium text-status-ok">
-          <Check size={12} aria-hidden />
-          Target met
-        </span>
-      )}
     </div>
   );
 }

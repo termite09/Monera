@@ -16,6 +16,8 @@ export interface Transaction {
   categorySource: CategorySource;
   notes?: string;
   excluded: boolean;
+  /** For a bill (source "recurring"): the id of the bill in Settings it came from. */
+  billId?: string;
 }
 
 /** Pay and split for one pay period, overriding the defaults. */

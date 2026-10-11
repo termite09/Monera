@@ -29,9 +29,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
-      // Token still valid (refresh 1 min before expiry) — reuse it
+      // Token still valid — reuse it. Renewed 5 minutes early: the browser only
+      // fetches the session every 4 minutes (see the (auth) layout), so a shorter
+      // margin would leave it holding an expired token and sign the user out.
       const expiresAt = token.expiresAt as number | undefined;
-      if (expiresAt && Date.now() < expiresAt * 1000 - 60_000) {
+      if (expiresAt && Date.now() < expiresAt * 1000 - 5 * 60_000) {
         return token;
       }
 

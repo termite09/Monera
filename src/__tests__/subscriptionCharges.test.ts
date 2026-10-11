@@ -5,7 +5,7 @@ import { expectedSubscriptionCharges } from "@/lib/safeToSpend";
 const TODAY = new Date("2026-06-24T12:00:00");
 
 function sub(name: string, lastDate: string, amount: number, everyMonths: 1 | 2 = 1): Subscription {
-  return { key: name.toLowerCase(), name, amount, total: amount * 3, months: 3, lastDate, everyMonths };
+  return { key: name.toLowerCase(), name, amount, total: amount * 3, months: 3, firstDate: lastDate, lastDate, everyMonths };
 }
 
 describe("nextChargeDate", () => {

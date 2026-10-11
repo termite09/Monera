@@ -1,6 +1,6 @@
 import { SafeToSpend, billKind } from "@/lib/safeToSpend";
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { formatCurrency, formatShortDate } from "@/lib/format";
 
 interface Props {
   safeInfo: SafeToSpend;

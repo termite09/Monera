@@ -50,9 +50,12 @@ export default function PrivacyPage() {
               <li>
                 <span className="font-medium">OAuth access token</span>: used to make
                 authenticated requests to the Google Drive API on your behalf (reading, writing,
-                creating, and deleting files within the Monera folder only). Stored exclusively in
-                a secure, server-side HttpOnly cookie and never exposed to JavaScript or
-                transmitted to third parties.
+                creating, and deleting files within the Monera folder only). It is kept in an
+                encrypted, HttpOnly session cookie and also handed to the Monera page open in your
+                browser, which uses it to talk to Google Drive directly, so your financial data
+                goes straight between your browser and Google and never passes through Monera
+                servers. The page holds it in memory only. It expires within an hour and is never
+                sent to anyone but Google.
               </li>
               <li>
                 <span className="font-medium">OAuth refresh token</span>: stored in the same
@@ -99,10 +102,11 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-semibold text-base mb-2">Cookies and Sessions</h2>
             <p>
-              Monera uses a secure, server-side HttpOnly session cookie to keep you signed in.
-              This cookie contains your Google OAuth access token, refresh token, and token expiry
-              time — used solely to authenticate Drive API calls on your behalf. It is never
-              exposed to JavaScript and is cleared when you sign out.
+              Monera uses an encrypted, HttpOnly session cookie to keep you signed in. It contains
+              your Google OAuth access token, refresh token, and token expiry time, used solely to
+              authenticate Drive API calls on your behalf. JavaScript can&apos;t read the cookie;
+              only the short-lived access token is passed to the page, as described above. The
+              cookie is cleared when you sign out.
             </p>
           </section>
 
@@ -112,7 +116,9 @@ export default function PrivacyPage() {
               Transaction data fetched from your Google Drive is held only in your browser&apos;s
               memory during your session (using TanStack Query) so the app does not have to
               re-fetch it as you navigate. It is not written to persistent storage and is
-              discarded when you refresh the page, close the tab, or sign out.
+              discarded when you refresh the page, close the tab, or sign out. So the app opens
+              quickly, your browser also keeps an offline copy of Monera&apos;s own files (code,
+              styles, icons) and its public pages, never your data or your signed-in screens.
             </p>
             <p>
               Monera also stores your transaction-list filter preferences (search text, selected
@@ -132,7 +138,8 @@ export default function PrivacyPage() {
             <h2 className="font-semibold text-base mb-2">Data Retention and Sign-Out</h2>
             <p>
               When you sign out, the session cookie — containing your OAuth access and refresh
-              tokens — is cleared immediately, and the in-memory transaction cache is discarded.
+              tokens — is cleared immediately, the in-memory transaction cache is discarded, and
+              anything Monera kept in this browser&apos;s offline cache is deleted.
               No personal data is retained on Monera servers after sign-out. Your financial data
               remains in your own Google Drive and can be deleted there at any time.
             </p>

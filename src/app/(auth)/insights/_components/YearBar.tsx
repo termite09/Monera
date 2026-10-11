@@ -1,7 +1,9 @@
 "use client";
 
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { cn, formatCurrency, getPeriodLabel, toMonthKey } from "@/lib/utils";
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Rectangle, type BarShapeProps } from "recharts";
+import { toMonthKey } from "@/lib/periods";
+import { formatCurrency, getPeriodLabel } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { CategoryTotals } from "@/lib/insights";
 import { MONTH_NAMES } from "@/config/constants";
 
@@ -15,33 +17,28 @@ interface YearBarProps {
   currentKey?: string;
 }
 
-// Bars show spending only — savings aren't spending, and the "Saved this year"
-// figure sits beside the chart.
+// Each bar is where the period's money went: spent (Needs, Wants), then saved on top.
 const SERIES = [
   { key: "needs", name: "Needs", color: "var(--cat-needs)" },
   { key: "wants", name: "Wants", color: "var(--cat-wants)" },
+  { key: "savings", name: "Savings", color: "var(--cat-savings)" },
 ] as const;
 
+// Tapping a bar only shows its figures (on a phone, opening the period at once would
+// hide them); the month labels below open the period.
 export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, currentKey }: YearBarProps) {
   const data = MONTH_NAMES.map((name, idx) => ({
     month: name.slice(0, 3),
     periodKey: toMonthKey(year, idx),
     ...totals[idx],
   }));
+  const topSeries = data.map((d) => SERIES.findLastIndex((s) => d[s.key] > 0));
 
   return (
     <div>
       <div className="h-56" aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
-            style={onPeriodClick ? { cursor: "pointer" } : undefined}
-            onClick={onPeriodClick ? (chartData) => {
-              const idx = chartData?.activeTooltipIndex;
-              if (typeof idx === "number" && data[idx]?.periodKey) onPeriodClick(data[idx].periodKey);
-            } : undefined}
-          >
+          <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
             <XAxis dataKey="month" hide />
             <Tooltip
               formatter={(v) => formatCurrency(v as number)}
@@ -55,7 +52,8 @@ export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, curren
                 stackId="a"
                 fill={s.color}
                 name={s.name}
-                radius={i === SERIES.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                // Round whichever segment is on top — Savings is often zero, leaving Wants or Needs there.
+                shape={(props: BarShapeProps) => <Rectangle {...props} radius={topSeries[props.index] === i ? [4, 4, 0, 0] : 0} />}
                 animationDuration={600}
               />
             ))}
@@ -65,25 +63,21 @@ export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, curren
       {/* Period labels double as the keyboard/screen-reader way into each bar. */}
       <div className="grid grid-cols-12 border-t border-border pt-1">
         {data.map((d) => {
-          const total = d.needs + d.wants;
           const running = d.periodKey === currentKey;
-          const spoken = `Pay period ${getPeriodLabel(d.periodKey, paydayOfMonth)}: ${formatCurrency(total)} spent${running ? " so far, still in progress" : ""}`;
+          const spoken = `Pay period ${getPeriodLabel(d.periodKey, paydayOfMonth)}: ${formatCurrency(d.needs + d.wants)} spent, ${formatCurrency(d.savings)} saved${running ? " so far, still in progress" : ""}`;
+          const className = cn("py-1 text-xs text-center rounded-md", running ? "font-semibold text-foreground" : "text-muted-foreground");
           return onPeriodClick ? (
             <button
               key={d.periodKey}
               type="button"
               onClick={() => onPeriodClick(d.periodKey)}
               aria-label={`${spoken}. Open on the dashboard`}
-              className={cn(
-                "py-1 text-xs text-center rounded-md",
-                running ? "font-semibold text-foreground" : "text-muted-foreground",
-                "hover:text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              )}
+              className={cn(className, "hover:text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
             >
               {d.month}
             </button>
           ) : (
-            <span key={d.periodKey} className="py-1 text-xs text-center text-muted-foreground" aria-label={spoken}>{d.month}</span>
+            <span key={d.periodKey} className={className} aria-label={spoken}>{d.month}</span>
           );
         })}
       </div>
