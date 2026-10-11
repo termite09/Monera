@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { formatCurrency, getDisplayCurrency } from "@/lib/format";
+import { formatCurrency, formatShortDate, getDisplayCurrency } from "@/lib/format";
 import { getCategoryColor } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { InfoIcon } from "@/components/ui/InfoIcon";
@@ -16,6 +16,8 @@ interface BudgetDonutProps {
   expected?: boolean;
   /** Bills (or savings transfers) in this category still to come before payday. */
   due?: number;
+  /** The date it's due, when it's a single bill. */
+  dueOn?: string | null;
   onClick?: () => void;
 }
 
@@ -30,11 +32,33 @@ function amountFontSize(s: string): string {
   return "text-xs sm:text-sm";
 }
 
+/**
+ * A dash pattern drawing `length` of the ring as short ticks, then nothing for
+ * the rest of the circumference `c` (SVG can't limit a repeating pattern).
+ */
+function ticksDasharray(length: number, c: number): string {
+  const TICK = 2.5;
+  const GAP = 2.5;
+  if (length <= 0) return `0 ${c}`;
+  const parts: number[] = [];
+  for (let left = length; left > 0; ) {
+    parts.push(Math.min(TICK, left));
+    left -= TICK;
+    if (left <= 0) break;
+    parts.push(Math.min(GAP, left));
+    left -= GAP;
+  }
+  // Ends on a gap that runs round the rest of the circle.
+  if (parts.length % 2 === 1) parts.push(c);
+  else parts[parts.length - 1] += c;
+  return parts.join(" ");
+}
+
 // Internal SVG coordinate space; the <svg> scales to its container via viewBox.
 const VB = 116;
 const STROKE = 13;
 
-export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, onClick }: BudgetDonutProps) {
+export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, dueOn = null, onClick }: BudgetDonutProps) {
   const router = useRouter();
   const isSavings = category === "Savings";
   const color = getCategoryColor(category);
@@ -55,8 +79,22 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
 
   const r = (VB - STROKE) / 2;
   const c = 2 * Math.PI * r;
+  // Two marks: money already spent is a solid arc; bills still due continue it as
+  // ticks (scheduled, not spent), so a ring that's mostly rent-to-come doesn't
+  // look like overspending.
   const dash = pct * c;
+  const spentDash = Math.min(allocated > 0 ? spent / allocated : 0, 1) * c;
   const arcColor = status === "over" ? "var(--destructive)" : color;
+  // Bills show as ticks whenever some of the ring is theirs — over budget too,
+  // where they're what tipped it over, not money already gone.
+  const showsDue = !isSavings && due > 0 && !expected && dash - spentDash > 0.005 * c;
+  const dueTicks = ticksDasharray(dash - spentDash, c);
+  const overOnlyFromBills = status === "over" && spent <= allocated;
+  const arcProps = {
+    cx: VB / 2, cy: VB / 2, r, fill: "none", strokeWidth: STROKE, strokeLinecap: "round" as const,
+    transform: `rotate(-90 ${VB / 2} ${VB / 2})`,
+    className: "motion-safe:transition-[stroke-dasharray] motion-safe:duration-500 motion-safe:ease-out",
+  };
 
   const remaining = Math.max(0, allocated - committed);
   const display = allocated > 0
@@ -64,7 +102,7 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
     : "—";
   const caption = allocated <= 0 ? null
     : expected ? "budget"
-    : status === "over" ? "over"
+    : status === "over" ? (overOnlyFromBills ? "over after bills" : "over")
     : isSavings ? (status === "met" ? "saved" : "to target")
     : "left";
 
@@ -103,18 +141,14 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
         <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-full block" aria-hidden>
           <circle cx={VB / 2} cy={VB / 2} r={r} fill="none" stroke="var(--secondary)" strokeWidth={STROKE} />
           {!expected && allocated > 0 && pct > 0.005 && (
-            <circle
-              cx={VB / 2}
-              cy={VB / 2}
-              r={r}
-              fill="none"
-              stroke={arcColor}
-              strokeWidth={STROKE}
-              strokeLinecap="round"
-              strokeDasharray={`${dash} ${c - dash}`}
-              transform={`rotate(-90 ${VB / 2} ${VB / 2})`}
-              className="motion-safe:transition-[stroke-dasharray] motion-safe:duration-500"
-            />
+            showsDue ? (
+              <>
+                <circle {...arcProps} strokeLinecap="butt" stroke={arcColor} strokeOpacity={0.6} strokeDasharray={dueTicks} strokeDashoffset={-spentDash} />
+                {spentDash > 0.005 * c && <circle {...arcProps} stroke={arcColor} strokeDasharray={`${spentDash} ${c - spentDash}`} />}
+              </>
+            ) : (
+              <circle {...arcProps} stroke={arcColor} strokeDasharray={`${dash} ${c - dash}`} />
+            )
           )}
         </svg>
 
@@ -129,6 +163,18 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
           {caption && <span className="text-xs text-muted-foreground leading-none mt-1">{caption}</span>}
         </span>
       </button>
+
+      {/* The key to the ticked part of the ring. */}
+      {showsDue && (
+        <p className="flex items-start justify-center gap-1.5 text-xs text-muted-foreground text-center leading-snug" aria-hidden>
+          <svg viewBox="0 0 12 8" className="w-3 h-2 shrink-0 mt-1" aria-hidden>
+            {[0, 4.5, 9].map((x) => <rect key={x} x={x} width="2.5" height="8" fill={arcColor} opacity={0.6} />)}
+          </svg>
+          <span>
+            <span className="font-mono tabular-nums">{formatCurrency(due)}</span> due {dueOn ? formatShortDate(dueOn) : "by payday"}
+          </span>
+        </p>
+      )}
     </div>
   );
 }

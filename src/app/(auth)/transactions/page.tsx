@@ -16,6 +16,7 @@ import { AppTour } from "@/components/onboarding/AppTour";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToday } from "@/hooks/useToday";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { TransactionFilters, type ListType, type RangeMode, type CategoryFilter } from "./_components/TransactionFilters";
 import { BulkActionBar } from "./_components/BulkActionBar";
 import { netExpenseTotal } from "@/lib/finance";
@@ -127,6 +128,7 @@ export default function TransactionsPage() {
   } = useAppData();
   const { paydayOfMonth } = settings;
   const today = useToday();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState(() => initialFilters(searchParams.get("category")));
@@ -536,7 +538,7 @@ export default function TransactionsPage() {
         open={selectCatSheet || !!singleCatTx}
         onOpenChange={(open) => { if (!open) { setSelectCatSheet(false); setSingleCatTx(null); } }}
       >
-        <SheetContent side="bottom" className="pb-8">
+        <SheetContent side={isDesktop ? "right" : "bottom"} className={isDesktop ? "w-full sm:max-w-md" : "pb-8"}>
           <SheetHeader className="mb-4">
             <SheetTitle>
               {singleCatTx ? `Move ${cleanDescription(singleCatTx.description)} to…` : `Move ${selected.size} to…`}

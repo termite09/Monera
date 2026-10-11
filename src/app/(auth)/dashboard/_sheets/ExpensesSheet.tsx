@@ -15,9 +15,11 @@ interface Props {
   onSort: () => void;
   /** This period's Needs and Wants budgets, to explain each circle. */
   budget: { Needs: number; Wants: number };
+  /** Bills still to come before payday: the circles count them, so this says so. */
+  due: { Needs: number; Wants: number };
 }
 
-export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs, expandedCat, setExpandedCat, onSort, budget }: Props) {
+export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs, expandedCat, setExpandedCat, onSort, budget, due }: Props) {
   // Not-yet-sorted spending counts as Wants (the flexible budget), as it does on
   // the dashboard circle — so the numbers match wherever you look.
   const categories: { key: "Needs" | "Wants"; amount: number; includes: Category[] }[] = [
@@ -48,6 +50,11 @@ export function ExpensesSheet({ summary, uncategorizedExpense, periodExpenseTxs,
                   {budget[cat.key] > 0 && (
                     <span className="block text-xs text-muted-foreground">
                       of <span className="font-mono tabular-nums">{formatCurrency(budget[cat.key])}</span> budget
+                    </span>
+                  )}
+                  {due[cat.key] > 0 && (
+                    <span className="block text-xs text-muted-foreground">
+                      + <span className="font-mono tabular-nums">{formatCurrency(due[cat.key])}</span> in bills still due
                     </span>
                   )}
                 </span>

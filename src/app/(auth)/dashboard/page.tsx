@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Header } from "@/components/layout/Header";
@@ -20,11 +20,12 @@ import { AppTour } from "@/components/onboarding/AppTour";
 import { UpcomingChargesCard } from "./_components/UpcomingChargesCard";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToday } from "@/hooks/useToday";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { dailyAllowance } from "@/lib/safeToSpend";
-import { addMonths, parseDateStr, toDateStr } from "@/lib/periods";
+import { parseDateStr, toDateStr } from "@/lib/periods";
 import { cleanDescription, formatCurrency, formatDate, formatLongDate, formatShortDate, plural } from "@/lib/format";
-import { addOnce } from "@/lib/utils";
-import { buildWeekdayData, chartRangeLabel, fullDayName, weekdayTransactions, type WeekdayChartMode, type WeekdayPoint } from "@/lib/weekday";
+import { addOnce, cn } from "@/lib/utils";
+import { buildWeekdayData, chartRange, chartRangeLabel, fullDayName, weekdayTransactions, type WeekdayChartMode, type WeekdayPoint } from "@/lib/weekday";
 import { useDashboardData } from "./useDashboardData";
 import { IncomeSheet } from "./_sheets/IncomeSheet";
 import { ExpensesSheet } from "./_sheets/ExpensesSheet";
@@ -53,16 +54,16 @@ const DASHBOARD_SLIDES = [
   },
 ];
 
+// No calendar month: Monera thinks in pay periods, and with payday on the 1st
+// the two are the same thing anyway.
 const CHART_MODES: { value: WeekdayChartMode; label: string }[] = [
   { value: "week", label: "Week" },
-  { value: "month", label: "Month" },
   { value: "period", label: "Period" },
   { value: "year", label: "Year" },
 ];
 
 const EMPTY_CHART_LABEL: Record<WeekdayChartMode, string> = {
   week: "No spending this week",
-  month: "No spending this calendar month",
   period: "No spending this period",
   year: "No spending this year",
 };
@@ -75,8 +76,6 @@ const DONUTS = [
 
 type SheetKind = "income" | "expenses" | "savings" | "remaining" | "weekday" | "safe";
 
-/** The current calendar month as "YYYY-MM" — the Month chart is calendar-based, not pay periods. */
-const thisCalendarMonth = () => toDateStr(new Date()).slice(0, 7);
 
 const money = (n: number) => <span className="font-mono tabular-nums font-medium text-foreground">{formatCurrency(n)}</span>;
 
@@ -85,9 +84,10 @@ export default function DashboardPage() {
   const { periodKey, setPeriodKey, transactions, bills, otherCurrency, settings, currency, isLoading, ready, txError, refetch, updateSettings } = useAppData();
   const { paydayOfMonth } = settings;
   const today = useToday();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const {
     range, currentTxs, budget, safeInfo, periodExpenseTxs, periodIncomeTxs, periodSavingsTxs,
-    latestImported, timing, noStatement, dueBy, payday,
+    latestImported, timing, noStatement, dueBy, dueOn, payday,
   } = useDashboardData({ transactions, bills, settings, periodKey, today });
   const { summary, budgetAllocations, uncategorizedExpense, unconfirmedSalaryTx } = budget;
 
@@ -96,23 +96,21 @@ export default function DashboardPage() {
   const [weekdayPoint, setWeekdayPoint] = useState<WeekdayPoint | null>(null);
   const [salaryPromptDismissed, setSalaryPromptDismissed] = useState(false);
 
-  // The chart: Month mode has its own month picker; every other mode follows the
-  // pay period in the header.
-  const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("week");
-  const [chartMonth, setChartMonth] = useState(thisCalendarMonth);
-  const chartKey = weekdayMode === "month" ? chartMonth : periodKey;
+  // The chart follows the pay period in the header. It opens on the whole
+  // period: statements are exported by hand and always end before today, so
+  // "this week" is usually still empty.
+  const [weekdayMode, setWeekdayMode] = useState<WeekdayChartMode>("period");
+  const chartKey = periodKey;
   const todayDate = useMemo(() => parseDateStr(today), [today]);
   const chartData = useMemo(
     () => buildWeekdayData(currentTxs, weekdayMode, chartKey, paydayOfMonth, todayDate),
     [currentTxs, weekdayMode, chartKey, paydayOfMonth, todayDate]
   );
   const chartLabel = chartRangeLabel(weekdayMode, chartKey, paydayOfMonth, todayDate);
-
-  const selectWeekdayMode = useCallback((mode: WeekdayChartMode) => {
-    // The Month picker always opens on the current calendar month.
-    if (mode === "month") setChartMonth(thisCalendarMonth());
-    setWeekdayMode(mode);
-  }, []);
+  // Where the data stops, when the chart reaches past it: an empty stretch after
+  // the statement is "not imported yet", not "no spending".
+  const chartSpan = chartRange(weekdayMode, chartKey, paydayOfMonth, todayDate);
+  const statementEnds = latestImported && latestImported < chartSpan.to && latestImported < today ? latestImported : null;
 
   const closeSheet = useCallback(() => {
     setSheet(null);
@@ -223,7 +221,7 @@ export default function DashboardPage() {
 
   // One-line takeaway so the chart reads without an axis.
   const chartPeak = chartData.find((d) => d.isMax);
-  const chartScope = weekdayMode === "month" ? `in ${chartLabel.split(" ")[0]}` : weekdayMode === "year" ? "this year" : "this period";
+  const chartScope = weekdayMode === "year" ? "this year" : "this period";
   const chartTakeaway = !chartPeak ? null
     : weekdayMode === "week" ? <>Most spent this week: {fullDayName(chartPeak.day)}, {money(chartPeak.amount)}.</>
     : <>{fullDayName(chartPeak.day)}s cost you the most {chartScope}: {money(chartPeak.amount)}.</>;
@@ -286,11 +284,11 @@ export default function DashboardPage() {
                   </Button>
                 </section>
               ) : (
-                <SummaryCard {...heroCard} variant="hero" index={0} />
+                <SummaryCard {...heroCard} variant="hero" />
               )}
               <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-1">
-                {summaryCards.map((card, i) => (
-                  <SummaryCard key={card.label} {...card} index={i + 1} />
+                {summaryCards.map((card) => (
+                  <SummaryCard key={card.label} {...card} />
                 ))}
               </div>
             </>
@@ -330,6 +328,7 @@ export default function DashboardPage() {
                   category={category}
                   spent={donutSpent[category]}
                   due={dueBy[category]}
+                  dueOn={dueOn[category]}
                   allocated={budgetAllocations[allocation]}
                   expected={noStatement}
                   info={info}
@@ -359,42 +358,26 @@ export default function DashboardPage() {
               <Segmented
                 items={CHART_MODES}
                 value={weekdayMode}
-                onChange={selectWeekdayMode}
+                onChange={setWeekdayMode}
                 label="Chart range"
                 kind="radio"
                 className="flex gap-0.5 p-0.5 rounded-lg bg-secondary"
                 itemClassName="min-h-11 sm:min-h-8 px-3 rounded-md text-sm"
               />
             </CardHeader>
-            {weekdayMode === "month" && (
-              <div className="px-4 md:px-6 flex items-center gap-1 md:shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setChartMonth((m) => addMonths(m, -1))}
-                  className="flex items-center justify-center size-11 sm:size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft size={16} aria-hidden />
-                </button>
-                <span className="text-sm font-medium text-foreground w-32 text-center" aria-live="polite">{chartLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => setChartMonth((m) => addMonths(m, 1))}
-                  className="flex items-center justify-center size-11 sm:size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  aria-label="Next month"
-                >
-                  <ChevronRight size={16} aria-hidden />
-                </button>
-              </div>
-            )}
             <p className="px-4 md:px-6 text-sm text-muted-foreground pb-2 md:shrink-0">
-              {chartTakeaway ?? (weekdayMode === "month" && !noStatement ? "No spending in this month." : chartLabel)}
+              {chartTakeaway ?? chartLabel}
+              {statementEnds && !noStatement && <> Your statement ends {formatShortDate(statementEnds)}.</>}
             </p>
             <CardContent className="px-4 pb-4 md:px-6 md:flex-1 md:min-h-0 md:flex md:flex-col">
               <WeekdayChart
                 data={chartData}
                 onDayClick={handleDayClick}
-                emptyLabel={noStatement ? "No statement yet" : EMPTY_CHART_LABEL[weekdayMode]}
+                emptyLabel={
+                  noStatement ? "No statement yet"
+                  : statementEnds && statementEnds < chartSpan.from ? "Nothing imported for these days yet"
+                  : EMPTY_CHART_LABEL[weekdayMode]
+                }
               />
             </CardContent>
           </Card>
@@ -403,7 +386,11 @@ export default function DashboardPage() {
 
       {/* Drill-down sheet */}
       <Sheet open={sheet !== null} onOpenChange={closeSheet}>
-        <SheetContent side="bottom" className="max-h-[60vh] flex flex-col overflow-hidden pt-3 pb-4 px-4">
+        {/* A bottom sheet on phones; on wider screens a side panel, so short lists aren't stretched edge to edge. */}
+        <SheetContent
+          side={isDesktop ? "right" : "bottom"}
+          className={cn("flex flex-col overflow-hidden pt-3 pb-4 px-4", isDesktop ? "w-full sm:max-w-md md:px-6 md:pt-5" : "max-h-[60vh]")}
+        >
           {sheet === "income" && (
             <IncomeSheet
               salaryBasis={budget.salaryBasis}
@@ -423,6 +410,7 @@ export default function DashboardPage() {
               setExpandedCat={setExpandedCat}
               onSort={() => goTo("/transactions?category=Uncategorized")}
               budget={{ Needs: budgetAllocations.needs, Wants: budgetAllocations.wants }}
+              due={noStatement ? { Needs: 0, Wants: 0 } : { Needs: dueBy.Needs, Wants: dueBy.Wants }}
             />
           )}
           {sheet === "savings" && (

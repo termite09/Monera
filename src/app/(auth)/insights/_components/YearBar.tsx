@@ -40,6 +40,14 @@ export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, curren
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
             <XAxis dataKey="month" hide />
+            {/* Stripes in each category's own colour mark the unfinished period. */}
+            <defs>
+              {SERIES.map((s) => (
+                <pattern key={s.key} id={`so-far-${s.key}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <rect width="3" height="5" fill={s.color} />
+                </pattern>
+              ))}
+            </defs>
             <Tooltip
               formatter={(v) => formatCurrency(v as number)}
               cursor={{ fill: "var(--secondary)", opacity: 0.6 }}
@@ -53,7 +61,14 @@ export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, curren
                 fill={s.color}
                 name={s.name}
                 // Round whichever segment is on top — Savings is often zero, leaving Wants or Needs there.
-                shape={(props: BarShapeProps) => <Rectangle {...props} radius={topSeries[props.index] === i ? [4, 4, 0, 0] : 0} />}
+                // The running period is striped: it isn't finished, so its short bar isn't a cheap month.
+                shape={(props: BarShapeProps) => (
+                  <Rectangle
+                    {...props}
+                    radius={topSeries[props.index] === i ? [4, 4, 0, 0] : 0}
+                    fill={data[props.index]?.periodKey === currentKey ? `url(#so-far-${s.key})` : s.color}
+                  />
+                )}
                 animationDuration={600}
               />
             ))}
@@ -65,7 +80,8 @@ export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, curren
         {data.map((d) => {
           const running = d.periodKey === currentKey;
           const spoken = `Pay period ${getPeriodLabel(d.periodKey, paydayOfMonth)}: ${formatCurrency(d.needs + d.wants)} spent, ${formatCurrency(d.savings)} saved${running ? " so far, still in progress" : ""}`;
-          const className = cn("py-1 text-xs text-center rounded-md", running ? "font-semibold text-foreground" : "text-muted-foreground");
+          // 44px tall, so a month is easy to hit with a thumb.
+          const className = cn("min-h-11 flex items-center justify-center text-xs rounded-md", running ? "font-semibold text-foreground" : "text-muted-foreground");
           return onPeriodClick ? (
             <button
               key={d.periodKey}
@@ -87,6 +103,16 @@ export function YearBar({ totals, year, paydayOfMonth = 1, onPeriodClick, curren
             <span className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} aria-hidden /> {s.name}
           </span>
         ))}
+        {data.some((d) => d.periodKey === currentKey) && (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <svg viewBox="0 0 10 10" className="size-2.5 rounded-sm" aria-hidden>
+              <g transform="rotate(45 5 5)">
+                {[-4, 1, 6, 11].map((x) => <rect key={x} x={x} y="-3" width="3" height="16" fill="var(--cat-needs)" />)}
+              </g>
+            </svg>{" "}
+            So far
+          </span>
+        )}
       </div>
     </div>
   );

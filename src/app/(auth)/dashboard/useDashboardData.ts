@@ -70,9 +70,14 @@ export function useDashboardData({ transactions, bills, settings, periodKey, tod
   // Bills still to come, by category — the circles count them so that
   // Needs left + Wants left is exactly Safe to spend.
   const dueBy = { Needs: 0, Wants: 0, Savings: 0 };
+  // When there's a single bill due, the date it's due, so the circle can say so.
+  const dueOn: Record<keyof typeof dueBy, string | null> = { Needs: null, Wants: null, Savings: null };
+  const dueCount = { Needs: 0, Wants: 0, Savings: 0 };
   for (const b of safeInfo.billItems) {
-    if (b.category === "Needs" || b.category === "Savings") dueBy[b.category] += b.amount;
-    else dueBy.Wants += b.amount; // Wants and anything not yet sorted
+    const cat = b.category === "Needs" || b.category === "Savings" ? b.category : "Wants"; // Wants and anything not yet sorted
+    dueBy[cat] += b.amount;
+    dueCount[cat] += 1;
+    dueOn[cat] = dueCount[cat] === 1 ? b.date : null;
   }
 
   return {
@@ -87,6 +92,7 @@ export function useDashboardData({ transactions, bills, settings, periodKey, tod
     timing,
     noStatement,
     dueBy,
+    dueOn,
     payday: nextPayday(periodKey, paydayOfMonth),
   };
 }

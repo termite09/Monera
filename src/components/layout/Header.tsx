@@ -41,7 +41,7 @@ export function Header({ periodKey, onPeriodChange, paydayOfMonth = 1, isLoading
               <Button variant="ghost" size="icon" onClick={() => yearNav.onChange(yearNav.year - 1)} className="size-11 sm:size-9 text-muted-foreground" aria-label="Previous year">
                 <ChevronLeft size={16} aria-hidden />
               </Button>
-              <span className="text-sm font-medium text-foreground min-w-35 text-center tabular-nums" aria-live="polite">
+              <span className="text-sm font-medium text-foreground min-w-35 text-center" aria-live="polite">
                 {yearNav.year}
               </span>
               <Button variant="ghost" size="icon" onClick={() => yearNav.onChange(yearNav.year + 1)} className="size-11 sm:size-9 text-muted-foreground" aria-label="Next year">

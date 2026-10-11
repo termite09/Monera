@@ -1,10 +1,10 @@
 import { Transaction } from "@/types";
 import { WEEKDAY_LABELS } from "@/config/constants";
-import { getPeriodRange, inRange, parseDateStr, toDateStr, daysInMonth, type DateRange } from "@/lib/periods";
-import { formatShortDate, formatMonthYear } from "@/lib/format";
+import { getPeriodRange, inRange, parseDateStr, toDateStr, type DateRange } from "@/lib/periods";
+import { formatShortDate } from "@/lib/format";
 import { roundMoney } from "@/lib/utils";
 
-export type WeekdayChartMode = "period" | "week" | "month" | "year";
+export type WeekdayChartMode = "period" | "week" | "year";
 
 export interface WeekdayPoint {
   day: string;
@@ -30,20 +30,18 @@ function mondayOf(today: Date): Date {
   return new Date(today.getFullYear(), today.getMonth(), today.getDate() - weekdayIndex(toDateStr(today)));
 }
 
-/** The dates a chart mode covers: this week, a calendar month, a calendar year, or a pay period. */
+/** The dates a chart mode covers: this week, a calendar year, or a pay period. */
 export function chartRange(mode: WeekdayChartMode, key: string, paydayOfMonth: number, today: Date): DateRange {
   if (mode === "week") {
     const monday = mondayOf(today);
     return { from: toDateStr(monday), to: toDateStr(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6)) };
   }
-  const [y, m] = key.split("-").map(Number);
-  if (mode === "month") return { from: `${key}-01`, to: `${key}-${String(daysInMonth(y, m - 1)).padStart(2, "0")}` };
+  const y = Number(key.slice(0, 4));
   if (mode === "year") return { from: `${y}-01-01`, to: `${y}-12-31` };
   return getPeriodRange(key, paydayOfMonth);
 }
 
 export function chartRangeLabel(mode: WeekdayChartMode, key: string, paydayOfMonth: number, today: Date): string {
-  if (mode === "month") return formatMonthYear(key, "long");
   if (mode === "year") return key.slice(0, 4);
   const { from, to } = chartRange(mode, key, paydayOfMonth, today);
   return `${formatShortDate(from)} – ${formatShortDate(to)}`;

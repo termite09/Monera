@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
 import { Header } from "@/components/layout/Header";
 import { ErrorState } from "@/components/layout/ErrorState";
@@ -10,7 +11,7 @@ import { AppTour } from "@/components/onboarding/AppTour";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToday } from "@/hooks/useToday";
 import { buildPeriodInsights, detectSubscriptions, groupByMerchant } from "@/lib/insights";
-import { addMonths, getPeriodRange, inRange, parseDateStr } from "@/lib/periods";
+import { addMonths, getCurrentPeriodKey, getPeriodRange, inRange, parseDateStr, toDateStr } from "@/lib/periods";
 import { addOnce, roundMoney } from "@/lib/utils";
 import { Segmented, TabPanel } from "@/components/ui/segmented";
 
@@ -67,6 +68,15 @@ export default function InsightsPage() {
     return [...transactions, ...bills(from, to)].filter((tx) => tx.date <= today);
   }, [transactions, bills, year, paydayOfMonth, today]);
 
+  // Spending bills still to come in the running pay period, for the Year chart's takeaway.
+  const dueThisPeriod = useMemo(() => {
+    const tomorrow = parseDateStr(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { to } = getPeriodRange(getCurrentPeriodKey(paydayOfMonth), paydayOfMonth);
+    const due = bills(toDateStr(tomorrow), to).filter((t) => !t.excluded && t.category !== "Savings");
+    return roundMoney(due.reduce((s, t) => s + t.amount, 0));
+  }, [bills, today, paydayOfMonth]);
+
   // Every bill charged so far, for "paid since" on Subscriptions.
   const billsPaid = useMemo(() => bills(billsStart, today), [bills, billsStart, today]);
 
@@ -95,6 +105,24 @@ export default function InsightsPage() {
     () => allSubscriptions.filter((s) => !settings.excludedSubscriptions?.includes(s.name)),
     [allSubscriptions, settings.excludedSubscriptions]
   );
+
+  // Hiding only tidies a list, and the row vanishes at once, so the undo is offered
+  // straight away along with what hiding does (and doesn't) change.
+  type HiddenList = "hiddenMerchants" | "excludedSubscriptions";
+  const show = (list: HiddenList, name: string) =>
+    updateSettings((s) => ({ ...s, [list]: (s[list] ?? []).filter((n) => n !== name) })).catch(() => {});
+  const showAll = (list: HiddenList) => updateSettings((s) => ({ ...s, [list]: [] })).catch(() => {});
+  const hide = (list: HiddenList, name: string) => {
+    updateSettings((s) => ({ ...s, [list]: addOnce(s[list], name) })).catch(() => {});
+    toast(`${name} hidden`, {
+      description: list === "hiddenMerchants" ? "It still counts in your spending totals." : "Your spending figures don't change.",
+      action: { label: "Undo", onClick: () => show(list, name) },
+      // Long enough to read and reach for Undo.
+      duration: 8000,
+    });
+  };
+  // Only the hidden ones that would otherwise be listed.
+  const hiddenSubscriptions = allSubscriptions.filter((s) => !subscriptions.includes(s)).map((s) => s.name);
 
   return (
     <PageShell>
@@ -140,9 +168,10 @@ export default function InsightsPage() {
                   prevSpending={insights.prevSpending}
                   comparedToSamePoint={insights.comparedToSamePoint}
                   merchants={merchants}
-                  hiddenCount={hiddenMerchants.length}
-                  onHide={(name) => updateSettings((s) => ({ ...s, hiddenMerchants: addOnce(s.hiddenMerchants, name) }))}
-                  onResetHidden={() => updateSettings((s) => ({ ...s, hiddenMerchants: [] }))}
+                  hiddenNames={hiddenMerchants}
+                  onHide={(name) => hide("hiddenMerchants", name)}
+                  onShow={(name) => show("hiddenMerchants", name)}
+                  onShowAll={() => showAll("hiddenMerchants")}
                 />
               )}
               {tab === "subscriptions" && (
@@ -152,9 +181,10 @@ export default function InsightsPage() {
                   subscriptions={subscriptions}
                   transactions={transactions}
                   today={today}
-                  hiddenCount={allSubscriptions.length - subscriptions.length}
-                  onHide={(name) => updateSettings((s) => ({ ...s, excludedSubscriptions: addOnce(s.excludedSubscriptions, name) }))}
-                  onRestore={() => updateSettings((s) => ({ ...s, excludedSubscriptions: [] }))}
+                  hiddenNames={hiddenSubscriptions}
+                  onHide={(name) => hide("excludedSubscriptions", name)}
+                  onShow={(name) => show("excludedSubscriptions", name)}
+                  onShowAll={() => showAll("excludedSubscriptions")}
                 />
               )}
               {tab === "year" && (
@@ -162,6 +192,7 @@ export default function InsightsPage() {
                   transactions={yearTxs}
                   paydayOfMonth={paydayOfMonth}
                   year={year}
+                  dueThisPeriod={dueThisPeriod}
                   onPeriodClick={(key) => { setPeriodKey(key); router.push("/dashboard"); }}
                 />
               )}

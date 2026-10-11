@@ -63,10 +63,8 @@ test.describe("dashboard", () => {
   });
 
   test("shows which weekday costs the most and what was bought", async ({ page }) => {
-    await expect(page.getByText("No spending this week")).toBeVisible();
-
-    await page.getByRole("radio", { name: "Period" }).click();
-    await expect(page.getByText("Fridays cost you the most this period: €112.99.")).toBeVisible();
+    // Opens on the whole pay period, and says where the statement stops.
+    await expect(page.getByText("Fridays cost you the most this period: €112.99. Your statement ends 12 Jun.")).toBeVisible();
 
     await page.getByRole("button", { name: "Friday: €112.99 spent. Show transactions" }).click();
     const sheet = page.getByRole("dialog", { name: "Fri spending" });
@@ -75,13 +73,17 @@ test.describe("dashboard", () => {
     await expect(sheet.getByText("Net spent")).toBeVisible();
   });
 
-  test("the month chart steps through calendar months", async ({ page }) => {
-    await page.getByRole("radio", { name: "Month" }).click();
-    const picker = page.getByRole("button", { name: "Previous month" }).locator("..");
-    await expect(picker.getByText("June 2026", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Previous month" }).click();
-    await expect(picker.getByText("May 2026", { exact: true })).toBeVisible();
-    await expect(page.getByText(/cost you the most in May/)).toBeVisible();
+  test("a week after the statement ends says nothing is imported yet, not no spending", async ({ page }) => {
+    await expect(page.getByRole("radio", { name: "Month" })).toHaveCount(0);
+    await page.getByRole("radio", { name: "Week" }).click();
+    await expect(page.getByText("Nothing imported for these days yet")).toBeVisible();
+    await expect(page.getByText("No spending this week")).toHaveCount(0);
+  });
+
+  test("the Needs circle shows rent still due apart from what was spent", async ({ page }) => {
+    await expect(page.getByText("€800.00 due 20 Jun")).toBeVisible();
+    await page.getByRole("button", { name: /^Needs: / }).click();
+    await expect(page.getByRole("dialog").getByText("+ €800.00 in bills still due")).toBeVisible();
   });
 
   test("past pay periods show what was left instead", async ({ page }) => {
@@ -155,4 +157,13 @@ test("leaves out transactions in another currency, and says so", async ({ page, 
   await page.goto("/dashboard");
   await expect(page.getByText("1 transaction in GBP isn't counted. Monera counts only EUR, your main currency.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Spent: €187.99. Show details" })).toBeVisible();
+});
+
+test("a bill that tips a budget over is shown as due, not as spent", async ({ page, drive }) => {
+  // Needs 40% of €2,000 = €800: €50 spent plus €800 rent still to pay is €50 over.
+  drive.seed(account({ settings: { defaultBudgetRule: { needs: 40, wants: 40, savings: 20 } } }));
+  await page.goto("/dashboard");
+  await expect(page.getByRole("button", { name: "Needs: €50.00 over a €800.00 budget, after €800.00 in bills due. Show transactions" })).toBeVisible();
+  await expect(page.getByText("over after bills")).toBeVisible();
+  await expect(page.getByText("€800.00 due 20 Jun")).toBeVisible();
 });

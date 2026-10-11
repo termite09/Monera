@@ -113,9 +113,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Reduced motion means no movement anywhere: sheets, dialogs, tooltips and
+   loading pulses included, not only the animations written with motion-safe:.
+   Durations go near zero rather than to none, so "animation ended" events that
+   close sheets and dialogs still fire. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
 

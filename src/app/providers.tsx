@@ -30,7 +30,12 @@ export function Providers({ children }: { children: ReactNode }) {
         mobileOffset={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
         toastOptions={{
           unstyled: true,
-          classNames: { toast: "flex w-full items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background" },
+          classNames: {
+            toast: "flex w-full items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background",
+            content: "flex-1 min-w-0",
+            description: "text-xs text-background/80",
+            actionButton: "shrink-0 min-h-11 px-2 -my-2 font-medium underline underline-offset-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background",
+          },
         }}
       />
     </QueryClientProvider>

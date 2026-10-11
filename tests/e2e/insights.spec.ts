@@ -32,12 +32,20 @@ test.describe("insights", () => {
     await page.getByRole("button", { name: /^Zara/ }).click();
     await expect(page.getByText("12 Jun 2026")).toBeVisible();
 
+    // Hiding says it doesn't change totals, keeps focus on the list, and can be undone at once.
     await page.getByRole("button", { name: "Hide Lidl from this list" }).click();
     await expect(page.getByRole("button", { name: /^Lidl/ })).toBeHidden();
-    await expect(page.getByRole("button", { name: "Show hidden (1)" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Where your money went" })).toBeFocused();
+    await expect(page.getByText("It still counts in your spending totals.")).toBeVisible();
     await expect.poll(() => drive.appFile<{ hiddenMerchants: string[] }>("settings").hiddenMerchants).toEqual(["Lidl"]);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("button", { name: /^Lidl/ })).toBeVisible();
+    await expect.poll(() => drive.appFile<{ hiddenMerchants: string[] }>("settings").hiddenMerchants).toEqual([]);
 
-    await page.getByRole("button", { name: "Show hidden (1)" }).click();
+    // Later, a hidden place comes back on its own from the Hidden list.
+    await page.getByRole("button", { name: "Hide Lidl from this list" }).click();
+    await page.getByRole("button", { name: "Hidden (1)" }).click();
+    await page.getByRole("button", { name: "Show Lidl again" }).click();
     await expect(page.getByRole("button", { name: /^Lidl/ })).toBeVisible();
   });
 
@@ -54,7 +62,7 @@ test.describe("insights", () => {
     await expect(page.getByText("5 Mar 2026")).toBeVisible();
 
     await page.getByRole("button", { name: "Netflix isn't a subscription — hide it" }).click();
-    await expect(page.getByText("No recurring subscriptions detected yet.")).toBeVisible();
+    await expect(page.getByText("No other subscriptions found.")).toBeVisible();
     await expect.poll(() => drive.appFile<{ excludedSubscriptions: string[] }>("settings").excludedSubscriptions).toEqual(["Netflix"]);
   });
 
@@ -62,6 +70,8 @@ test.describe("insights", () => {
     await openTab(page, "Year");
     // Netflix Mar–Jun, May and June shopping, and rent for Mar–May (June's isn't due yet).
     await expect(page.getByText("€2,686.96")).toBeVisible();
+    // The chart says what it shows, and why June's bar is short.
+    await expect(page.getByText("May 2026 was your biggest pay period: €872.99. This pay period so far: €187.99, with €800.00 in bills still to come.")).toBeVisible();
     await expect(page.getByRole("button", { name: /^Pay period June 2026: €187\.99 spent, €0\.00 saved so far/ })).toBeVisible();
     await page.getByRole("button", { name: /^Pay period May 2026: €872\.99 spent, €0\.00 saved\./ }).click();
     await expect(page).toHaveURL(/\/dashboard$/);

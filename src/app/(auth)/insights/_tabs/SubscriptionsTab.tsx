@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronDown, CalendarClock, CreditCard } from "lucide-react";
 import { Transaction, RecurringPayment } from "@/types";
 import { formatCurrency, formatDate, formatShortDate, formatMonthShort, formatMonthYear, cleanDescription, ordinal } from "@/lib/format";
@@ -9,6 +9,10 @@ import { cn, roundMoney } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { merchantKey, monthlyCost, type Subscription } from "@/lib/insights";
 import { billPeriodLabel } from "@/lib/recurring";
+import { HiddenItems } from "../_components/HiddenItems";
+
+/** A hidden subscription leaves the monthly total on this card, but not your spending. */
+const HIDDEN_NOTE = "Not counted in the subscriptions' monthly total. Your spending figures don't change.";
 
 interface Props {
   recurringPayments: RecurringPayment[];
@@ -20,13 +24,21 @@ interface Props {
   /** "YYYY-MM-DD" */
   today: string;
   /** How many detected subscriptions are currently hidden. */
-  hiddenCount: number;
+  /** Detected subscriptions the user has hidden. */
+  hiddenNames: string[];
   onHide: (name: string) => void;
-  onRestore: () => void;
+  onShow: (name: string) => void;
+  onShowAll: () => void;
 }
 
-export function SubscriptionsTab({ recurringPayments, billsPaid, subscriptions, transactions, today, hiddenCount, onHide, onRestore }: Props) {
+export function SubscriptionsTab({ recurringPayments, billsPaid, subscriptions, transactions, today, hiddenNames, onHide, onShow, onShowAll }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  // Hiding removes the row that had focus; the heading takes it instead of the page.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const hide = (name: string) => {
+    onHide(name);
+    headingRef.current?.focus();
+  };
 
   // Each bill's total so far (periods it was left out of don't count), since its
   // first charge, which is later for a bill that started later.
@@ -104,7 +116,7 @@ export function SubscriptionsTab({ recurringPayments, billsPaid, subscriptions, 
         <CardHeader className="pb-2 pt-4 px-4">
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <CreditCard size={13} aria-hidden /> <h2>Subscriptions we found</h2>
+              <CreditCard size={13} aria-hidden /> <h2 ref={headingRef} tabIndex={-1} className="focus-visible:outline-none">Subscriptions we found</h2>
             </CardTitle>
             {subscriptions.length > 0 && (
               <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
@@ -112,17 +124,20 @@ export function SubscriptionsTab({ recurringPayments, billsPaid, subscriptions, 
               </span>
             )}
           </div>
-          {hiddenCount > 0 && (
-            <p className="text-sm mt-1">
-              <button type="button" onClick={onRestore} className="tap-area text-primary hover:underline">
-                Show hidden ({hiddenCount})
-              </button>
-            </p>
-          )}
+          <HiddenItems
+            names={hiddenNames}
+            note={HIDDEN_NOTE}
+            onShow={onShow}
+            onShowAll={onShowAll}
+            onAfterShow={() => headingRef.current?.focus()}
+            className="mt-1"
+          />
         </CardHeader>
         <CardContent className="px-4 pb-4">
           {subscriptions.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No recurring subscriptions detected yet.</p>
+            <p className="text-sm text-muted-foreground py-2">
+              {hiddenNames.length > 0 ? "No other subscriptions found." : "No recurring subscriptions detected yet."}
+            </p>
           ) : (
             <div className="flex flex-col divide-y divide-border -mx-4">
               {subscriptions.map((s) => {
@@ -162,10 +177,9 @@ export function SubscriptionsTab({ recurringPayments, billsPaid, subscriptions, 
                       </button>
                       <button
                         type="button"
-                        onClick={() => onHide(s.name)}
+                        onClick={() => hide(s.name)}
                         className="min-h-11 px-3 flex items-center justify-center rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
-                        aria-label={`${s.name} isn't a subscription — hide it`}
-                        title="Not a subscription? Hide it (won't change your numbers)"
+                        aria-label={`${s.name} isn't a subscription — hide it. Your spending figures don't change.`}
                       >
                         Hide
                       </button>

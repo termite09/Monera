@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown } from "lucide-react";
 import { formatCurrency, formatDate, cleanDescription } from "@/lib/format";
 import { cn, roundMoney } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MerchantGroup } from "@/lib/insights";
+import { HiddenItems } from "../_components/HiddenItems";
 
 interface Props {
   /** Any spending at all this period (before hiding merchants). */
@@ -20,18 +21,29 @@ interface Props {
   comparedToSamePoint: boolean;
   /** Visible merchants, biggest first. */
   merchants: MerchantGroup[];
-  hiddenCount: number;
+  /** Places hidden from this list. */
+  hiddenNames: string[];
   onHide: (name: string) => void;
-  onResetHidden: () => void;
+  onShow: (name: string) => void;
+  onShowAll: () => void;
 }
+
+/** Hiding a place only tidies this list. */
+const HIDDEN_NOTE = "Hidden from this list only. They still count in your spending totals.";
 
 const TOP_N = 5;
 const TXS_SHOWN = 20;
 
-export function MerchantsTab({ hasSpending, periodSpending, charged, refunded, prevSpending, comparedToSamePoint, merchants, hiddenCount, onHide, onResetHidden }: Props) {
+export function MerchantsTab({ hasSpending, periodSpending, charged, refunded, prevSpending, comparedToSamePoint, merchants, hiddenNames, onHide, onShow, onShowAll }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAllFor, setShowAllFor] = useState<Set<string>>(new Set());
   const [showAllMerchants, setShowAllMerchants] = useState(false);
+  // Hiding removes the row that had focus; the heading takes it instead of the page.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const hide = (name: string) => {
+    onHide(name);
+    headingRef.current?.focus();
+  };
 
   if (!hasSpending) {
     return (
@@ -52,18 +64,9 @@ export function MerchantsTab({ hasSpending, periodSpending, charged, refunded, p
   return (
     <Card>
       <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-center gap-2">
-          <CardTitle className="text-lg font-semibold text-foreground"><h2>Where your money went</h2></CardTitle>
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              onClick={onResetHidden}
-              className="tap-area ml-auto text-xs text-primary hover:underline rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Show hidden ({hiddenCount})
-            </button>
-          )}
-        </div>
+        <CardTitle className="text-lg font-semibold text-foreground">
+          <h2 ref={headingRef} tabIndex={-1} className="focus-visible:outline-none">Where your money went</h2>
+        </CardTitle>
         {/* Spent this period, and the change since last period: arrow and words, never colour alone. */}
         <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
           <span className="font-medium text-foreground tabular-nums font-mono">{formatCurrency(periodSpending)}</span>
@@ -89,6 +92,14 @@ export function MerchantsTab({ hasSpending, periodSpending, charged, refunded, p
             </>
           )}
         </p>
+        <HiddenItems
+          names={hiddenNames}
+          note={HIDDEN_NOTE}
+          onShow={onShow}
+          onShowAll={onShowAll}
+          onAfterShow={() => headingRef.current?.focus()}
+          className="mt-1"
+        />
       </CardHeader>
       <CardContent className="px-0 pb-2">
         {merchants.length === 0 ? (
@@ -126,10 +137,9 @@ export function MerchantsTab({ hasSpending, periodSpending, charged, refunded, p
                     </button>
                     <button
                       type="button"
-                      onClick={() => onHide(m.name)}
+                      onClick={() => hide(m.name)}
                       className="shrink-0 min-h-11 px-3 mr-1 flex items-center justify-center rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                      aria-label={`Hide ${m.name} from this list`}
-                      title="Hide from this list (won't change your numbers)"
+                      aria-label={`Hide ${m.name} from this list. It still counts in your spending totals.`}
                     >
                       Hide
                     </button>

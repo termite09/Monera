@@ -10,7 +10,6 @@ interface SummaryCardProps {
   label: string;
   /** null = no figure to show yet (e.g. no statement for this period). */
   amount: number | null;
-  index: number;
   /** "hero" is the one tile that answers the screen's question (safe to spend). */
   variant?: "hero" | "default";
   /** Prefix shown before the amount, e.g. "+" for money coming in. */
@@ -28,7 +27,6 @@ interface SummaryCardProps {
 export function SummaryCard({
   label,
   amount,
-  index,
   variant = "default",
   sign = "",
   sentence,
@@ -38,35 +36,38 @@ export function SummaryCard({
   onClick,
 }: SummaryCardProps) {
   const shouldReduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const [animated, setAnimated] = useState(0);
+  // A money figure shows its real value straight away; it never counts up from
+  // €0 through wrong amounts. When it changes (another pay period), it moves
+  // from the old value to the new one, so the change itself is visible.
+  const [displayed, setDisplayed] = useState(amount ?? 0);
+  const shownRef = useRef(amount ?? 0);
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
-    if (shouldReduceMotion) return;
+    const from = shownRef.current;
+    const to = amount ?? 0;
+    const show = (v: number) => { shownRef.current = v; setDisplayed(v); };
+    if (shouldReduceMotion || from === to) { show(to); return; }
     const start = performance.now();
-    const duration = 700;
+    const duration = 400;
     const tick = (now: number) => {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setAnimated((amount ?? 0) * eased);
+      show(from + (to - from) * eased);
       if (progress < 1) rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [amount, shouldReduceMotion]);
-
-  const displayed = shouldReduceMotion ? (amount ?? 0) : animated;
   const hero = variant === "hero";
-  // The full figure for screen readers — the visible one counts up.
+  // The full figure for screen readers — the visible one may be moving.
   const prefix = amount !== null && amount < 0 ? "−" : sign;
   const spoken = amount === null ? label : `${label}: ${prefix}${formatCurrency(Math.abs(amount))}`;
 
   return (
-    <div
-      className={cn("motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:fill-mode-backwards", className)}
-      style={{ animationDelay: `${index * 60}ms` }}
-    >
+    // No entrance of its own: the page already eases in once.
+    <div className={className}>
       <button
         type="button"
         onClick={onClick}
