@@ -6,7 +6,7 @@ test.describe("on a phone", () => {
   test.beforeEach(async ({ page, drive }) => {
     drive.seed(account());
     await page.goto("/dashboard");
-    await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Safe to spend: €1,012.01. Show details" })).toBeVisible();
   });
 
   test("the bottom bar moves between sections", async ({ page }) => {

@@ -11,7 +11,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { deleteFile } from "@/lib/google/drive";
 import { listStatementFiles } from "@/lib/google/folders";
 import { readStatement, saveStatement, statementErrorMessage, type StatementPreview } from "@/lib/statements";
-import { formatDate, formatShortDate, plural } from "@/lib/format";
+import { formatDate, formatDateRange, formatShortDate, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { RevolutExportHelp } from "@/components/onboarding/RevolutExportHelp";
 import { LoadMore } from "@/components/ui/LoadMore";
@@ -21,7 +21,7 @@ const PAGE_SIZE = 5;
 type Status = { kind: "idle" } | { kind: "working" | "success" | "error"; message: string };
 
 export default function UploadPage() {
-  const { accessToken, structure, settings, updateSettings, refetch } = useAppData();
+  const { accessToken, structure, settings, coverage, updateSettings, refetch } = useAppData();
   const qc = useQueryClient();
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -94,6 +94,26 @@ export default function UploadPage() {
             Add your Revolut statement once per pay period.
           </p>
         </div>
+
+        {/* What the statements cover, checked against Revolut's balance between them. */}
+        {coverage && (coverage.gaps.length === 0 ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle size={16} className="shrink-0 text-foreground" aria-hidden />
+            Your statements cover {formatDateRange(coverage.from, coverage.to)}, with no gaps.
+          </p>
+        ) : (
+          <section aria-labelledby="gaps-heading" className="rounded-xl border border-border bg-card px-4 py-3 flex items-start gap-3">
+            <AlertCircle size={18} className="mt-0.5 shrink-0 text-foreground" aria-hidden />
+            <div className="min-w-0">
+              <h2 id="gaps-heading" className="text-sm font-semibold text-foreground">
+                Missing {coverage.gaps.map((g) => formatDateRange(g.from, g.to)).join(", ")}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5 max-w-[65ch]">
+                Your Revolut balance changed on those days but no statement covers them, so they aren&apos;t counted. Add a statement that includes them.
+              </p>
+            </div>
+          </section>
+        ))}
 
         {/* Drop zone — a real button, so it works from the keyboard too */}
         <input

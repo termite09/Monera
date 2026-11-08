@@ -58,13 +58,20 @@ describe("migrateSettings", () => {
 
   it("DEFAULT_SETTINGS includes settingsVersion set to SETTINGS_VERSION", () => {
     expect(defaults.settingsVersion).toBe(SETTINGS_VERSION);
-    expect(SETTINGS_VERSION).toBe(2);
+    expect(SETTINGS_VERSION).toBe(3);
   });
 
   it("backfills excludedSubscriptions to [] when missing", () => {
     const { migrated, changed } = migrateSettings({} as Settings, defaults);
     expect(migrated.excludedSubscriptions).toEqual([]);
     expect(changed).toBe(true);
+  });
+
+  it("adds \"investment account\" to an existing savings list once, and respects removing it later", () => {
+    const old = migrateSettings({ ...defaults, savingsVaultKeywords: ["eur savings"], settingsVersion: 2 }, defaults).migrated;
+    expect(old.savingsVaultKeywords).toEqual(["eur savings", "investment account"]);
+    const removed = migrateSettings({ ...defaults, savingsVaultKeywords: ["eur savings"], settingsVersion: 3 }, defaults).migrated;
+    expect(removed.savingsVaultKeywords).toEqual(["eur savings"]);
   });
 
   it("converts a stored currency symbol to its ISO code and asks to save it", () => {

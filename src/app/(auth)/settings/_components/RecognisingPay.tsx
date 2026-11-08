@@ -71,13 +71,15 @@ function KeywordEditor({ label, hint, placeholder, keywords, onChange }: {
 }
 
 /** The keyword lists that tell Monera which payments are pay, own transfers and savings moves. Saved by the Basics form. */
-export function RecognisingPay({ salary, setSalary, selfTransfer, setSelfTransfer, savingsVault, setSavingsVault }: {
+export function RecognisingPay({ salary, setSalary, selfTransfer, setSelfTransfer, savingsVault, setSavingsVault, repayments, setRepayments }: {
   salary: string[];
   setSalary: (v: string[]) => void;
   selfTransfer: string[];
   setSelfTransfer: (v: string[]) => void;
   savingsVault: string[];
   setSavingsVault: (v: string[]) => void;
+  repayments: boolean;
+  setRepayments: (v: boolean) => void;
 }) {
   return (
     <section aria-labelledby="recognising-pay" className="flex flex-col gap-4 pt-2">
@@ -101,12 +103,31 @@ export function RecognisingPay({ salary, setSalary, selfTransfer, setSelfTransfe
         onChange={setSelfTransfer}
       />
       <KeywordEditor
-        label="Revolut savings"
-        hint="Moving money into a Revolut Savings vault shows up twice: once going out (counted as Savings) and once coming in. Add words from the incoming one so it isn't counted as income."
+        label="Savings and investments"
+        hint="Money you put into a Revolut Savings vault or an investment account. Matching payments out count as Savings, not spending, and the copy that arrives in the vault isn't counted as income."
         placeholder="e.g. eur savings"
         keywords={savingsVault}
         onChange={setSavingsVault}
       />
+      <Card>
+        <CardContent className="px-4 py-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={repayments}
+              onChange={(e) => setRepayments(e.target.checked)}
+              className="size-4 mt-1 shrink-0 cursor-pointer accent-primary"
+            />
+            <span>
+              <span className="block text-base font-semibold text-foreground">Money from friends pays back my spending</span>
+              <span className="block text-xs text-muted-foreground mt-0.5 max-w-[65ch]">
+                When someone sends you their share of a bill, it takes that off your spending instead of counting as income.
+                Your pay is still recognised by your pay keywords, so add them first if your pay arrives in this account.
+              </span>
+            </span>
+          </label>
+        </CardContent>
+      </Card>
     </section>
   );
 }

@@ -10,9 +10,10 @@ test.describe("dashboard", () => {
 
   test("answers what's safe to spend before payday", async ({ page }) => {
     await expect(page.getByText("Today · Monday 15 June")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
-    await expect(page.getByText("About €38.25 a day for the next 16 days, until payday on Wednesday 1 July.")).toBeVisible();
-    await expect(page.getByText("Statement up to 12 Jun")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Safe to spend: €1,012.01. Show details" })).toBeVisible();
+    await expect(page.getByText("About €63.25 a day for the next 16 days, until payday on Wednesday 1 July.")).toBeVisible();
+    // The export's last row is a top-up on 14 Jun, so it reaches that day.
+    await expect(page.getByText("Statement up to 14 Jun")).toBeVisible();
   });
 
   test("shows income, spending and savings for the pay period", async ({ page }) => {
@@ -21,8 +22,7 @@ test.describe("dashboard", () => {
     await expect(page.getByRole("button", { name: "Saved: €0.00. Show details" })).toBeVisible();
   });
 
-  test("budget circles add up to safe to spend", async ({ page }) => {
-    // Needs left (150) + Wants left (462.01) = Safe to spend (612.01).
+  test("budget circles show what's left in each budget after bills due", async ({ page }) => {
     await expect(page.getByRole("button", { name: "Needs: €150.00 left of €1,000.00, after €800.00 in bills due. Show transactions" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Wants: €462.01 left of €600.00. Show transactions" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Savings: €0.00 saved of a €400.00 target. Show transactions" })).toBeVisible();
@@ -41,7 +41,9 @@ test.describe("dashboard", () => {
     await expect(sheet.getByText("€2,000.00")).toBeVisible();
     await expect(sheet.getByText("− €187.99")).toBeVisible();
     await expect(sheet.getByText("− €800.00").first()).toBeVisible();
-    await expect(sheet.getByText("− €400.00")).toBeVisible();
+    // The savings target is a goal on the Savings circle, not money held back here.
+    await expect(sheet.getByText("Rest of savings target")).toHaveCount(0);
+    await expect(sheet.getByText("€1,012.01")).toBeVisible();
     await expect(sheet.getByText("20 Jun · Regular bill")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(sheet).toBeHidden();
@@ -64,7 +66,7 @@ test.describe("dashboard", () => {
 
   test("shows which weekday costs the most and what was bought", async ({ page }) => {
     // Opens on the whole pay period, and says where the statement stops.
-    await expect(page.getByText("Fridays cost you the most this period: €112.99. Your statement ends 12 Jun.")).toBeVisible();
+    await expect(page.getByText("Fridays cost you the most this period: €112.99. Your statement ends 14 Jun.")).toBeVisible();
 
     await page.getByRole("button", { name: "Friday: €112.99 spent. Show transactions" }).click();
     const sheet = page.getByRole("dialog", { name: "Fri spending" });
@@ -80,8 +82,9 @@ test.describe("dashboard", () => {
     await expect(page.getByText("No spending this week")).toHaveCount(0);
   });
 
-  test("the Needs circle shows rent still due apart from what was spent", async ({ page }) => {
-    await expect(page.getByText("€800.00 due 20 Jun")).toBeVisible();
+  test("the Needs circle counts rent still due, without a caption under it", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /^Needs: €150\.00 left of €1,000\.00, after €800\.00 in bills due/ })).toBeVisible();
+    await expect(page.getByText("€800.00 due 20 Jun")).toHaveCount(0);
     await page.getByRole("button", { name: /^Needs: / }).click();
     await expect(page.getByRole("dialog").getByText("+ €800.00 in bills still due")).toBeVisible();
   });
@@ -102,16 +105,12 @@ test.describe("dashboard", () => {
 });
 
 test.describe("dashboard states", () => {
-  test("opens on the latest statement's period when none covers today's yet", async ({ page, drive }) => {
+  test("opens on today's period even when the latest statement ends before it", async ({ page, drive }) => {
     const data = account();
     drive.seed({ ...data, statements: [{ name: "old.csv", csv: data.statements[0].csv.split("\n").filter((l) => !l.includes("2026-06")).join("\n") }] });
     await page.goto("/dashboard");
-    // The statement ends 10 May, so May's figures show instead of an empty dashboard.
-    await expect(page.getByText("Past pay period · ended Sunday 31 May")).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Remaining: / })).toBeVisible();
-
-    // Today's period still asks for its statement.
-    await page.getByRole("button", { name: "Next pay period" }).click();
+    // The statement ends 10 May: today's period asks for its statement and says where the data stops.
+    await expect(page.getByText("Today · Monday 15 June")).toBeVisible();
     await expect(page.getByText(/Add this pay period's statement to see what's safe to spend/)).toBeVisible();
     await expect(page.getByText("Your latest statement ends 10 May.")).toBeVisible();
     await page.getByRole("link", { name: "Add this period's statement" }).click();
@@ -165,5 +164,35 @@ test("a bill that tips a budget over is shown as due, not as spent", async ({ pa
   await page.goto("/dashboard");
   await expect(page.getByRole("button", { name: "Needs: €50.00 over a €800.00 budget, after €800.00 in bills due. Show transactions" })).toBeVisible();
   await expect(page.getByText("over after bills")).toBeVisible();
-  await expect(page.getByText("€800.00 due 20 Jun")).toBeVisible();
+});
+
+test.describe("missing statements", () => {
+  const H = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance";
+  // Ends with €1,950.00 on 2 Jun; the next one starts from €1,825.00 on 10 Jun, so money moved in between.
+  const early = [H,
+    "Transfer,Current,2026-06-01 08:00:00,2026-06-01 08:00:01,Salary ACME Ltd,2000.00,0.00,EUR,COMPLETED,2000.00",
+    "Card Payment,Current,2026-06-02 09:00:00,2026-06-02 09:05:00,Lidl,-50.00,0.00,EUR,COMPLETED,1950.00",
+  ].join("\n");
+  const late = [H,
+    "Card Payment,Current,2026-06-10 09:00:00,2026-06-10 09:05:00,Wolt,-25.00,0.00,EUR,COMPLETED,1800.00",
+    "Card Payment,Current,2026-06-12 09:00:00,2026-06-12 09:05:00,Zara,-100.00,0.00,EUR,COMPLETED,1700.00",
+  ].join("\n");
+
+  test("a gap where money moved is named on the dashboard and the Statements page", async ({ page, drive }) => {
+    drive.seed({ ...account(), statements: [{ name: "early.csv", csv: early }, { name: "late.csv", csv: late }] });
+    await page.goto("/dashboard");
+    await expect(page.getByRole("region", { name: "Missing statement" })).toContainText("Missing 3 Jun – 9 Jun:");
+    await page.getByRole("link", { name: "Add a statement" }).click();
+    await expect(page).toHaveURL(/\/upload$/);
+    await expect(page.getByRole("heading", { name: "Missing 3 Jun – 9 Jun" })).toBeVisible();
+  });
+
+  test("statements that cover everything say so, and the dashboard shows no warning", async ({ page, drive }) => {
+    drive.seed(account());
+    await page.goto("/upload");
+    await expect(page.getByText("Your statements cover 5 Mar – 14 Jun, with no gaps.")).toBeVisible();
+    await page.goto("/dashboard");
+    await expect(page.getByRole("button", { name: /^Safe to spend: / })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Missing statement" })).toHaveCount(0);
+  });
 });

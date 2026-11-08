@@ -32,12 +32,6 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
             <span className="text-muted-foreground">Bills still due</span>
             <span className="text-foreground">− {formatCurrency(safeInfo.billsDue)}</span>
           </div>
-          {safeInfo.savingsSetAside > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Rest of savings target</span>
-              <span className="text-foreground">− {formatCurrency(safeInfo.savingsSetAside)}</span>
-            </div>
-          )}
           <div className="border-t border-border pt-2 flex items-center justify-between font-semibold">
             <span>Safe to spend</span>
             <span className={safeInfo.safe >= 0 ? "text-foreground" : "text-destructive"}>
@@ -66,7 +60,7 @@ export function SafeToSpendSheet({ safeInfo }: Props) {
         )}
 
         <p className="text-xs text-muted-foreground">
-          What&apos;s left of your pay once your spending so far, the bills still to come before payday, and the rest of your savings target are taken out.
+          What&apos;s left of your pay once your spending so far, what you&apos;ve saved, and the bills still to come before payday are taken out.
         </p>
       </div>
     </>

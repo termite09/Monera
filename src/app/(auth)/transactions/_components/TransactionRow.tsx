@@ -81,6 +81,10 @@ export const TransactionRow = memo(function TransactionRow({
         {isUpcoming && (
           <span className="text-xs font-medium text-muted-foreground">Upcoming</span>
         )}
+        {/* Not settled when exported: the amount can still change, and a newer statement replaces it. */}
+        {tx.pending && (
+          <span className="text-xs font-medium text-muted-foreground" title="Not settled yet when exported: the amount can still change">Pending</span>
+        )}
         {tx.notes && <span className="text-xs text-muted-foreground wrap-break-word">{tx.notes}</span>}
         {tx.source === "manual" && (
           <span className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2" onClick={stop}>

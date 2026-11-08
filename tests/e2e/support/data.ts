@@ -7,8 +7,8 @@
  *   Income        €2,000.00   (salary, recognised by the "acme" keyword)
  *   Spent so far    €187.99   Lidl 50 (Needs) · Netflix 12.99, Wolt 25, Zara 100 (Wants)
  *   Rent due        €800.00   on Sat 20 June
- *   Savings target  €400.00   (20% of pay, nothing saved yet)
- *   Safe to spend   €612.01   = 2000 − 187.99 − 800 − 400, about €38.25 a day for 16 days
+ *   Savings target  €400.00   (20% of pay, nothing saved yet — a goal, not held back)
+ *   Safe to spend  €1,012.01  = 2000 − 187.99 − 800, about €63.25 a day for 16 days
  */
 
 import type { Settings } from "@/types";

@@ -83,6 +83,11 @@ export function formatMonthYear(monthKey: string, style: "short" | "long" = "sho
   return style === "long" ? monthYearLongFormat.format(date) : evenMonth(monthYearShortFormat.format(date));
 }
 
+/** "14 Sep – 19 Sep", or "14 Sep" for a single day. */
+export function formatDateRange(from: string, to: string): string {
+  return from === to ? formatShortDate(from) : `${formatShortDate(from)} – ${formatShortDate(to)}`;
+}
+
 /** "Sep" */
 export function formatMonthShort(dateStr: string): string {
   return evenMonth(monthShortFormat.format(parseDateStr(dateStr)));

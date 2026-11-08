@@ -26,6 +26,7 @@ export function DefaultsForm({ settings, updateSettings }: {
   const [salary, setSalary] = useState(settings.salaryKeywords);
   const [selfTransfer, setSelfTransfer] = useState(settings.selfTransferKeywords);
   const [savingsVault, setSavingsVault] = useState(settings.savingsVaultKeywords);
+  const [repayments, setRepayments] = useState(settings.repaymentsReduceSpending ?? false);
   const { status, run } = useSaveStatus();
 
   const paydayNum = Math.min(31, Math.max(1, parseInt(payday, 10) || 1));
@@ -37,7 +38,8 @@ export function DefaultsForm({ settings, updateSettings }: {
     defaultIncome !== incomeText(settings.defaultIncome) ||
     !sameList(salary, settings.salaryKeywords) ||
     !sameList(selfTransfer, settings.selfTransferKeywords) ||
-    !sameList(savingsVault, settings.savingsVaultKeywords);
+    !sameList(savingsVault, settings.savingsVaultKeywords) ||
+    repayments !== (settings.repaymentsReduceSpending ?? false);
 
   const handleSave = () => {
     if (total !== 100) return;
@@ -50,6 +52,7 @@ export function DefaultsForm({ settings, updateSettings }: {
         salaryKeywords: salary,
         selfTransferKeywords: selfTransfer,
         savingsVaultKeywords: savingsVault,
+        repaymentsReduceSpending: repayments,
       }))
     );
   };
@@ -109,6 +112,7 @@ export function DefaultsForm({ settings, updateSettings }: {
         salary={salary} setSalary={setSalary}
         selfTransfer={selfTransfer} setSelfTransfer={setSelfTransfer}
         savingsVault={savingsVault} setSavingsVault={setSavingsVault}
+        repayments={repayments} setRepayments={setRepayments}
       />
 
       <SaveButton status={status} onClick={handleSave} disabled={!dirty || total !== 100} />

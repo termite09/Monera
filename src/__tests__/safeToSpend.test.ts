@@ -24,8 +24,8 @@ function summaryWith(income: number): PeriodSummary {
 // Payday 1 → "2024-06" runs Jun 1 – Jun 30. "now" sits mid-period.
 const NOW = new Date("2024-06-15T12:00:00");
 
-function safe(transactions: Transaction[], summary: PeriodSummary, now = NOW, savingsTarget = 0, expectedCharges: ExpectedCharge[] = []) {
-  return computeSafeToSpend({ transactions, periodKey: "2024-06", paydayOfMonth: 1, summary, now, savingsTarget, expectedCharges });
+function safe(transactions: Transaction[], summary: PeriodSummary, now = NOW, expectedCharges: ExpectedCharge[] = []) {
+  return computeSafeToSpend({ transactions, periodKey: "2024-06", paydayOfMonth: 1, summary, now, expectedCharges });
 }
 
 describe("computeSafeToSpend", () => {
@@ -48,19 +48,18 @@ describe("computeSafeToSpend", () => {
     expect(r.daysLeft).toBeGreaterThan(0);
   });
 
-  it("holds back the rest of the savings target, counting scheduled savings transfers", () => {
+  it("takes off money saved and savings transfers still due, but holds nothing back for a target", () => {
     const txs = [
       tx({ amount: 80, type: "expense", category: "Savings", date: "2024-06-08" }), // saved so far
       tx({ amount: 100, type: "expense", category: "Savings", date: "2024-06-25", source: "recurring" }), // scheduled
     ];
-    const r = safe(txs, summaryWith(2000), NOW, 300);
-    expect(r.savingsSetAside).toBe(120); // 300 target − 80 saved − 100 scheduled
-    expect(r.safe).toBe(1700); // 2000 − 80 saved − 100 due − 120 set aside
+    const r = safe(txs, summaryWith(2000), NOW);
+    expect(r.safe).toBe(1820); // 2000 − 80 saved − 100 due
   });
 
   it("holds back detected subscriptions due before payday, but not twice", () => {
     const txs = [tx({ amount: 12.99, type: "expense", category: "Wants", date: "2024-06-20", description: "Netflix", source: "recurring" })];
-    const r = safe(txs, summaryWith(2000), NOW, 0, [
+    const r = safe(txs, summaryWith(2000), NOW, [
       { name: "Spotify", amount: 10.99, date: "2024-06-22", lastChargeDate: "2024-05-22" },
       { name: "Netflix", amount: 12.99, date: "2024-06-20", lastChargeDate: "2024-05-20" }, // already a bill
       { name: "Gym", amount: 30, date: "2024-07-03", lastChargeDate: "2024-06-03" }, // after payday
@@ -68,12 +67,6 @@ describe("computeSafeToSpend", () => {
     expect(r.billsDue).toBe(23.98);
     expect(r.billItems.map((b) => b.name)).toEqual(["Netflix", "Spotify"]);
     expect(r.billItems.find((b) => b.name === "Spotify")?.estimated).toBe(true);
-  });
-
-  it("holds nothing back once the savings target is reached", () => {
-    const txs = [tx({ amount: 400, type: "expense", category: "Savings", date: "2024-06-08" })];
-    const r = safe(txs, summaryWith(2000), NOW, 300);
-    expect(r.savingsSetAside).toBe(0);
   });
 
   it("is not applicable for a period that doesn't contain today", () => {

@@ -18,6 +18,20 @@ export interface Transaction {
   excluded: boolean;
   /** For a bill (source "recurring"): the id of the bill in Settings it came from. */
   billId?: string;
+  /**
+   * Revolut rows: start time to the second, amount and currency. Matches one
+   * transaction across overlapping exports even when Revolut renames the shop
+   * between them ("Delivery Hero" pending, "foody" settled).
+   */
+  matchKey?: string;
+  /** Still pending when it was exported. */
+  pending?: boolean;
+  /** Money back for a purchase (a refund row in the statement). */
+  refund?: boolean;
+  /** Money moved into a savings vault, recognised by its mirror row (which is dropped). */
+  savingsMove?: boolean;
+  /** Ids this transaction had in other exports, so changes made under them still apply. */
+  aliases?: string[];
 }
 
 /** Pay and split for one pay period, overriding the defaults. */
@@ -67,6 +81,12 @@ export interface Settings {
   hiddenMerchants?: string[];
   /** Detected subscription names the user has dismissed — does not affect calculations. */
   excludedSubscriptions?: string[];
+  /**
+   * Money in from other people (a friend paying back their share) reduces your
+   * spending instead of counting as income. Pay is still recognised by the
+   * salary keywords.
+   */
+  repaymentsReduceSpending?: boolean;
   /** True once the user has dismissed the post-import recurring-bills nudge. */
   recurringNudgeDismissed?: boolean;
   /** Schema version — incremented when new default fields are added. */
@@ -89,6 +109,24 @@ export interface DriveFile {
 export interface ParsedCSV {
   transactions: Transaction[];
   errors: string[];
+  /** Match keys of declined, failed or reverted payments: they cancel a pending copy from an earlier export. */
+  cancelled?: string[];
+  /** What a Revolut export covers, per currency, with its balance at each end. */
+  coverage?: StatementCoverage[];
+}
+
+/**
+ * The days one statement covers for one currency of the main account, and
+ * Revolut's balance just before its first settled row and after its last. Two
+ * statements that don't meet leave a gap only if the balance changed in between.
+ */
+export interface StatementCoverage {
+  currency: string;
+  /** First and last day a payment settled ("YYYY-MM-DD"). */
+  from: string;
+  to: string;
+  openingBalance: number;
+  closingBalance: number;
 }
 
 export interface PeriodSummary {

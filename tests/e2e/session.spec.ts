@@ -27,7 +27,7 @@ test("a Drive outage while loading offers a retry", async ({ page, drive }) => {
   await page.unroute(csvListing);
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(alerts(page)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Safe to spend: €1,012.01. Show details" })).toBeVisible();
 });
 
 test("setup that can't reach Drive explains and retries", async ({ page }) => {
@@ -52,20 +52,20 @@ test("settings that can't be read block the app instead of falling back to defau
 
   drive.failingDownloads.clear();
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Safe to spend: €1,012.01. Show details" })).toBeVisible();
   expect(drive.appFile("settings")).toMatchObject(seeded.settings);
 });
 
 test("folder ids remembered from an earlier visit are replaced when they've gone", async ({ page, drive }) => {
   drive.seed(account());
   await page.goto("/dashboard");
-  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Safe to spend: €1,012.01. Show details" })).toBeVisible();
 
   // The folder is deleted and set up again, so every remembered id is stale.
   drive.clear();
   drive.seed(account());
   await page.reload();
-  await expect(page.getByRole("button", { name: "Safe to spend: €612.01. Show details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Safe to spend: €1,012.01. Show details" })).toBeVisible();
   expect(drive.folders().filter((f) => f === "Monera")).toHaveLength(1);
 });
 

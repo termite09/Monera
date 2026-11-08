@@ -50,8 +50,6 @@ export interface SafeToSpend {
   savedSoFar: number;
   /** Committed charges still to come this period (date > today). */
   billsDue: number;
-  /** The rest of this period's savings target, held back so it isn't spent. */
-  savingsSetAside: number;
   billItems: UpcomingBill[];
   safe: number;
   /** Days from today until the period ends (next payday). */
@@ -81,7 +79,6 @@ const notApplicable = (reason: SafeToSpend["reason"], income = 0): SafeToSpend =
   spentSoFar: 0,
   savedSoFar: 0,
   billsDue: 0,
-  savingsSetAside: 0,
   billItems: [],
   safe: 0,
   daysLeft: 0,
@@ -95,8 +92,6 @@ export interface SafeToSpendInput {
   summary: PeriodSummary;
   /** Injected so the result is deterministic in tests. */
   now: Date;
-  /** This period's savings target (income × savings %). 0 = don't hold any back. */
-  savingsTarget?: number;
   /** Detected subscriptions expected before payday — held back like bills. */
   expectedCharges?: ExpectedCharge[];
 }
@@ -106,14 +101,13 @@ export interface SafeToSpendInput {
  * period:
  *
  *   safe = income − spent so far − saved so far − payments still due
- *          − whatever is still needed to reach this period's savings target
  *
  * Only meaningful for the period containing `now`; other periods (and accounts
  * with no income configured/detected) return applicable:false so the UI can
  * degrade honestly instead of showing a confident number built on nothing.
  */
 export function computeSafeToSpend({
-  transactions, periodKey, paydayOfMonth, summary, now, savingsTarget = 0, expectedCharges = [],
+  transactions, periodKey, paydayOfMonth, summary, now, expectedCharges = [],
 }: SafeToSpendInput): SafeToSpend {
   const { start, end } = getPeriodBounds(periodKey, paydayOfMonth);
   if (now < start || now > end) return notApplicable("not-current-period");
@@ -148,20 +142,14 @@ export function computeSafeToSpend({
     })),
   ].sort((a, b) => a.date.localeCompare(b.date));
 
-  // Savings transfers already scheduled (a recurring Savings bill) count towards
-  // the target, so the same money isn't held back twice.
-  const savingsDue = upcoming.filter((tx) => tx.category === "Savings").reduce((s, tx) => s + tx.amount, 0);
-  const savingsSetAside = roundMoney(Math.max(0, savingsTarget - savedSoFar - savingsDue));
-
   return {
     applicable: true,
     income: summary.income,
     spentSoFar,
     savedSoFar,
     billsDue,
-    savingsSetAside,
     billItems,
-    safe: roundMoney(summary.income - spentSoFar - savedSoFar - billsDue - savingsSetAside),
+    safe: roundMoney(summary.income - spentSoFar - savedSoFar - billsDue),
     daysLeft: daysToPayday(periodKey, paydayOfMonth, now),
   };
 }

@@ -16,6 +16,11 @@ export function migrateSettings(
 ): { migrated: Settings; changed: boolean } {
   const merged: Settings = { ...defaults, ...loaded, settingsVersion: SETTINGS_VERSION };
   const migrated: Settings = { ...merged, currency: currencyCode(merged.currency) };
+  // Version 3: money moved to an investment account is saving, not spending.
+  // Added once to existing lists; if the user removes it later, it stays removed.
+  if ((loaded.settingsVersion ?? 0) < 3 && loaded.savingsVaultKeywords && !loaded.savingsVaultKeywords.includes("investment account")) {
+    migrated.savingsVaultKeywords = [...loaded.savingsVaultKeywords, "investment account"];
+  }
 
   const changed =
     loaded.settingsVersion !== SETTINGS_VERSION ||

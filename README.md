@@ -8,17 +8,18 @@
 
 **[Try it free at mymonera.com](https://mymonera.com)** · or [run it yourself](#getting-started)
 
-![Monera dashboard: safe to spend, budget circles and upcoming bills](public/screenshot-dashboard-v5.png)
+![Monera dashboard: safe to spend, budget circles and upcoming bills](public/screenshot-dashboard-v6.png)
 
 Export a statement from Revolut, drop it in, and see where your pay went — counted from payday to payday, not by calendar month.
 
 ## What you get
 
-- **Safe to spend** — what you can still spend before payday, after bills due and your savings target.
+- **Safe to spend** — what you can still spend before payday, after what you've spent, saved and bills still due.
 - **Budgets that follow your payday** — Needs, Wants and Savings for each pay period.
 - **Every number explained** — tap any figure to see the transactions and the sum behind it.
 - **Subscriptions and upcoming bills** — spot regular charges and see what's due before payday.
 - **Categories that learn** — fix one transaction and similar ones follow.
+- **Numbers you can check** — duplicates across overlapping exports, refunds, fees and pending payments are handled, and Monera tells you if a statement is missing.
 - **Your data stays yours** — everything lives in a `Monera/` folder in your Google Drive. Monera can only see files it created, and has no server or database of its own.
 
 <details>
@@ -28,7 +29,7 @@ Export a statement from Revolut, drop it in, and see where your pay went — cou
 |---|---|
 | **Your data, your Drive** | All data lives in a `Monera/` folder you own. The app uses the minimal `drive.file` scope — it can only see files it created. |
 | **Payday-aware budgets** | Periods run payday-to-payday (e.g. the 24th), not calendar months. Override income and the needs / wants / savings split per period. |
-| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. Transactions are dated by when you tapped the card, not when the bank settled. Pending transactions are imported too (settlement can take days) — only declined, failed, or reverted ones are skipped. |
+| **Import CSV or Excel** | Drop in a Revolut `.csv` or `.xlsx` export (up to 25 MB). Excel files are converted in the browser — nothing leaves your machine until it hits Drive. Transactions are dated by when you tapped the card, not when the bank settled. Fees in Revolut's Fee column are counted (the monthly plan fee included), and refund rows of every kind take money off the purchase they pay back instead of counting as income. Pending transactions are imported too (settlement can take days) and marked "Pending"; declined, failed and reverted ones are skipped, and a payment that was pending in an earlier export and reverted in a later one is dropped. |
 | **Smart categorization** | Keyword rules (case-insensitive, partial-match) auto-categorize transactions. Re-categorizing one transaction applies the same category to similar ones, saves a reusable rule, and offers a one-tap undo. Per-transaction overrides are remembered and always win. |
 | **Powerful transaction list** | Separate Expenses, Savings, Income and All lists, so the Expenses total always matches the dashboard's Spent. Multi-column sort, category filter, custom date ranges, and full-text search scoped to the selected period — all persisted across navigation. Export what's on screen as CSV. Keyboard shortcuts: `/` jumps to search, `Esc` clears a selection. Large lists load 50 transactions at a time. |
 | **Bulk editing & undo** | Inline checkboxes let you multi-select transactions to exclude, re-categorize, or reset to rule defaults — regular bills included, so a bill can be left out or moved for a single pay period. Every change — leaving out, counting again, moving category, deleting a manual entry — can be undone for a few seconds. |
@@ -36,18 +37,21 @@ Export a statement from Revolut, drop it in, and see where your pay went — cou
 | **Tappable drill-downs** | Every figure traces to its transactions: tap a dashboard card, a budget circle, or any chart bar to see the exact transactions and the calculation behind it. On phones these open as a bottom sheet; on wider screens as a side panel. |
 | **Spending by day** | Which weekdays cost you most, over the pay period (the default), this week, or the year: 7 bars (Mon–Sun) with a one-line takeaway. Statements are exported by hand and end before today, so the chart says where your statement ends instead of showing those days as "no spending". Hovering a bar and tapping into it both show the same Spent / Refunded / Net breakdown, and only transactions that have actually happened are counted. |
 | **Year overview** | The Year tab shows each pay period's Needs, Wants and Savings across the year, chosen with the year arrows in the top bar. A one-line summary names your biggest period and how the running one stands, including bills still to come; the running period is striped so its short bar isn't read as a cheap month. Spent and saved totals for the year, and click-through to any period on the dashboard. |
-| **Safe to spend** | Forward-looking card that shows what you can still spend before payday — after money spent so far, savings set aside, and bills still due this period. The Needs and Wants circles add up to it exactly. |
-| **Budget circles** | One ring per category showing what's left after bills due. Money already spent is a solid arc and bills still to pay are ticks, with a key ("€800.00 due 20 Jun"), so a ring that's mostly rent-to-come never looks like overspending. Over budget turns red and says "over", or "over after bills" when a bill is what tips it. Savings only counts money actually moved, never a transfer that's still scheduled. |
+| **Safe to spend** | Forward-looking card that shows what you can still spend before payday: your pay minus what you've spent and saved so far and the bills still due this period. Your savings target is a goal shown on the Savings circle; it isn't held back from this figure. |
+| **Budget circles** | One ring per category showing what's left after bills due. Money already spent is a solid arc and bills still to pay are ticks (listed in Upcoming bills below), so a ring that's mostly rent-to-come never looks like overspending. Over budget turns red and says "over", or "over after bills" when a bill is what tips it. Savings only counts money actually moved, never a transfer that's still scheduled. |
 | **Upcoming bills** | Dashboard card listing everything due before payday — recurring bills with exact dates and estimated charges from detected subscriptions. Pin an estimated charge as a bill for an exact date. |
 | **One currency** | Amounts are only ever added up in one currency: your main one, from your statements. Transactions in another currency are left out of every total, and the dashboard says how many. |
 | **Simple, clear wording** | Every number has a short plain label and nothing more. A replayable guided tour explains each page on first visit. |
 | **Accessible** | Full keyboard navigation with visible focus, labelled controls for screen readers, WCAG AA colour contrast, and 44px tap targets on phones. With reduced motion on, nothing moves anywhere: sheets, dialogs, tooltips and loading states included. |
 | **Mobile-first account controls** | On mobile, the Settings page shows your Google account name, photo, and a Sign out button at the very top — no scrolling required. Sign-out clears the session, cached transaction data and the browser's offline cache. |
 | **Recurring payments** | Track fixed payments paid outside Revolut (rent, insurance, savings transfers, etc). They appear as transactions in every pay period from the one holding your first transaction (before that Monera knows nothing about your money, so it doesn't invent spending), count toward your budget once their date arrives, and can be left out or moved for a single period like any other transaction. Future-dated occurrences stay visible (e.g. in the transaction list, marked as upcoming) without being counted in any total until they've actually happened. Configured under Settings → Bills, with support for any spending category including Savings. A one-time nudge after the first successful import prompts the user to set these up. |
-| **Duplicate-safe imports** | Re-uploading the same statement never creates duplicates. Two genuinely identical same-day purchases are both preserved. |
+| **Duplicate-safe imports** | Upload overlapping exports as often as you like: each payment counts once. Payments are matched by when they started (to the second), not by name or amount, so a shop Revolut renamed between exports ("Delivery Hero" while pending, "foody" when settled) or a pending amount that settled differently (fuel, tips) is still one payment, at its settled amount. Two genuinely identical same-day purchases are both kept. Category changes and leave-outs made under an older name still apply. |
+| **Savings vaults** | Money moved into any Revolut savings vault counts as Savings, whatever the vault is called: Monera recognises the move by its two matching rows. Money taken back out isn't counted as income. Savings keywords in Settings (with "investment account" by default) catch other savings and investment transfers. |
+| **Missing statements** | The Statements page says what your statements cover. If Revolut's balance changed on days no statement covers, it names them ("Missing 14 Sep – 19 Sep"), and the dashboard warns on the pay period they fall in. Quiet days with no transactions are never reported as missing. |
 | **Fast & optimistic** | Data is cached in memory (TanStack Query). Edits show immediately and save to Drive one at a time in order; each save applies its change to the copy in Drive, so changes made on another device aren't written over, and a failed save re-reads Drive rather than guessing. Settings and rules reload when you come back to the app. Installable PWA. |
 | **Resilient error recovery** | If loading fails, every page says why in plain words — offline, Google sign-in expired, or Drive trouble — with the one action that fixes it ("Try again" or "Sign in again"). An offline banner appears when the connection drops. React error boundaries catch unexpected render errors so the app degrades gracefully rather than going blank. |
 | **Multiple income sources** | Salary keywords identify salary-type transactions for display. Configured salary basis (from Settings) and all detected income are always summed — so income from multiple employers and side jobs are counted together. |
+| **Money back from friends** | Optional (Settings → Basics): when someone sends you their share of a bill, it takes that off your spending instead of counting as income. Pay matching your salary keywords always stays income. |
 
 </details>
 
@@ -147,6 +151,7 @@ src/
 │   ├── safeToSpend.ts           # Forward-looking "safe to spend" calculation
 │   ├── weekday.ts               # Spending-by-weekday chart data
 │   ├── statements.ts            # Reading, checking and saving uploaded statements
+│   ├── coverage.ts              # What the statements cover, and any stretch missing between them
 │   ├── migrateSettings.ts       # Version-aware settings migration (fills missing defaults on load)
 │   ├── parser/                  # CSV / XLSX parsing, amounts and dates
 │   ├── spreadsheet.ts           # XLSX → CSV conversion
@@ -178,6 +183,7 @@ Monera/
 | `npm run lint` | Lint with ESLint |
 | `npm test` | Run the unit tests (Vitest) |
 | `npm run test:e2e` | Run the end-to-end tests (Playwright) |
+| `npm run screenshots` | Recapture the landing-page screenshots from the real app with a made-up demo account |
 
 ---
 
@@ -212,9 +218,11 @@ npm test            # unit tests
 npm run test:e2e    # end-to-end tests in a real browser
 ```
 
-The unit tests cover the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, when regular bills start counting, upcoming charge estimation, Drive pagination, plain-language load-error messages, and settings migration.
+The unit tests cover the financial logic that matters most: refund netting and dashboard/reports consistency, payday-aware period math, CSV/XLSX parsing, deduplication, categorization, income reconciliation (including salary keyword and multi-employer scenarios), subscription detection, when regular bills start counting, upcoming charge estimation, overlapping Revolut exports (renamed and re-amounted duplicates, reverted payments, fees, refund rows, savings vaults) built from real rows, statement coverage and gaps, a damaged parse cache, Drive pagination, plain-language load-error messages, and settings migration.
 
 The end-to-end tests (`tests/e2e/`) drive a production build through every screen: first-run setup, the dashboard and its drill-downs, transactions (search, filters, category changes, leave out, undo, add/edit/delete, CSV export), Insights, statement upload (CSV and Excel), every Settings tab, sign-out, expired sessions, Drive outages, offline mode, and the phone layout. They need no Google account: sign-in uses a session cookie signed with a test secret, and Google Drive is replaced by an in-memory fake inside the browser (`tests/e2e/support/fakeDrive.ts`). The clock is fixed at 15 June 2026 so every figure is predictable. The first run needs the browsers installed: `npx playwright install chromium`.
+
+The landing-page screenshots come from the same setup: `npm run screenshots` loads a made-up demo account (`tests/screenshots/demo.ts`) into the fake Drive and captures the dashboard at desktop and phone sizes, so they always show the app as it really is.
 
 ---
 

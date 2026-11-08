@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { AlertCircle, Upload } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { Header } from "@/components/layout/Header";
@@ -23,7 +23,7 @@ import { useToday } from "@/hooks/useToday";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { dailyAllowance } from "@/lib/safeToSpend";
 import { parseDateStr, toDateStr } from "@/lib/periods";
-import { cleanDescription, formatCurrency, formatDate, formatLongDate, formatShortDate, plural } from "@/lib/format";
+import { cleanDescription, formatCurrency, formatDate, formatDateRange, formatLongDate, formatShortDate, plural } from "@/lib/format";
 import { addOnce, cn } from "@/lib/utils";
 import { buildWeekdayData, chartRange, chartRangeLabel, fullDayName, weekdayTransactions, type WeekdayChartMode, type WeekdayPoint } from "@/lib/weekday";
 import { useDashboardData } from "./useDashboardData";
@@ -42,7 +42,7 @@ const WeekdayChart = dynamic(
 const DASHBOARD_SLIDES = [
   {
     title: "What you can spend",
-    body: "Safe to spend is what's left before payday once your bills and savings target are set aside. Tap it to see how it's worked out.",
+    body: "Safe to spend is what's left of your pay before payday, after what you've spent, saved, and the bills still due. Tap it to see how it's worked out.",
   },
   {
     title: "Your budget at a glance",
@@ -81,14 +81,14 @@ const money = (n: number) => <span className="font-mono tabular-nums font-medium
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { periodKey, setPeriodKey, transactions, bills, otherCurrency, settings, currency, isLoading, ready, txError, refetch, updateSettings } = useAppData();
+  const { periodKey, setPeriodKey, transactions, bills, coverage, otherCurrency, settings, currency, isLoading, ready, txError, refetch, updateSettings } = useAppData();
   const { paydayOfMonth } = settings;
   const today = useToday();
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const {
     range, currentTxs, budget, safeInfo, periodExpenseTxs, periodIncomeTxs, periodSavingsTxs,
-    latestImported, timing, noStatement, dueBy, dueOn, payday,
-  } = useDashboardData({ transactions, bills, settings, periodKey, today });
+    latestImported, periodGaps, timing, noStatement, dueBy, payday,
+  } = useDashboardData({ transactions, bills, coverage, settings, periodKey, today });
   const { summary, budgetAllocations, uncategorizedExpense, unconfirmedSalaryTx } = budget;
 
   const [sheet, setSheet] = useState<SheetKind | null>(null);
@@ -248,6 +248,17 @@ export default function DashboardPage() {
             {plural(otherCurrency.count, "transaction")} in {otherCurrency.codes.join(" and ")} {otherCurrency.count === 1 ? "isn't" : "aren't"} counted. Monera counts only {currency}, your main currency.
           </p>
         )}
+        {/* Only when part of this period is provably missing: Revolut's balance moved but no statement covers it. */}
+        {periodGaps.length > 0 && (
+          <section aria-label="Missing statement" className="rounded-xl border border-border bg-card px-4 py-3 flex items-start gap-3">
+            <AlertCircle size={18} className="mt-0.5 shrink-0 text-foreground" aria-hidden />
+            <p className="text-sm text-foreground/80 max-w-[65ch]">
+              <span className="font-semibold text-foreground">Missing {periodGaps.map((g) => formatDateRange(g.from, g.to)).join(", ")}:</span>{" "}
+              no statement covers those days, so this pay period&apos;s figures are incomplete.{" "}
+              <Link href="/upload" className="underline underline-offset-2 hover:text-foreground">Add a statement</Link>
+            </p>
+          </section>
+        )}
 
         {/* Summary: the answer first, then the three figures behind it */}
         <div className="grid gap-2 sm:gap-3 md:grid-cols-[3fr_2fr]">
@@ -328,7 +339,6 @@ export default function DashboardPage() {
                   category={category}
                   spent={donutSpent[category]}
                   due={dueBy[category]}
-                  dueOn={dueOn[category]}
                   allocated={budgetAllocations[allocation]}
                   expected={noStatement}
                   info={info}

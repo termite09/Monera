@@ -4,6 +4,7 @@ import { account } from "./support/data";
 type StoredSettings = {
   paydayOfMonth: number;
   selfTransferKeywords: string[];
+  repaymentsReduceSpending?: boolean;
   monthlyBudgets: Record<string, { income: number }>;
   recurringPayments: { name: string; amount: number; dayOfMonth: number; category: string; startMonth?: string }[];
 };
@@ -84,6 +85,15 @@ test.describe("settings", () => {
     await expect(page.getByRole("button", { name: "Remove alex tester" })).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
     await expect.poll(() => drive.appFile<StoredSettings>("settings").selfTransferKeywords).toEqual(["alex tester"]);
+  });
+
+  test("basics: money from friends can pay back spending instead of counting as income", async ({ page, drive }) => {
+    await open(page);
+    const option = page.getByRole("checkbox", { name: "Money from friends pays back my spending" });
+    await expect(option).not.toBeChecked();
+    await option.check();
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect.poll(() => drive.appFile<StoredSettings>("settings").repaymentsReduceSpending).toBe(true);
   });
 
   test("period: one pay period can have its own pay", async ({ page, drive }) => {

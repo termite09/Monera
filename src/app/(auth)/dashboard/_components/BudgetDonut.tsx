@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { formatCurrency, formatShortDate, getDisplayCurrency } from "@/lib/format";
+import { formatCurrency, getDisplayCurrency } from "@/lib/format";
 import { getCategoryColor } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { InfoIcon } from "@/components/ui/InfoIcon";
@@ -16,8 +16,6 @@ interface BudgetDonutProps {
   expected?: boolean;
   /** Bills (or savings transfers) in this category still to come before payday. */
   due?: number;
-  /** The date it's due, when it's a single bill. */
-  dueOn?: string | null;
   onClick?: () => void;
 }
 
@@ -58,7 +56,7 @@ function ticksDasharray(length: number, c: number): string {
 const VB = 116;
 const STROKE = 13;
 
-export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, dueOn = null, onClick }: BudgetDonutProps) {
+export function BudgetDonut({ category, spent, allocated, info, expected = false, due = 0, onClick }: BudgetDonutProps) {
   const router = useRouter();
   const isSavings = category === "Savings";
   const color = getCategoryColor(category);
@@ -164,17 +162,6 @@ export function BudgetDonut({ category, spent, allocated, info, expected = false
         </span>
       </button>
 
-      {/* The key to the ticked part of the ring. */}
-      {showsDue && (
-        <p className="flex items-start justify-center gap-1.5 text-xs text-muted-foreground text-center leading-snug" aria-hidden>
-          <svg viewBox="0 0 12 8" className="w-3 h-2 shrink-0 mt-1" aria-hidden>
-            {[0, 4.5, 9].map((x) => <rect key={x} x={x} width="2.5" height="8" fill={arcColor} opacity={0.6} />)}
-          </svg>
-          <span>
-            <span className="font-mono tabular-nums">{formatCurrency(due)}</span> due {dueOn ? formatShortDate(dueOn) : "by payday"}
-          </span>
-        </p>
-      )}
     </div>
   );
 }

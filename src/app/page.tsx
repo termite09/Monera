@@ -173,8 +173,8 @@ export default async function Home() {
           {/* Phones get a phone-sized capture; the desktop one is unreadable at that width. */}
           <div className="mt-10 mx-auto max-w-72 rounded-xl border border-border overflow-hidden sm:hidden">
             <Image
-              src="/screenshot-dashboard-mobile-v5.png"
-              alt="Monera on a phone: €563.38 safe to spend, about €37.55 a day until payday"
+              src="/screenshot-dashboard-mobile-v6.png"
+              alt="Monera on a phone: €982.13 safe to spend, about €109.12 a day until payday"
               className="w-full"
               width={780}
               height={1688}
@@ -182,8 +182,8 @@ export default async function Home() {
           </div>
           <div className="mt-10 rounded-xl border border-border overflow-hidden hidden sm:block">
             <Image
-              src="/screenshot-dashboard-v5.png"
-              alt="Monera dashboard: €563.38 safe to spend, about €37.55 a day until payday, with budget progress and spending by day"
+              src="/screenshot-dashboard-v6.png"
+              alt="Monera dashboard: €982.13 safe to spend, about €109.12 a day until payday, with budget progress, a car insurance bill due and spending by day"
               className="w-full"
               width={2984}
               height={2000}

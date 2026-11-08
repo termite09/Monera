@@ -1,15 +1,18 @@
 import { useMemo } from "react";
 import type { Transaction, Settings, PeriodTiming } from "@/types";
 import { useBudget } from "@/hooks/useBudget";
+import type { CoverageSummary } from "@/lib/coverage";
 import { computeSafeToSpend, expectedSubscriptionCharges, nextPayday } from "@/lib/safeToSpend";
 import { detectSubscriptions } from "@/lib/insights";
 import { getCurrentPeriodKey, getPeriodRange, inRange, parseDateStr } from "@/lib/periods";
 
 /** Everything the dashboard shows for one pay period, derived from the app's data. */
-export function useDashboardData({ transactions, bills, settings, periodKey, today }: {
+export function useDashboardData({ transactions, bills, coverage, settings, periodKey, today }: {
   transactions: Transaction[];
   /** From the app data: the bills between two dates. */
   bills: (from: string, to: string) => Transaction[];
+  /** What the statements cover, from the app data. */
+  coverage: CoverageSummary | null;
   settings: Settings;
   periodKey: string;
   /** "YYYY-MM-DD" */
@@ -36,7 +39,6 @@ export function useDashboardData({ transactions, bills, settings, periodKey, tod
       paydayOfMonth,
       summary: budget.summary,
       now,
-      savingsTarget: budget.budgetAllocations.savings,
       expectedCharges: expectedSubscriptionCharges(subscriptions, parseDateStr(today), range.to),
     });
   }, [transactions, allTxs, settings.excludedSubscriptions, periodKey, paydayOfMonth, budget, today, range.to]);
@@ -56,10 +58,19 @@ export function useDashboardData({ transactions, bills, settings, periodKey, tod
     return out;
   }, [currentTxs, range]);
 
-  // How current the numbers are: the newest transaction from an imported statement.
-  const latestImported = useMemo(
-    () => transactions.reduce<string | null>((latest, t) => (t.source === "statement" && (!latest || t.date > latest) ? t.date : latest), null),
-    [transactions]
+  // How current the numbers are: the last day a statement covers. That's the
+  // later of its newest transaction and its last settled row of any kind (a
+  // top-up on the export's last day still shows the export reaches that day),
+  // so the dashboard and the Statements page give the same date.
+  const latestImported = useMemo(() => {
+    const newest = transactions.reduce<string | null>((latest, t) => (t.source === "statement" && (!latest || t.date > latest) ? t.date : latest), null);
+    return coverage && (!newest || coverage.to > newest) ? coverage.to : newest;
+  }, [transactions, coverage]);
+
+  // Stretches of this pay period no statement covers although money moved.
+  const periodGaps = useMemo(
+    () => (coverage?.gaps ?? []).filter((g) => g.from <= range.to && g.to >= range.from),
+    [coverage, range]
   );
 
   const currentKey = getCurrentPeriodKey(paydayOfMonth);
@@ -67,17 +78,11 @@ export function useDashboardData({ transactions, bills, settings, periodKey, tod
   // No statement covers the running period yet — a confident number would be a guess.
   const noStatement = timing === "current" && (latestImported === null || latestImported < range.from);
 
-  // Bills still to come, by category — the circles count them so that
-  // Needs left + Wants left is exactly Safe to spend.
+  // Bills still to come, by category — the circles count them as committed.
   const dueBy = { Needs: 0, Wants: 0, Savings: 0 };
-  // When there's a single bill due, the date it's due, so the circle can say so.
-  const dueOn: Record<keyof typeof dueBy, string | null> = { Needs: null, Wants: null, Savings: null };
-  const dueCount = { Needs: 0, Wants: 0, Savings: 0 };
   for (const b of safeInfo.billItems) {
     const cat = b.category === "Needs" || b.category === "Savings" ? b.category : "Wants"; // Wants and anything not yet sorted
     dueBy[cat] += b.amount;
-    dueCount[cat] += 1;
-    dueOn[cat] = dueCount[cat] === 1 ? b.date : null;
   }
 
   return {
@@ -89,10 +94,10 @@ export function useDashboardData({ transactions, bills, settings, periodKey, tod
     periodIncomeTxs: income,
     periodSavingsTxs: savings,
     latestImported,
+    periodGaps,
     timing,
     noStatement,
     dueBy,
-    dueOn,
     payday: nextPayday(periodKey, paydayOfMonth),
   };
 }

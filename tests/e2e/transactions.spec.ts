@@ -32,8 +32,8 @@ test.describe("transactions list", () => {
     await page.getByRole("region", { name: "Selected transactions" }).getByRole("button", { name: "Leave out" }).click();
     await expect.poll(() => drive.appFile<string[]>("excludedTransactions").length).toBe(1);
     await page.goto("/dashboard");
-    // €612.01 + the €800 rent no longer due.
-    await expect(page.getByRole("button", { name: "Safe to spend: €1,412.01. Show details" })).toBeVisible();
+    // €1,012.01 + the €800 rent no longer due.
+    await expect(page.getByRole("button", { name: "Safe to spend: €1,812.01. Show details" })).toBeVisible();
   });
 
   test("searches descriptions, with / as a shortcut", async ({ page }) => {

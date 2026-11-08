@@ -10,6 +10,7 @@ import { useSettings, type SettingsChange } from "@/hooks/useSettings";
 import { useRules } from "@/hooks/useRules";
 import { useToday } from "@/hooks/useToday";
 import { billsBetween, billsStartDate } from "@/lib/recurring";
+import { statementCoverage, type CoverageSummary } from "@/lib/coverage";
 import { SetupScreen } from "@/components/layout/SetupScreen";
 import { signOutAndClear } from "@/lib/session";
 import { getCurrentPeriodKey, getPeriodKey, getPeriodRange } from "@/lib/periods";
@@ -36,6 +37,8 @@ interface AppDataContextValue {
   bills: (from: string, to: string) => Transaction[];
   /** Bills count from here: the start of the pay period of the first transaction. */
   billsStart: string;
+  /** What the statements cover in the main currency, and any stretch missing between them. */
+  coverage: CoverageSummary | null;
   settings: Settings;
   /** Settings have loaded from Drive (or failed and fell back to defaults). */
   settingsLoaded: boolean;
@@ -96,15 +99,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   // React's pattern for state that follows other values):
   //  - When the payday changes (settings load, onboarding, Settings), keep showing
   //    "now" under the new payday.
-  //  - When statements load or a new one is added and none covers today's pay
-  //    period yet (most people start with last month's export), show the latest
-  //    period that has one instead of an empty dashboard.
-  // Both only apply while on "now"; a period the user picked is left alone.
+  //  - When a statement is added during this visit and none covers today's pay
+  //    period yet (a first upload is usually last month's export), show the
+  //    latest period that has one instead of an empty dashboard.
+  // Opening the app always shows today's period: returning users expect "now",
+  // and the dashboard says where their latest statement ends. Both only apply
+  // while on "now"; a period the user picked is left alone.
   const { paydayOfMonth } = settings;
   const latestStatementDate = useMemo(
     () => transactions.reduce<string | null>((latest, t) => (t.source === "statement" && (!latest || t.date > latest) ? t.date : latest), null),
     [transactions]
   );
+  const coverage = useMemo(() => statementCoverage(tx.coverage, currency), [tx.coverage, currency]);
   const today = useToday();
   const billsStart = useMemo(() => billsStartDate(transactions, paydayOfMonth, today), [transactions, paydayOfMonth, today]);
   const { recurringPayments } = settings;
@@ -114,8 +120,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [applyUserChanges, recurringPayments, billsStart, paydayOfMonth, currency]
   );
 
-  const [anchor, setAnchor] = useState({ payday: paydayOfMonth, latestStatement: null as string | null });
-  const latestChanged = settingsLoaded && anchor.latestStatement !== latestStatementDate;
+  const [anchor, setAnchor] = useState({ payday: paydayOfMonth, latestStatement: null as string | null, loaded: false });
+  // The statements first loading is recorded, not acted on: only a later change is an addition.
+  if (!anchor.loaded && tx.hasLoaded) {
+    setAnchor({ ...anchor, latestStatement: latestStatementDate, loaded: true });
+  }
+  const latestChanged = settingsLoaded && anchor.loaded && anchor.latestStatement !== latestStatementDate;
   if (anchor.payday !== paydayOfMonth || latestChanged) {
     let key = periodKey;
     if (anchor.payday !== paydayOfMonth && key === getCurrentPeriodKey(anchor.payday)) {
@@ -125,7 +135,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (latestChanged && latestStatementDate && key === current && latestStatementDate < getPeriodRange(current, paydayOfMonth).from) {
       key = getPeriodKey(latestStatementDate, paydayOfMonth);
     }
-    setAnchor({ payday: paydayOfMonth, latestStatement: latestChanged ? latestStatementDate : anchor.latestStatement });
+    setAnchor({ payday: paydayOfMonth, latestStatement: latestChanged ? latestStatementDate : anchor.latestStatement, loaded: anchor.loaded });
     if (key !== periodKey) setPeriodKey(key);
   }
 
@@ -145,6 +155,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       otherCurrency,
       bills,
       billsStart,
+      coverage,
       settings,
       settingsLoaded,
       rules,
@@ -164,7 +175,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       refetch: tx.refetch,
     }),
     [
-      periodKey, accessToken, currency, structure, transactions, otherCurrency, bills, billsStart, settings, settingsLoaded, rules, rulesLoaded,
+      periodKey, accessToken, currency, structure, transactions, otherCurrency, bills, billsStart, coverage, settings, settingsLoaded, rules, rulesLoaded,
       drive.isLoading, tx.isLoading, tx.hasLoaded, tx.error, tx.addManualTransaction, tx.deleteManualTransaction,
       tx.updateManualTransaction, tx.updateCategory, tx.bulkUpdateCategory, tx.bulkExclude, tx.bulkResetToDefault,
       tx.refetch, updateSettings, updateRules,

@@ -15,7 +15,8 @@ export const DRIVE_FILES = {
 } as const;
 
 // v2: currency is stored as an ISO code ("EUR"), not a symbol ("€").
-export const SETTINGS_VERSION = 2;
+// 3: "investment account" joins the savings keywords.
+export const SETTINGS_VERSION = 3;
 
 export const DEFAULT_SETTINGS: Settings = {
   currency: "EUR",
@@ -25,8 +26,9 @@ export const DEFAULT_SETTINGS: Settings = {
   monthlyBudgets: {},
   salaryKeywords: [],
   selfTransferKeywords: [],
-  // Generic Revolut savings-vault phrasing — safe defaults the user can edit.
-  savingsVaultKeywords: ["eur savings", "savings for"],
+  // Generic Revolut savings-vault and investment phrasing — safe defaults the user can edit.
+  savingsVaultKeywords: ["eur savings", "savings for", "investment account"],
+  repaymentsReduceSpending: false,
   recurringPayments: [],
   onboarded: false,
   excludedSubscriptions: [],
